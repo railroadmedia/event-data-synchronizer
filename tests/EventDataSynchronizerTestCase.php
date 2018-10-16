@@ -110,7 +110,6 @@ class EventDataSynchronizerTestCase extends BaseTestCase
                     'table_prefix' => 'railcontent_',
                     'brand' => 'testbench',
                     'available_brand' => 'testbench',
-
                 ],
             ]
         );
