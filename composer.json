@@ -1,0 +1,41 @@
+{
+  "name": "railroad/event-data-synchronizer",
+  "type": "library",
+  "description": "This package has reconfigured event listeners for syncing data across packages.",
+  "keywords": [
+    "event",
+    "data",
+    "synchronizer",
+    "sync"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Caleb Favor",
+      "email": "calebfavor@gmail.com",
+      "role": "Developer"
+    }
+  ],
+  "prefer-stable": true,
+  "require": {
+    "php": "~7",
+    "laravel/framework": "5.6.*",
+    "railroad/railcontent": "^0.5",
+    "railroad/ecommerce": "^1.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "~7.0",
+    "orchestra/testbench": "~3.6",
+    "filp/whoops":"~2.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Railroad\\EventDataSynchronizer\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Railroad\\EventDataSynchronizer\\Tests\\": "tests/"
+    }
+  }
+}
