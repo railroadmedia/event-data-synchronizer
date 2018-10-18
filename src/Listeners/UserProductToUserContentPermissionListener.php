@@ -141,14 +141,5 @@ class UserProductToUserContentPermissionListener
                 ]
             );
         }
-
-        $c =
-            $this->userPermissionsRepository->query()
-                ->get();
-        $d =
-            app(DatabaseManager::class)
-                ->connection(ConfigService::$databaseConnectionName)
-                ->table(ConfigService::$tableUserPermissions)
-                ->get();
     }
 }
