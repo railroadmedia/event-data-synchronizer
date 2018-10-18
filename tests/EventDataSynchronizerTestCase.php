@@ -13,6 +13,7 @@ use Railroad\Ecommerce\Faker\Faker as EcommerceFaker;
 use Railroad\Ecommerce\Providers\EcommerceServiceProvider;
 use Railroad\EventDataSynchronizer\Providers\EventDataSynchronizerServiceProvider;
 use Railroad\Railcontent\Providers\RailcontentServiceProvider;
+use Railroad\Railcontent\Repositories\RepositoryBase;
 
 class EventDataSynchronizerTestCase extends BaseTestCase
 {
@@ -118,6 +119,9 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         $app->register(EventDataSynchronizerServiceProvider::class);
         $app->register(EcommerceServiceProvider::class);
         $app->register(RailcontentServiceProvider::class);
+
+        // this is required for railcontent connection masking to work properly from test to test
+        RepositoryBase::$connectionMask = null;
     }
 
 }

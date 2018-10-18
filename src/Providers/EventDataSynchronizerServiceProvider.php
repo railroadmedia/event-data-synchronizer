@@ -3,8 +3,9 @@
 namespace Railroad\EventDataSynchronizer\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Railroad\Ecommerce\Events\SubscriptionEvent;
-use Railroad\EventDataSynchronizer\Listeners\UserSubscriptionToUserContentPermissionListener;
+use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
+use Railroad\Resora\Events\Created;
+use Railroad\Resora\Events\Updated;
 
 class EventDataSynchronizerServiceProvider extends ServiceProvider
 {
@@ -14,8 +15,11 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
-        SubscriptionEvent::class => [
-            UserSubscriptionToUserContentPermissionListener::class . '@' . 'handle',
+        Created::class => [
+            UserProductToUserContentPermissionListener::class . '@' . 'handleCreated',
+        ],
+        Updated::class => [
+            UserProductToUserContentPermissionListener::class . '@' . 'handleUpdated',
         ],
     ];
 
