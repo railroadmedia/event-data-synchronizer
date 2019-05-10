@@ -11,6 +11,7 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -59,9 +60,11 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
+            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
+            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
         ],
         OrderEvent::class => [
             InfusionsoftSyncEventListener::class . '@handleOrderEvent',
