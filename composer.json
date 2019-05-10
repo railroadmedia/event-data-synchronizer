@@ -24,7 +24,8 @@
     "railroad/railcontent": "^0.5",
     "railroad/ecommerce": "2.0.*",
     "railroad/usora": "2.0.*",
-    "railroad/intercomeo": "^1.5"
+    "railroad/intercomeo": "^1.5",
+    "railroad-infusionsoft/infusionsoft-xml-isdk": "@dev"
   },
   "require-dev": {
     "phpunit/phpunit": "~7.0",

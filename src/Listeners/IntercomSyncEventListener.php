@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -179,6 +180,16 @@ class IntercomSyncEventListener
             );
 
         }
+    }
+
+    /**
+     * @param SubscriptionCreated $subscriptionCreated
+     */
+    public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
+    {
+        $this->handleSubscriptionUpdated(
+            new SubscriptionUpdated($subscriptionCreated->getSubscription(), $subscriptionCreated->getSubscription())
+        );
     }
 
     /**

@@ -16,11 +16,11 @@
 
 ## Infusionsoft
 
-- on subscription C/U/D
-    - if sub is active add tag: ActiveSub:_SKU_
-    - if sub is active remove tag: ExSub:_SKU_
-    - if sub is not active, canceled, or deleted, add tag: ExSub:_SKU_ 
-    - if sub is not active, canceled, or deleted, remove tag: ActiveSub:_SKU_ 
+<!--- on subscription C/U/D-->
+<!--    - if sub is active add tag: ActiveSub:_SKU_-->
+<!--    - if sub is active remove tag: ExSub:_SKU_-->
+<!--    - if sub is not active, canceled, or deleted, add tag: ExSub:_SKU_ -->
+<!--    - if sub is not active, canceled, or deleted, remove tag: ActiveSub:_SKU_ -->
 - on new order placed
     - for each new product purchased, add tag: NewProductBuyer:_SKU_
 - on product access C/U/D:

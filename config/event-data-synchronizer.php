@@ -7,6 +7,10 @@ return [
         'SKU-1' => 'My Permission 1',
         'SKU-2' => 'My Permission 2',
     ],
-    
-    'pianote_membership_product_ids' => []
+
+    'pianote_membership_product_ids' => [],
+
+    'infusionsoft_app_name' => '',
+    'infusionsoft_api_key' => '',
+    'infusionsoft_db_on' => '',
 ];
