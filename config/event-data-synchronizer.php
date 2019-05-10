@@ -7,4 +7,6 @@ return [
         'SKU-1' => 'My Permission 1',
         'SKU-2' => 'My Permission 2',
     ],
+    
+    'pianote_membership_product_ids' => []
 ];
