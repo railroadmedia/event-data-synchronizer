@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Listeners;
 use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Entities\Subscription;
+use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
@@ -76,9 +77,22 @@ class IntercomSyncEventListener
     }
 
     /**
+     * @param PaymentMethodCreated $paymentMethodCreated
+     */
+    public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
+    {
+        $this->handleUserPaymentMethodUpdated(
+            new PaymentMethodUpdated(
+                $paymentMethodCreated->getPaymentMethod(),
+                $paymentMethodCreated->getPaymentMethod()
+            )
+        );
+    }
+
+    /**
      * @param PaymentMethodUpdated $paymentMethodUpdated
      */
-    public function handleUserPaymentMethodUpdateUpdated(PaymentMethodUpdated $paymentMethodUpdated)
+    public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
         $userPaymentMethod =
             $paymentMethodUpdated->getNewPaymentMethod()
@@ -108,6 +122,16 @@ class IntercomSyncEventListener
                 )
             );
         }
+    }
+
+    /**
+     * @param UserProductCreated $userProductCreated
+     */
+    public function handleUserProductCreated(UserProductCreated $userProductCreated)
+    {
+        $this->handleUserProductUpdated(
+            new UserProductUpdated($userProductCreated->getUserProduct(), $userProductCreated->getUserProduct())
+        );
     }
 
     /**
@@ -147,16 +171,6 @@ class IntercomSyncEventListener
 
         }
 
-    }
-
-    /**
-     * @param UserProductCreated $userProductCreated
-     */
-    public function handleUserProductCreated(UserProductCreated $userProductCreated)
-    {
-        $this->handleUserProductUpdated(
-            new UserProductUpdated($userProductCreated->getUserProduct(), $userProductCreated->getUserProduct())
-        );
     }
 
     /**
