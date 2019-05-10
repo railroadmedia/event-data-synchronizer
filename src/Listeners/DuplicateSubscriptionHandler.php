@@ -62,7 +62,7 @@ class DuplicateSubscriptionHandler
             $allUserSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions(
                 $subscription->getUser()
                     ->getId(),
-//                config('event-data-synchronizer.pianote_membership_product_ids')
+                config('event-data-synchronizer.pianote_membership_product_ids')
             );
 
             foreach ($allUserSubscriptions as $otherSubscription) {
