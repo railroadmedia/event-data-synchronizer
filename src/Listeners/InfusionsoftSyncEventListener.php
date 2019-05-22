@@ -2,12 +2,12 @@
 
 namespace Railroad\EventDataSynchronizer\Listeners;
 
-use App\ExternalServices\Infusionsoft;
 use Carbon\Carbon;
 use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\ExternalServices\Infusionsoft;
 use Railroad\Intercomeo\Jobs\SyncUser;
 
 class InfusionsoftSyncEventListener
@@ -43,7 +43,7 @@ class InfusionsoftSyncEventListener
         $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
             $orderEvent->getOrder()
                 ->getUser()
-                ->getId()
+                ->getEmail()
         );
 
         $tagIds = [];
@@ -67,13 +67,17 @@ class InfusionsoftSyncEventListener
     {
         $userProduct = $userProductUpdated->getNewUserProduct();
 
-        if (in_array($userProduct->getId(), config('event-data-synchronizer.pianote_membership_product_ids'))) {
+        if (in_array(
+            $userProduct->getProduct()
+                ->getId(),
+            config('event-data-synchronizer.pianote_membership_product_ids')
+        )) {
             if ($userProduct->getExpirationDate() == null ||
                 Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
                     $userProduct->getUser()
-                        ->getId()
+                        ->getEmail()
                 );
 
                 $this->infusionsoft->addTagsToContact(

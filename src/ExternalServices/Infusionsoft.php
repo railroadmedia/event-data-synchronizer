@@ -1,6 +1,6 @@
 <?php
 
-namespace App\ExternalServices;
+namespace Railroad\EventDataSynchronizer\ExternalServices;
 
 use Exception;
 use Illuminate\Log\Logger;

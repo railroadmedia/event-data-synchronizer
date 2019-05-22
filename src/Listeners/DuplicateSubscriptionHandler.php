@@ -47,6 +47,9 @@ class DuplicateSubscriptionHandler
         $this->handleSubscriptionUpdated(
             new SubscriptionUpdated($subscriptionCreated->getSubscription(), $subscriptionCreated->getSubscription())
         );
+
+        // if the user already had time in their user_product row, the renewal date should be extended to account
+        // for the existing time
     }
 
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
