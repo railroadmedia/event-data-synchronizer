@@ -28,12 +28,6 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
-        Created::class => [
-            UserProductToUserContentPermissionListener::class . '@handleCreated',
-        ],
-        Updated::class => [
-            UserProductToUserContentPermissionListener::class . '@handleUpdated',
-        ],
         UserCreated::class => [
             IntercomSyncEventListener::class . '@handleUserCreated',
         ],
@@ -49,14 +43,17 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
         UserProductCreated::class => [
             IntercomSyncEventListener::class . '@handleUserProductCreated',
             InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
+            UserProductToUserContentPermissionListener::class . '@handleCreated',
         ],
         UserProductUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserProductUpdated',
             InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
+            UserProductToUserContentPermissionListener::class . '@handleUpdated',
         ],
         UserProductDeleted::class => [
             IntercomSyncEventListener::class . '@handleUserProductDeleted',
             InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
+            UserProductToUserContentPermissionListener::class . '@handleDeleted',
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',

@@ -3,13 +3,14 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
-use Illuminate\Database\DatabaseManager;
+use Railroad\Ecommerce\Entities\UserProduct;
+use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
+use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
+use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Railcontent\Repositories\PermissionRepository;
 use Railroad\Railcontent\Repositories\UserPermissionsRepository;
-use Railroad\Railcontent\Services\ConfigService;
-use Railroad\Resora\Entities\Entity;
 use Railroad\Resora\Events\Created;
 use Railroad\Resora\Events\Updated;
 
@@ -48,7 +49,8 @@ class UserProductToUserContentPermissionListener
         ProductRepository $productRepository,
         PermissionRepository $permissionRepository,
         UserPermissionsRepository $userPermissionsRepository
-    ) {
+    )
+    {
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
         $this->permissionRepository = $permissionRepository;
@@ -58,37 +60,32 @@ class UserProductToUserContentPermissionListener
     /**
      * @param Created $createdEvent
      */
-    public function handleCreated(Created $createdEvent)
+    public function handleCreated(UserProductCreated $createdEvent)
     {
-        if ($createdEvent->class !== UserProductRepository::class) {
-            return;
-        }
-
-        $this->handleFromEntity($createdEvent->entity);
+        $this->handleFromEntity($createdEvent->getUserProduct());
     }
 
     /**
      * @param Updated $updatedEvent
      */
-    public function handleUpdated(Updated $updatedEvent)
+    public function handleUpdated(UserProductUpdated $updatedEvent)
     {
-        if ($updatedEvent->class !== UserProductRepository::class) {
-            return;
-        }
-
-        $this->handleFromEntity($updatedEvent->entity);
+        $this->handleFromEntity($updatedEvent->getNewUserProduct());
     }
 
-    private function handleFromEntity(Entity $userProduct)
+    /**
+     * @param Updated $updatedEvent
+     */
+    public function handleDeleted(UserProductDeleted $deletedEvent)
     {
-        $product = $this->productRepository->read($userProduct['product_id']);
-
-        if (empty($product) || $product['brand'] != config('event-data-synchronizer.brand')) {
-            return;
-        }
+        $userProduct = $deletedEvent->getUserProduct();
 
         $permissionName =
-            config('event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map.' . $product['sku']);
+            config(
+                'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map.' .
+                $userProduct->getProduct()
+                    ->getSku()
+            );
 
         if (empty($permissionName)) {
             return;
@@ -104,15 +101,49 @@ class UserProductToUserContentPermissionListener
         }
 
         $existingPermission =
-            $this->userPermissionsRepository->getIdByPermissionAndUser($userProduct['user_id'], $permissionId)[0]
+            $this->userPermissionsRepository->getIdByPermissionAndUser($userProduct->getUser()->getId(), $permissionId)[0]
             ??
             null;
 
         $expirationDate = null;
 
-        if (!empty($userProduct['expiration_date'])) {
+        if (!empty($existingPermission)) {
+            $this->userPermissionsRepository->delete($existingPermission['id']);
+        }
+    }
+
+    private function handleFromEntity(UserProduct $userProduct)
+    {
+        $permissionName =
+            config(
+                'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map.' .
+                $userProduct->getProduct()
+                    ->getSku()
+            );
+
+        if (empty($permissionName)) {
+            return;
+        }
+
+        $permissionId =
+            $this->permissionRepository->query()
+                ->where('name', $permissionName)
+                ->first(['id'])['id'] ?? null;
+
+        if (empty($permissionId)) {
+            return;
+        }
+
+        $existingPermission =
+            $this->userPermissionsRepository->getIdByPermissionAndUser($userProduct->getUser()->getId(), $permissionId)[0]
+            ??
+            null;
+
+        $expirationDate = null;
+
+        if (!empty($userProduct->getExpirationDate())) {
             $expirationDate =
-                Carbon::parse($userProduct['expiration_date'])
+                Carbon::instance($userProduct->getExpirationDate())
                     ->addDays(3)
                     ->toDateTimeString();
         }
@@ -120,7 +151,7 @@ class UserProductToUserContentPermissionListener
         if (empty($existingPermission)) {
             $this->userPermissionsRepository->create(
                 [
-                    'user_id' => $userProduct['user_id'],
+                    'user_id' => $userProduct->getUser()->getId(),
                     'permission_id' => $permissionId,
                     'start_date' => Carbon::now()
                         ->toDateTimeString(),
@@ -129,11 +160,12 @@ class UserProductToUserContentPermissionListener
                         ->toDateTimeString(),
                 ]
             );
-        } else {
+        }
+        else {
             $this->userPermissionsRepository->update(
                 $existingPermission['id'],
                 [
-                    'user_id' => $userProduct['user_id'],
+                    'user_id' => $userProduct->getUser()->getId(),
                     'permission_id' => $permissionId,
                     'expiration_date' => $expirationDate,
                     'updated_on' => Carbon::now()
