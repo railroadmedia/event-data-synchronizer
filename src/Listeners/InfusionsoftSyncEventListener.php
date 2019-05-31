@@ -9,6 +9,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\ExternalServices\Infusionsoft;
 use Railroad\Intercomeo\Jobs\SyncUser;
+use Throwable;
 
 class InfusionsoftSyncEventListener
 {
@@ -33,31 +34,38 @@ class InfusionsoftSyncEventListener
      */
     public function handleOrderEvent(OrderEvent $orderEvent)
     {
-        if (empty(
-        $orderEvent->getOrder()
-            ->getUser()
-        )) {
-            return;
-        }
+        try {
 
-        $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+            if (empty(
             $orderEvent->getOrder()
                 ->getUser()
-                ->getEmail()
-        );
+            )) {
+                return;
+            }
 
-        $tagIds = [];
-
-        foreach ($orderEvent->getOrder()
-                     ->getOrderItems() as $orderItem) {
-            $tagIds[] = $this->infusionsoft->syncTag(
-                self::INFUSIONSOFT_TAG_NEW_BUYER_PREFIX .
-                $orderItem->getProduct()
-                    ->getSku()
+            $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                $orderEvent->getOrder()
+                    ->getUser()
+                    ->getEmail()
             );
-        }
 
-        $this->infusionsoft->addTagsToContact($infusionsoftContactId, $tagIds);
+            $tagIds = [];
+
+            foreach ($orderEvent->getOrder()
+                         ->getOrderItems() as $orderItem) {
+                $tagIds[] = $this->infusionsoft->syncTag(
+                    self::INFUSIONSOFT_TAG_NEW_BUYER_PREFIX .
+                    $orderItem->getProduct()
+                        ->getSku()
+                );
+            }
+
+            $this->infusionsoft->addTagsToContact($infusionsoftContactId, $tagIds);
+
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+            error_log('Error syncing to infusionsoft, API failure');
+        }
     }
 
     /**
@@ -65,34 +73,40 @@ class InfusionsoftSyncEventListener
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-        $userProduct = $userProductUpdated->getNewUserProduct();
+        try {
 
-        if (in_array(
-            $userProduct->getProduct()
-                ->getId(),
-            config('event-data-synchronizer.pianote_membership_product_ids')
-        )) {
-            if ($userProduct->getExpirationDate() == null ||
-                Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
+            $userProduct = $userProductUpdated->getNewUserProduct();
 
-                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProduct->getUser()
-                        ->getEmail()
-                );
+            if (in_array(
+                $userProduct->getProduct()
+                    ->getId(),
+                config('event-data-synchronizer.pianote_membership_product_ids')
+            )) {
+                if ($userProduct->getExpirationDate() == null ||
+                    Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
 
-                $this->infusionsoft->addTagsToContact(
-                    $infusionsoftContactId,
-                    [
-                        $this->infusionsoft->syncTag(
-                            self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
-                            $userProduct->getProduct()
-                                ->getSku()
-                        )
-                    ]
-                );
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProduct->getUser()
+                            ->getEmail()
+                    );
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
+                                $userProduct->getProduct()
+                                    ->getSku()
+                            )
+                        ]
+                    );
+                }
             }
-        }
 
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+            error_log('Error syncing to infusionsoft, API failure');
+        }
     }
 
     /**
@@ -100,9 +114,16 @@ class InfusionsoftSyncEventListener
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
-        $this->handleUserProductUpdated(
-            new UserProductUpdated($userProductCreated->getUserProduct(), $userProductCreated->getUserProduct())
-        );
+        try {
+
+            $this->handleUserProductUpdated(
+                new UserProductUpdated($userProductCreated->getUserProduct(), $userProductCreated->getUserProduct())
+            );
+
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+            error_log('Error syncing to infusionsoft, API failure');
+        }
     }
 
     /**
@@ -110,21 +131,29 @@ class InfusionsoftSyncEventListener
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
-        if (in_array(
-            $userProductDeleted->getUserProduct()
-                ->getProduct()
-                ->getId(),
-            config('event-data-synchronizer.pianote_membership_product_ids')
-        )) {
+        try {
 
-            dispatch(
-                new SyncUser(
-                    $userProductDeleted->getUserProduct()
-                        ->getUser()
-                        ->getId(), ['custom_attributes' => ['pianote_membership_access_expiration_date' => null,],]
-                )
-            );
+            if (in_array(
+                $userProductDeleted->getUserProduct()
+                    ->getProduct()
+                    ->getId(),
+                config('event-data-synchronizer.pianote_membership_product_ids')
+            )) {
 
+                dispatch(
+                    new SyncUser(
+                        $userProductDeleted->getUserProduct()
+                            ->getUser()
+                            ->getId(), ['custom_attributes' => ['pianote_membership_access_expiration_date' => null,],]
+                    )
+                );
+
+            }
+
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+            error_log('Error syncing to infusionsoft, API failure');
         }
+
     }
 }
