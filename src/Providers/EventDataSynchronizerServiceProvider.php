@@ -15,10 +15,8 @@ use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
-use Railroad\Resora\Events\Created;
-use Railroad\Resora\Events\Updated;
-use Railroad\Usora\Events\UserCreated;
-use Railroad\Usora\Events\UserUpdated;
+use Railroad\Usora\Events\User\UserCreated;
+use Railroad\Usora\Events\User\UserUpdated;
 
 class EventDataSynchronizerServiceProvider extends ServiceProvider
 {

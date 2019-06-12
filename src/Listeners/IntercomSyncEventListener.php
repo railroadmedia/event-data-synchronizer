@@ -14,8 +14,8 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Intercomeo\Jobs\SyncUser;
-use Railroad\Usora\Events\UserCreated;
-use Railroad\Usora\Events\UserUpdated;
+use Railroad\Usora\Events\User\UserCreated;
+use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 
 // todo: this is only for pianote at the moment, in the future many changes are required for multiple brand support
