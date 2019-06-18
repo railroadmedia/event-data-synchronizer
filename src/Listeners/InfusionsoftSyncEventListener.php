@@ -8,7 +8,6 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\ExternalServices\Infusionsoft;
-use Railroad\Intercomeo\Jobs\SyncUser;
 use Throwable;
 
 class InfusionsoftSyncEventListener
@@ -140,14 +139,21 @@ class InfusionsoftSyncEventListener
                 config('event-data-synchronizer.pianote_membership_product_ids')
             )) {
 
-                dispatch(
-                    new SyncUser(
-                        $userProductDeleted->getUserProduct()
-                            ->getUser()
-                            ->getId(), ['custom_attributes' => ['pianote_membership_access_expiration_date' => null,],]
-                    )
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProductDeleted->getUserProduct()->getUser()
+                        ->getEmail()
                 );
 
+                $this->infusionsoft->removeTagsFromContact(
+                    $infusionsoftContactId,
+                    [
+                        $this->infusionsoft->syncTag(
+                            self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
+                            $userProductDeleted->getUserProduct()->getProduct()
+                                ->getSku()
+                        )
+                    ]
+                );
             }
 
         } catch (Throwable $throwable) {

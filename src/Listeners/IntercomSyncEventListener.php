@@ -139,6 +139,8 @@ class IntercomSyncEventListener
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
+        // todo: bug, this should also sync the furthest active user product in the array
+
         if (in_array(
             $userProductUpdated->getNewUserProduct()
                 ->getProduct()
@@ -178,6 +180,8 @@ class IntercomSyncEventListener
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
+        // todo: bug, this should also sync the furthest active user product in the array
+
         if (in_array(
             $userProductDeleted->getUserProduct()
                 ->getProduct()
