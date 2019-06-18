@@ -7,6 +7,7 @@ use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\Ecommerce\Services\UserProductService;
 use Railroad\EventDataSynchronizer\ExternalServices\Infusionsoft;
 use Throwable;
 
@@ -17,15 +18,24 @@ class InfusionsoftSyncEventListener
      */
     private $infusionsoft;
 
+    /**
+     * @var UserProductService
+     */
+    private $userProductService;
+
     const INFUSIONSOFT_TAG_NEW_BUYER_PREFIX = 'NewProductBuyer:';
     const INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX = 'HasAccessToo:';
+    const INFUSIONSOFT_TAG_IS_MEMBER = 'Pianote Member';
 
     /**
      * InfusionsoftSyncEventListener constructor.
+     * @param Infusionsoft $infusionsoft
+     * @param UserProductService $userProductService
      */
-    public function __construct(Infusionsoft $infusionsoft)
+    public function __construct(Infusionsoft $infusionsoft, UserProductService $userProductService)
     {
         $this->infusionsoft = $infusionsoft;
+        $this->userProductService = $userProductService;
     }
 
     /**
@@ -81,13 +91,14 @@ class InfusionsoftSyncEventListener
                     ->getId(),
                 config('event-data-synchronizer.pianote_membership_product_ids')
             )) {
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()
+                        ->getEmail()
+                );
+
+                // product access tag
                 if ($userProduct->getExpirationDate() == null ||
                     Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
-
-                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                        $userProduct->getUser()
-                            ->getEmail()
-                    );
 
                     $this->infusionsoft->addTagsToContact(
                         $infusionsoftContactId,
@@ -96,6 +107,32 @@ class InfusionsoftSyncEventListener
                                 self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
                                 $userProduct->getProduct()
                                     ->getSku()
+                            )
+                        ]
+                    );
+                }
+
+                // is member tag
+                if ($this->userProductService->hasAnyOfProducts(
+                    $userProduct->getUser()
+                        ->getId(),
+                    config('event-data-synchronizer.pianote_membership_product_ids')
+                )) {
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_IS_MEMBER
+                            )
+                        ]
+                    );
+                }
+                else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_IS_MEMBER
                             )
                         ]
                     );
@@ -140,7 +177,8 @@ class InfusionsoftSyncEventListener
             )) {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProductDeleted->getUserProduct()->getUser()
+                    $userProductDeleted->getUserProduct()
+                        ->getUser()
                         ->getEmail()
                 );
 
@@ -149,11 +187,39 @@ class InfusionsoftSyncEventListener
                     [
                         $this->infusionsoft->syncTag(
                             self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
-                            $userProductDeleted->getUserProduct()->getProduct()
+                            $userProductDeleted->getUserProduct()
+                                ->getProduct()
                                 ->getSku()
                         )
                     ]
                 );
+
+                // is member tag
+                if ($this->userProductService->hasAnyOfProducts(
+                    $userProductDeleted->getUserProduct()
+                        ->getUser()
+                        ->getId(),
+                    config('event-data-synchronizer.pianote_membership_product_ids')
+                )) {
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_IS_MEMBER
+                            )
+                        ]
+                    );
+                }
+                else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_IS_MEMBER
+                            )
+                        ]
+                    );
+                }
             }
 
         } catch (Throwable $throwable) {
