@@ -8,9 +8,11 @@ use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Routing\Router;
 use Orchestra\Testbench\TestCase as BaseTestCase;
+use Railroad\Ecommerce\Contracts\UserProviderInterface;
 use Railroad\Ecommerce\Faker\Factory;
 use Railroad\Ecommerce\Faker\Faker as EcommerceFaker;
 use Railroad\Ecommerce\Providers\EcommerceServiceProvider;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\UserProvider;
 use Railroad\EventDataSynchronizer\Providers\EventDataSynchronizerServiceProvider;
 use Railroad\Railcontent\Providers\RailcontentServiceProvider;
 use Railroad\Railcontent\Repositories\RepositoryBase;
@@ -45,6 +47,10 @@ class EventDataSynchronizerTestCase extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
+
+        $userProvider = new UserProvider();
+
+        $this->app->instance(UserProviderInterface::class, $userProvider);
 
         $this->artisan('migrate:fresh', []);
         $this->artisan('cache:clear', []);
@@ -91,12 +97,21 @@ class EventDataSynchronizerTestCase extends BaseTestCase
             [
                 'ecommerce' => [
                     'database_connection_name' => 'testbench',
+                    'database_driver' => 'pdo_sqlite',
                     'cache_duration' => 60,
                     'table_prefix' => 'ecommerce_',
                     'data_mode' => 'host',
                     'brand' => 'testbench',
                     'typeSubscription' => 'subscription',
                     'typeProduct' => 'product',
+                    'redis_host' => 'redis',
+                    'redis_port' => 6379,
+                    'entities' => [
+                        [
+                            'path' => 'vendor/railroad/ecommerce/src/Entities',
+                            'namespace' => 'Railroad\Ecommerce\Entities',
+                        ]
+                    ],
                 ],
             ]
         );
