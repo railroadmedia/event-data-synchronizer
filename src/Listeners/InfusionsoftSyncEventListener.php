@@ -26,6 +26,7 @@ class InfusionsoftSyncEventListener
     const INFUSIONSOFT_TAG_NEW_BUYER_PREFIX = 'NewProductBuyer:';
     const INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX = 'HasAccessToo:';
     const INFUSIONSOFT_TAG_IS_MEMBER = 'Pianote Member';
+    const INFUSIONSOFT_TAG_500_SONGS = '500-Songs-Pack-Owner';
 
     /**
      * InfusionsoftSyncEventListener constructor.
@@ -139,6 +140,44 @@ class InfusionsoftSyncEventListener
                 }
             }
 
+            // 500 songs
+            if ($userProductUpdated->getNewUserProduct()
+                    ->getProduct()
+                    ->getSku() == '500-songs-in-5-days') {
+
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()
+                        ->getEmail()
+                );
+
+                if ($userProductUpdated->getNewUserProduct()
+                        ->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()
+                        ->getExpirationDate() > Carbon::now()) {
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_500_SONGS
+                            )
+                        ]
+                    );
+
+                }
+                else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_500_SONGS
+                            )
+                        ]
+                    );
+                }
+
+            }
+
         } catch (Throwable $throwable) {
             error_log($throwable);
             error_log('Error syncing to infusionsoft, API failure');
@@ -219,6 +258,28 @@ class InfusionsoftSyncEventListener
                             )
                         ]
                     );
+                }
+
+                // 500 songs
+                if ($userProductDeleted->getUserProduct()
+                        ->getProduct()
+                        ->getSku() == '500-songs-in-5-days') {
+
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()
+                            ->getUser()
+                            ->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_500_SONGS
+                            )
+                        ]
+                    );
+
                 }
             }
 
