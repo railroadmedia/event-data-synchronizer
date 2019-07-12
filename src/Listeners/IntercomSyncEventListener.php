@@ -83,8 +83,7 @@ class IntercomSyncEventListener
     {
         $this->handleUserPaymentMethodUpdated(
             new PaymentMethodUpdated(
-                $paymentMethodCreated->getPaymentMethod(),
-                $paymentMethodCreated->getPaymentMethod()
+                $paymentMethodCreated->getPaymentMethod(), $paymentMethodCreated->getPaymentMethod()
             )
         );
     }
@@ -173,6 +172,42 @@ class IntercomSyncEventListener
 
         }
 
+        if ($userProductUpdated->getNewUserProduct()
+                ->getProduct()
+                ->getSku() == '500-songs-in-5-days') {
+
+            if ($userProductUpdated->getNewUserProduct()
+                    ->getExpirationDate() == null ||
+                $userProductUpdated->getNewUserProduct()
+                    ->getExpirationDate() > Carbon::now()) {
+                dispatch(
+                    new SyncUser(
+                        $userProductUpdated->getNewUserProduct()
+                            ->getUser()
+                            ->getId(), [
+                            'custom_attributes' => [
+                                'pianote_500_songs_in_5_days_pack_owner' => true,
+                            ]
+                        ]
+                    )
+                );
+            }
+            else {
+                dispatch(
+                    new SyncUser(
+                        $userProductUpdated->getNewUserProduct()
+                            ->getUser()
+                            ->getId(), [
+                            'custom_attributes' => [
+                                'pianote_500_songs_in_5_days_pack_owner' => null,
+                            ]
+                        ]
+                    )
+                );
+            }
+
+        }
+
     }
 
     /**
@@ -194,6 +229,24 @@ class IntercomSyncEventListener
                     $userProductDeleted->getUserProduct()
                         ->getUser()
                         ->getId(), ['custom_attributes' => ['pianote_membership_access_expiration_date' => null,],]
+                )
+            );
+
+        }
+
+        if ($userProductDeleted->getUserProduct()
+                ->getProduct()
+                ->getSku() == '500-songs-in-5-days') {
+
+            dispatch(
+                new SyncUser(
+                    $userProductDeleted->getUserProduct()
+                        ->getUser()
+                        ->getId(), [
+                        'custom_attributes' => [
+                            'pianote_500_songs_in_5_days_pack_owner' => null,
+                        ]
+                    ]
                 )
             );
 
