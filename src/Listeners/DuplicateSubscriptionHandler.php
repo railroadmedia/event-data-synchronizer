@@ -4,6 +4,7 @@ namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
+use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
@@ -56,7 +57,8 @@ class DuplicateSubscriptionHandler
     {
         $subscription = $subscriptionUpdated->getNewSubscription();
 
-        if (in_array(
+        if (!empty($subscription->getProduct()) &&
+            $subscription->getType() == Subscription::TYPE_SUBSCRIPTION && in_array(
                 $subscription->getProduct()
                     ->getId(),
                 config('event-data-synchronizer.pianote_membership_product_ids')
