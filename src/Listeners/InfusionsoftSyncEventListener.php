@@ -143,7 +143,10 @@ class InfusionsoftSyncEventListener
             // 500 songs
             if ($userProductUpdated->getNewUserProduct()
                     ->getProduct()
-                    ->getSku() == '500-songs-in-5-days') {
+                    ->getSku() == '500-songs-in-5-days' ||
+                $userProductUpdated->getNewUserProduct()
+                    ->getProduct()
+                    ->getSku() == '500-songs-in-5-days-99') {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
                     $userProduct->getUser()
