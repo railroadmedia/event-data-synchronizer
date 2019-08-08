@@ -83,7 +83,9 @@ class IntercomSyncEventListener
     {
         $this->handleUserPaymentMethodUpdated(
             new PaymentMethodUpdated(
-                $paymentMethodCreated->getPaymentMethod(), $paymentMethodCreated->getPaymentMethod()
+                $paymentMethodCreated->getPaymentMethod(),
+                $paymentMethodCreated->getPaymentMethod(),
+                $paymentMethodCreated->getUser()
             )
         );
     }
