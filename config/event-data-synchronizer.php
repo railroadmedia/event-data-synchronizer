@@ -9,6 +9,7 @@ return [
     ],
 
     'pianote_membership_product_ids' => [],
+    'guitareo_membership_product_ids' => [],
 
     'infusionsoft_app_name' => '',
     'infusionsoft_api_key' => '',

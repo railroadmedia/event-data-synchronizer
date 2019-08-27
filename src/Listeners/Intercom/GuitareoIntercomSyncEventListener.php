@@ -1,6 +1,6 @@
 <?php
 
-namespace Railroad\EventDataSynchronizer\Listeners;
+namespace Railroad\EventDataSynchronizer\Listeners\Intercom;
 
 use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\PaymentMethod;
@@ -12,70 +12,10 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
-use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Intercomeo\Jobs\SyncUser;
-use Railroad\Usora\Events\User\UserCreated;
-use Railroad\Usora\Events\User\UserUpdated;
-use Railroad\Usora\Repositories\UserRepository;
 
-// todo: this is only for pianote at the moment, in the future many changes are required for multiple brand support
-class IntercomSyncEventListener
+class GuitareoIntercomSyncEventListener extends IntercomSyncEventListener
 {
-    /**
-     * @var UserRepository
-     */
-    private $userRepository;
-
-    /**
-     * @var SubscriptionRepository
-     */
-    private $subscriptionRepository;
-
-    public function __construct(UserRepository $userRepository, SubscriptionRepository $subscriptionRepository)
-    {
-        $this->userRepository = $userRepository;
-        $this->subscriptionRepository = $subscriptionRepository;
-    }
-
-    /**
-     * @param UserCreated $userCreated
-     */
-    public function handleUserCreated(UserCreated $userCreated)
-    {
-        $this->handleUserUpdated(new UserUpdated($userCreated->getUser(), $userCreated->getUser()));
-    }
-
-    /**
-     * @param UserUpdated $userUpdated
-     */
-    public function handleUserUpdated(UserUpdated $userUpdated)
-    {
-        $user = $userUpdated->getNewUser();
-
-        if (!empty($user)) {
-
-            dispatch(
-                new SyncUser(
-                    $user->getId(), [
-                        'email' => $user->getEmail(),
-                        'created_at' => Carbon::parse($user->getCreatedAt())->timestamp,
-                        'name' => $user->getFirstName() .
-                            (!empty($user->getLastName()) ? ' ' . $user->getLastName() : ''),
-                        'avatar' => ['type' => 'avatar', 'image_url' => $user->getProfilePictureUrl()],
-                        'custom_attributes' => [
-                            'pianote_user' => true,
-                            'pianote_display_name' => $user->getDisplayName(),
-                            'pianote_birthday' => !empty($user->getBirthday()) ? Carbon::parse(
-                                $user->getBirthday()
-                            )->timestamp : null,
-                        ],
-                    ]
-                )
-            );
-
-        }
-    }
-
     /**
      * @param PaymentMethodCreated $paymentMethodCreated
      */

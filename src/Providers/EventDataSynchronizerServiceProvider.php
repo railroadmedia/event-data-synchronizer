@@ -13,7 +13,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
-use Railroad\EventDataSynchronizer\Listeners\IntercomSyncEventListener;
+use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -26,44 +26,44 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
-        UserCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserCreated',
-        ],
-        UserUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserUpdated',
-        ],
+//        UserCreated::class => [
+//            IntercomSyncEventListener::class . '@handleUserCreated',
+//        ],
+//        UserUpdated::class => [
+//            IntercomSyncEventListener::class . '@handleUserUpdated',
+//        ],
         PaymentMethodCreated::class => [
             IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
         ],
         PaymentMethodUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
-        UserProductCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserProductCreated',
-            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
-            UserProductToUserContentPermissionListener::class . '@handleCreated',
-        ],
-        UserProductUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserProductUpdated',
-            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
-            UserProductToUserContentPermissionListener::class . '@handleUpdated',
-        ],
-        UserProductDeleted::class => [
-            IntercomSyncEventListener::class . '@handleUserProductDeleted',
-            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
-            UserProductToUserContentPermissionListener::class . '@handleDeleted',
-        ],
-        SubscriptionCreated::class => [
-            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
-            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
-        ],
-        SubscriptionUpdated::class => [
-            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
-            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
-        ],
-        OrderEvent::class => [
-            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
-        ],
+//        UserProductCreated::class => [
+//            IntercomSyncEventListener::class . '@handleUserProductCreated',
+//            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
+//            UserProductToUserContentPermissionListener::class . '@handleCreated',
+//        ],
+//        UserProductUpdated::class => [
+//            IntercomSyncEventListener::class . '@handleUserProductUpdated',
+//            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
+//            UserProductToUserContentPermissionListener::class . '@handleUpdated',
+//        ],
+//        UserProductDeleted::class => [
+//            IntercomSyncEventListener::class . '@handleUserProductDeleted',
+//            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
+//            UserProductToUserContentPermissionListener::class . '@handleDeleted',
+//        ],
+//        SubscriptionCreated::class => [
+//            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
+//            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
+//        ],
+//        SubscriptionUpdated::class => [
+//            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
+//            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
+//        ],
+//        OrderEvent::class => [
+//            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
+//        ],
     ];
 
     /**
