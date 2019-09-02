@@ -5,24 +5,15 @@ namespace Railroad\EventDataSynchronizer\Listeners\Maropost;
 
 use Carbon\Carbon;
 use Railroad\Ecommerce\Events\OrderEvent;
+use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Maropost\Jobs\SyncContact;
 use Railroad\Maropost\ValueObjects\ContactVO;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 
 class MaropostEventListener
 {
-
-    static $levelActiveToTagMap = [
-        'Drumeo Edge' => 'Drumeo - Customer - Member - Active',
-    ];
-
-    static $levelExpiredToTagMap = [
-        'Drumeo Edge' => 'Drumeo - Customer - Member - ExMember',
-    ];
-
-
     /**
-     * @param OrderPlaced $orderPlaced
+     * @param OrderEvent $orderEvent
      */
     public function handleOrderPlaced(OrderEvent $orderEvent)
     {
@@ -67,62 +58,54 @@ class MaropostEventListener
     }
 
     /**
-     * @param UserLevelUpdated $userLevelUpdated
+     * @param UserProductUpdated $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-//        $member = $this->memberDataMapper->get($userLevelUpdated->userId);
-//
-//        if ($userLevelUpdated->levelExpirationDateTime == null ||
-//            $userLevelUpdated->levelExpirationDateTime > Carbon::now()) {
-//
-//            dispatch(
-//                new SyncContact(
-//                    new ContactVO(
-//                        $member->getEmail(),
-//                        $member->getFirstName(),
-//                        $member->getLastName(),
-//                        ['type' => config('event-data-synchronizer.maropost_contact_type')],
-//                        [self::$levelActiveToTagMap[$userLevelUpdated->levelName]],
-//                        [self::$levelExpiredToTagMap[$userLevelUpdated->levelName]]
-//                    )
-//                )
-//            );
-//        } else {
-//
-//            dispatch(
-//                new SyncContact(
-//                    new ContactVO(
-//                        $member->getEmail(),
-//                        $member->getFirstName(),
-//                        $member->getLastName(),
-//                        ['type' => config('event-data-synchronizer.maropost_contact_type')],
-//                        [self::$levelExpiredToTagMap[$userLevelUpdated->levelName]],
-//                        [self::$levelActiveToTagMap[$userLevelUpdated->levelName]]
-//                    )
-//                )
-//            );
-//        }
+        $userProduct = $userProductUpdated->getNewUserProduct();
+
+        if (in_array(
+            $userProduct->getProduct()
+                ->getId(),
+            config('event-data-synchronizer.pianote_membership_product_ids')
+        )) {
+
+            // product access tag
+            if ($userProduct->getExpirationDate() == null ||
+                Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
+                dispatch(
+                    new SyncContact(
+                        new ContactVO(
+                            $userProduct->getUser()->getEmail(),
+                            '',
+                            '',
+                            ['type' => config('event-data-synchronizer.maropost_contact_type')],
+                            [ config('product_sku_maropost_tag_mapping')[$userProduct->getProduct()->getSku()]]
+                        )
+                    )
+                );
+            } else {
+                dispatch(
+                    new SyncContact(
+                        new ContactVO(
+                            $userProduct->getUser()->getEmail(),
+                            '',
+                            '',
+                            ['type' => config('event-data-synchronizer.maropost_contact_type')],
+                            [],
+                            [ config('product_sku_maropost_tag_mapping')[$userProduct->getProduct()->getSku()]]
+                        )
+                    )
+                );
+            }
+        }
     }
 
     /**
-     * @param UserLevelDeleted $userLevelDeleted
+     * @param UserProductDeleted $userProductDeleted
      */
-    public function handleUserLevelDeleted(UserLevelDeleted $userLevelDeleted)
+    public function handleUserLevelDeleted(UserProductDeleted $userProductDeleted)
     {
-//        $member = $this->memberDataMapper->get($userLevelDeleted->userId);
-//
-//        dispatch(
-//            new SyncContact(
-//                new ContactVO(
-//                    $member->getEmail(),
-//                    $member->getFirstName(),
-//                    $member->getLastName(),
-//                    ['type' => config('event-data-synchronizer.maropost_contact_type')],
-//                    [self::$levelExpiredToTagMap[$userLevelDeleted->levelName]],
-//                    [self::$levelActiveToTagMap[$userLevelDeleted->levelName]]
-//                )
-//            )
-//        );
+
     }
 }
