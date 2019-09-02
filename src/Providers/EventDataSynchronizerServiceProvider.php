@@ -2,6 +2,7 @@
 
 namespace Railroad\EventDataSynchronizer\Providers;
 
+use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
@@ -38,21 +39,24 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
         PaymentMethodUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
-//        UserProductCreated::class => [
+        UserProductCreated::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductCreated',
 //            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
 //            UserProductToUserContentPermissionListener::class . '@handleCreated',
-//        ],
-//        UserProductUpdated::class => [
+            MaropostEventListener::class . '@handleUserProductCreated',
+        ],
+        UserProductUpdated::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductUpdated',
 //            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
 //            UserProductToUserContentPermissionListener::class . '@handleUpdated',
-//        ],
-//        UserProductDeleted::class => [
+            MaropostEventListener::class . '@handleUserProductUpdated',
+        ],
+        UserProductDeleted::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductDeleted',
-//            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
+            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
 //            UserProductToUserContentPermissionListener::class . '@handleDeleted',
-//        ],
+            MaropostEventListener::class . '@handleUserLevelDeleted',
+        ],
 //        SubscriptionCreated::class => [
 //            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
@@ -61,9 +65,10 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
 //            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
 //        ],
-//        OrderEvent::class => [
+        OrderEvent::class => [
 //            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
-//        ],
+              MaropostEventListener::class . '@handleOrderPlaced',
+        ],
     ];
 
     /**
@@ -78,6 +83,7 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
         $this->publishes(
             [
                 __DIR__ . '/../../config/event-data-synchronizer.php' => config_path('event-data-synchronizer.php'),
+                __DIR__ . '/../../config/product_sku_maropost_tag_mapping.php' => config_path('product_sku_maropost_tag_mapping.php'),
             ]
         );
     }

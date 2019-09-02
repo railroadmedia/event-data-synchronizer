@@ -14,4 +14,6 @@ return [
     'infusionsoft_app_name' => '',
     'infusionsoft_api_key' => '',
     'infusionsoft_db_on' => '',
+
+    'maropost_contact_type' => 'pianote_user_id'
 ];
