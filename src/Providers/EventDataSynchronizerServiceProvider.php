@@ -16,6 +16,7 @@ use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
+use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 
@@ -55,7 +56,7 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
 //            IntercomSyncEventListener::class . '@handleUserProductDeleted',
             InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
 //            UserProductToUserContentPermissionListener::class . '@handleDeleted',
-            MaropostEventListener::class . '@handleUserLevelDeleted',
+            MaropostEventListener::class . '@handleUserProductDeleted',
         ],
 //        SubscriptionCreated::class => [
 //            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
@@ -67,7 +68,6 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
 //        ],
         OrderEvent::class => [
 //            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
-              MaropostEventListener::class . '@handleOrderPlaced',
         ],
     ];
 
@@ -83,7 +83,9 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
         $this->publishes(
             [
                 __DIR__ . '/../../config/event-data-synchronizer.php' => config_path('event-data-synchronizer.php'),
-                __DIR__ . '/../../config/product_sku_maropost_tag_mapping.php' => config_path('product_sku_maropost_tag_mapping.php'),
+                __DIR__ . '/../../config/product_sku_maropost_tag_mapping.php' => config_path(
+                    'product_sku_maropost_tag_mapping.php'
+                ),
             ]
         );
     }
@@ -95,6 +97,6 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      */
     public function register()
     {
-
+        $this->app->register(MaropostServiceProvider::class);
     }
 }
