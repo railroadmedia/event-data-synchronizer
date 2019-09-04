@@ -15,7 +15,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
-use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
+use Railroad\EventDataSynchronizer\Listeners\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Usora\Events\User\UserCreated;
@@ -29,44 +29,44 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
-//        UserCreated::class => [
+        UserCreated::class => [
 //            IntercomSyncEventListener::class . '@handleUserCreated',
-//        ],
-//        UserUpdated::class => [
+        ],
+        UserUpdated::class => [
 //            IntercomSyncEventListener::class . '@handleUserUpdated',
-//        ],
+        ],
         PaymentMethodCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
+//            IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
         ],
         PaymentMethodUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
+//            IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
         UserProductCreated::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductCreated',
 //            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
 //            UserProductToUserContentPermissionListener::class . '@handleCreated',
-            MaropostEventListener::class . '@handleUserProductCreated',
+//            MaropostEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductUpdated',
 //            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
 //            UserProductToUserContentPermissionListener::class . '@handleUpdated',
-            MaropostEventListener::class . '@handleUserProductUpdated',
+//            MaropostEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
 //            IntercomSyncEventListener::class . '@handleUserProductDeleted',
-            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
+//            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
 //            UserProductToUserContentPermissionListener::class . '@handleDeleted',
-            MaropostEventListener::class . '@handleUserProductDeleted',
+//            MaropostEventListener::class . '@handleUserProductDeleted',
         ],
-//        SubscriptionCreated::class => [
+        SubscriptionCreated::class => [
 //            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
-//        ],
-//        SubscriptionUpdated::class => [
+        ],
+        SubscriptionUpdated::class => [
 //            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
-//        ],
+        ],
         OrderEvent::class => [
 //            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
         ],

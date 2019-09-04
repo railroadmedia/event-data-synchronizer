@@ -58,6 +58,7 @@ class DuplicateSubscriptionHandler
         $subscription = $subscriptionUpdated->getNewSubscription();
 
         if (!empty($subscription->getProduct()) &&
+            $subscription->getProduct()->getBrand() == 'pianote' &&
             $subscription->getType() == Subscription::TYPE_SUBSCRIPTION && in_array(
                 $subscription->getProduct()
                     ->getId(),
