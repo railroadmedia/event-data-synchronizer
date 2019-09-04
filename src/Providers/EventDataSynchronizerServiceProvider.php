@@ -2,6 +2,7 @@
 
 namespace Railroad\EventDataSynchronizer\Providers;
 
+use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Railroad\Ecommerce\Events\OrderEvent;
@@ -79,6 +80,10 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
     public function boot()
     {
         parent::boot();
+
+        $this->commands([
+            SetMaropostTagsForExpiredUserProducts::class
+        ]);
 
         $this->publishes(
             [
