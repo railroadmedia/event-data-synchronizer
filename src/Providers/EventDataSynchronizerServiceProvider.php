@@ -4,7 +4,6 @@ namespace Railroad\EventDataSynchronizer\Providers;
 
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
-use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
@@ -21,7 +20,7 @@ use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 
-class EventDataSynchronizerServiceProvider extends ServiceProvider
+class EventDataSynchronizerServiceProvider
 {
     /**
      * The event listener mappings for the application.

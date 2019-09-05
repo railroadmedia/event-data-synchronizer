@@ -14,7 +14,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Intercomeo\Jobs\SyncUser;
 
-class GuitareoIntercomSyncEventListener extends IntercomSyncEventListener
+class GuitareoIntercomSyncEventListener extends IntercomSyncEventListenerBase
 {
     /**
      * @param PaymentMethodCreated $paymentMethodCreated

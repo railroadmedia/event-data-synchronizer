@@ -16,7 +16,7 @@ use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 
-class IntercomSyncEventListener
+class IntercomSyncEventListenerBase
 {
     /**
      * @var UserRepository
