@@ -12,15 +12,15 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
+use Railroad\Ecommerce\Repositories\UserPaymentMethodsRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Intercomeo\Jobs\IntercomSyncUser;
-use Railroad\Intercomeo\Jobs\SyncUser;
 use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 
-class IntercomSyncEventListenerBase
+class IntercomSyncEventListener
 {
     /**
      * @var IntercomeoService
@@ -43,14 +43,9 @@ class IntercomSyncEventListenerBase
     protected $userProductRepository;
 
     /**
-     * @var PianoteIntercomSyncEventListener
+     * @var UserPaymentMethodsRepository
      */
-    protected $pianoteIntercomSyncEventListener;
-
-    /**
-     * @var GuitareoIntercomSyncEventListener
-     */
-    protected $guitareoIntercomSyncEventListener;
+    private $userPaymentMethodsRepository;
 
     protected const USER_ID_PREFIX = 'musora_';
 
@@ -59,17 +54,14 @@ class IntercomSyncEventListenerBase
         UserRepository $userRepository,
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
-        PianoteIntercomSyncEventListener $pianoteIntercomSyncEventListener,
-        GuitareoIntercomSyncEventListener $guitareoIntercomSyncEventListener
+        UserPaymentMethodsRepository $userPaymentMethodsRepository
     )
     {
         $this->intercomeoService = $intercomeoService;
         $this->userRepository = $userRepository;
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
-
-        $this->pianoteIntercomSyncEventListener = $pianoteIntercomSyncEventListener;
-        $this->guitareoIntercomSyncEventListener = $guitareoIntercomSyncEventListener;
+        $this->userPaymentMethodsRepository = $userPaymentMethodsRepository;
     }
 
     /**
@@ -103,7 +95,8 @@ class IntercomSyncEventListenerBase
                             'musora_profile_country' => $user->getCountry(),
                             'musora_profile_region' => $user->getRegion(),
                             'musora_profile_city' => $user->getCity(),
-                            'musora_profile_birthday' => $user->getBirthday()->timestamp,
+                            'musora_profile_birthday' => !empty($user->getBirthday()) ?
+                                $user->getBirthday()->timestamp : null,
                             'musora_phone_number' => $user->getPhoneNumber(),
                             'musora_timezone' => $user->getTimezone(),
                         ],
@@ -134,6 +127,7 @@ class IntercomSyncEventListenerBase
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
         $paymentMethod = $paymentMethodUpdated->getNewPaymentMethod();
+        $userPaymentMethod = $this->userPaymentMethodsRepository->getByMethodId($paymentMethod->getId());
 
         if (!empty($paymentMethod) && !empty($paymentMethodUpdated->getUser())) {
 
@@ -141,7 +135,9 @@ class IntercomSyncEventListenerBase
 
             if ($paymentMethod->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
 
-                $brand = $paymentMethod->getCreditCard()->getPaymentGatewayName();
+                $brand =
+                    $paymentMethod->getCreditCard()
+                        ->getPaymentGatewayName();
 
                 $expirationDate = Carbon::parse(
                     $paymentMethod->getMethod()
@@ -149,19 +145,22 @@ class IntercomSyncEventListenerBase
                 )->timestamp;
             }
             elseif ($paymentMethod->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
-                $brand = $paymentMethod->getPaypalBillingAgreement()->getPaymentGatewayName();
+                $brand =
+                    $paymentMethod->getPaypalBillingAgreement()
+                        ->getPaymentGatewayName();
 
                 $expirationDate = null;
             }
 
             // we only want to sync their primary payment method
-            if (empty($brand) || !$paymentMethod->getUserPaymentMethod()->getIsPrimary()) {
+            if (empty($brand) || !$userPaymentMethod->getIsPrimary() || empty($expirationDate)) {
                 return;
             }
 
             dispatch(
                 new IntercomSyncUser(
-                    self::USER_ID_PREFIX . $paymentMethodUpdated->getUser()
+                    self::USER_ID_PREFIX .
+                    $paymentMethodUpdated->getUser()
                         ->getId(), [
                         'custom_attributes' => [
                             $brand . '_primary_payment_method_expiration_date' => $expirationDate,
@@ -171,6 +170,7 @@ class IntercomSyncEventListenerBase
             );
         }
     }
+
     /**
      * @param UserProductCreated $userProductCreated
      */
@@ -231,5 +231,9 @@ class IntercomSyncEventListenerBase
         );
     }
 
-    abstract public function syncUserMembershipAndProductData($userId);
+    public function syncUserMembershipAndProductData($userId)
+    {
+        $userSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($userId);
+        $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
+    }
 }

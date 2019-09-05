@@ -2,9 +2,9 @@
 
 namespace Railroad\EventDataSynchronizer\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
-use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListenerBase;
+use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
@@ -21,7 +21,7 @@ use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 
-class EventDataSynchronizerServiceProvider extends ServiceProvider
+class EventDataSynchronizerServiceProvider extends EventServiceProvider
 {
     /**
      * The event listener mappings for the application.
@@ -30,45 +30,45 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      */
     protected $listen = [
         UserCreated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserCreated',
+            IntercomSyncEventListener::class . '@handleUserCreated',
         ],
         UserUpdated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserUpdated',
+            IntercomSyncEventListener::class . '@handleUserUpdated',
         ],
         PaymentMethodCreated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserPaymentMethodCreated',
+            IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
         ],
         PaymentMethodUpdated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserPaymentMethodUpdated',
+            IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
         UserProductCreated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserProductCreated',
+            IntercomSyncEventListener::class . '@handleUserProductCreated',
 
 //            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
 //            UserProductToUserContentPermissionListener::class . '@handleCreated',
 //            MaropostEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserProductUpdated',
+            IntercomSyncEventListener::class . '@handleUserProductUpdated',
 
 //            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
 //            UserProductToUserContentPermissionListener::class . '@handleUpdated',
 //            MaropostEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
-            IntercomSyncEventListenerBase::class . '@handleUserProductDeleted',
+            IntercomSyncEventListener::class . '@handleUserProductDeleted',
 
 //            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
 //            UserProductToUserContentPermissionListener::class . '@handleDeleted',
 //            MaropostEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
-            IntercomSyncEventListenerBase::class . '@handleSubscriptionCreated',
+            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
 
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
-            IntercomSyncEventListenerBase::class . '@handleSubscriptionUpdated',
+            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
 
 //            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
         ],
@@ -84,6 +84,8 @@ class EventDataSynchronizerServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        parent::boot();
+
         $this->commands([
             SetMaropostTagsForExpiredUserProducts::class
         ]);
