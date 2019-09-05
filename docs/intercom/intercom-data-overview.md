@@ -137,3 +137,116 @@ tony_royster_masterclass_owner
 
 ## New Tags
 pianote_product_owner:SKU
+
+## Current Attributes
+First name
+Last name
+Name
+Owner
+Lead category
+Conversation Rating
+Email
+Phone
+User ID
+First Seen (PDT)
+Signed up (PDT)
+Last seen (PDT)
+Last contacted (PDT)
+Last heard from (PDT)
+Last opened email (PDT)
+Last clicked on link in email (PDT)
+Web sessions
+Country
+Region
+City
+Timezone
+Continent code
+Country code
+Browser Language
+Language Override
+Browser
+Browser Version
+OS
+Twitter Followers
+Job Title
+Segment
+Tag
+Unsubscribed from Emails
+Marked email as spam
+Has hard bounced
+UTM Campaign
+UTM Content
+UTM Medium
+UTM Source
+UTM Term
+Referral URL
+brand
+membership_expires_at (PDT)
+birthday (PDT)
+membership
+membership_renews_at (PDT)
+payment_method_expires_at (PDT)
+number_of_payments_on_subscription
+membership_canceled_at (PDT)
+job_title
+article_id
+recordeo
+recordeo_membership
+recordeo_membership_renews_at (PDT)
+recordeo_membership_expires_at (PDT)
+recordeo_payment_method_expires_at (PDT)
+recordeo_number_of_payments_on_subscription
+recordeo_opted_out_of_course_notifications
+membership_started_at (PDT)
+drumeo_edge_weekly_notifications
+drumeo_best_book_membership_expiration_date (PDT)
+drumeo_lead_gen_email
+drum_list_manual
+guitareo_weekly_community_notifications
+pianote_is_lifetime_member
+recordeo_membership_canceled_at (PDT)
+pianote_completed_2018_foundations_learning_path
+pianote_user
+pianote_birthday (PDT)
+pianote_primary_payment_method_expiration_date (PDT)
+pianote_membership_access_expiration_date (PDT)
+pianote_membership_subscription_status
+pianote_membership_subscription_renewal_date (PDT)
+pianote_membership_subscription_type
+pianote_membership_subscription_cancellation_date (PDT)
+pianote_membership_subscription_started_date (PDT)
+pianote_500_songs_in_5_days_pack_owner
+pianote_completed_2016_foundations_learning_path
+Segment is pianote-cancelled-or-suspended-users-with-access
+pianote_display_name
+drumeo_bbdb_7_day_trial_start_date (PDT)
+drumeo_cancellation_reason
+app_build_number
+drumeo_kids_app_finished_onboarding_at (PDT)
+drumeo_kids_raocc_series_purchased_at (PDT)
+Last seen on iOS (PDT)
+iOS sessions
+iOS App version
+iOS Device
+iOS OS version
+Last seen on Android (PDT)
+Android sessions
+Android App version
+Android Device
+Android OS version
+Enabled Push Messaging
+Is Mobile Unidentified
+Company name
+Company ID
+Company last seen (PDT)
+Company created at (PDT)
+People
+Company web sessions
+Plan
+Monthly Spend
+Company Segment
+Company tag
+Company size
+Company industry
+Company website
+Plan Name

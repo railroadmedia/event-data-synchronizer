@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Listeners\Intercom;
 
 use Carbon\Carbon;
+use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -11,13 +12,21 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
+use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\Intercomeo\Jobs\IntercomSyncUser;
 use Railroad\Intercomeo\Jobs\SyncUser;
+use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 
 class IntercomSyncEventListenerBase
 {
+    /**
+     * @var IntercomeoService
+     */
+    protected $intercomeoService;
+
     /**
      * @var UserRepository
      */
@@ -29,24 +38,35 @@ class IntercomSyncEventListenerBase
     protected $subscriptionRepository;
 
     /**
+     * @var UserProductRepository
+     */
+    protected $userProductRepository;
+
+    /**
      * @var PianoteIntercomSyncEventListener
      */
-    private $pianoteIntercomSyncEventListener;
+    protected $pianoteIntercomSyncEventListener;
 
     /**
      * @var GuitareoIntercomSyncEventListener
      */
-    private $guitareoIntercomSyncEventListener;
+    protected $guitareoIntercomSyncEventListener;
+
+    protected const USER_ID_PREFIX = 'musora_';
 
     public function __construct(
+        IntercomeoService $intercomeoService,
         UserRepository $userRepository,
         SubscriptionRepository $subscriptionRepository,
+        UserProductRepository $userProductRepository,
         PianoteIntercomSyncEventListener $pianoteIntercomSyncEventListener,
         GuitareoIntercomSyncEventListener $guitareoIntercomSyncEventListener
     )
     {
+        $this->intercomeoService = $intercomeoService;
         $this->userRepository = $userRepository;
         $this->subscriptionRepository = $subscriptionRepository;
+        $this->userProductRepository = $userProductRepository;
 
         $this->pianoteIntercomSyncEventListener = $pianoteIntercomSyncEventListener;
         $this->guitareoIntercomSyncEventListener = $guitareoIntercomSyncEventListener;
@@ -70,15 +90,22 @@ class IntercomSyncEventListenerBase
         if (!empty($user)) {
 
             dispatch(
-                new SyncUser(
-                    $user->getId(), [
+                new IntercomSyncUser(
+                    self::USER_ID_PREFIX . $user->getId(), [
                         'email' => $user->getEmail(),
                         'created_at' => Carbon::parse($user->getCreatedAt())->timestamp,
                         'name' => $user->getFirstName() .
                             (!empty($user->getLastName()) ? ' ' . $user->getLastName() : ''),
                         'avatar' => ['type' => 'avatar', 'image_url' => $user->getProfilePictureUrl()],
                         'custom_attributes' => [
-                            'display_name' => $user->getDisplayName(),
+                            'musora_profile_display_name' => $user->getDisplayName(),
+                            'musora_profile_gender' => $user->getGender(),
+                            'musora_profile_country' => $user->getCountry(),
+                            'musora_profile_region' => $user->getRegion(),
+                            'musora_profile_city' => $user->getCity(),
+                            'musora_profile_birthday' => $user->getBirthday()->timestamp,
+                            'musora_phone_number' => $user->getPhoneNumber(),
+                            'musora_timezone' => $user->getTimezone(),
                         ],
                     ]
                 )
@@ -110,46 +137,49 @@ class IntercomSyncEventListenerBase
 
         if (!empty($paymentMethod) && !empty($paymentMethodUpdated->getUser())) {
 
-            // get all subscriptions associated with the payment method
-            $subscriptions = $this->subscriptionRepository->getPaymentMethodSubscriptions(
-                $paymentMethod
-            );
+            $brand = null;
 
-            foreach ($subscriptions as $subscription) {
-                // todo when payment method editing is done
+            if ($paymentMethod->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+
+                $brand = $paymentMethod->getCreditCard()->getPaymentGatewayName();
+
+                $expirationDate = Carbon::parse(
+                    $paymentMethod->getMethod()
+                        ->getExpirationDate()
+                )->timestamp;
+            }
+            elseif ($paymentMethod->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+                $brand = $paymentMethod->getPaypalBillingAgreement()->getPaymentGatewayName();
+
+                $expirationDate = null;
             }
 
-            //            if ($paymentMethod->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
-            //
-            //                $expirationDate = Carbon::parse(
-            //                    $paymentMethod->getMethod()
-            //                        ->getExpirationDate()
-            //                )->timestamp;
-            //            }
-            //            else {
-            //                $expirationDate = null;
-            //            }
-            //
-            //            dispatch(
-            //                new SyncUser(
-            //                    $paymentMethodUpdated->getUser()
-            //                        ->getId(), [
-            //                        'custom_attributes' => [
-            //                            'pianote_primary_payment_method_expiration_date' => $expirationDate,
-            //                        ],
-            //                    ]
-            //                )
-            //            );
+            // we only want to sync their primary payment method
+            if (empty($brand) || !$paymentMethod->getUserPaymentMethod()->getIsPrimary()) {
+                return;
+            }
+
+            dispatch(
+                new IntercomSyncUser(
+                    self::USER_ID_PREFIX . $paymentMethodUpdated->getUser()
+                        ->getId(), [
+                        'custom_attributes' => [
+                            $brand . '_primary_payment_method_expiration_date' => $expirationDate,
+                        ],
+                    ]
+                )
+            );
         }
     }
-
     /**
      * @param UserProductCreated $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
-        $this->handleUserProductUpdated(
-            new UserProductUpdated($userProductCreated->getUserProduct(), $userProductCreated->getUserProduct())
+        $this->syncUserMembershipAndProductData(
+            $userProductCreated->getUserProduct()
+                ->getUser()
+                ->getId()
         );
     }
 
@@ -158,18 +188,11 @@ class IntercomSyncEventListenerBase
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-        $userProduct = $userProductUpdated->getNewUserProduct();
-
-        if ($userProduct->getProduct()
-                ->getBrand() == 'pianote') {
-
-            $this->pianoteIntercomSyncEventListener->handleUserProductUpdated($userProductUpdated);
-        }
-        elseif ($userProduct->getProduct()
-                ->getBrand() == 'guitareo') {
-
-            $this->guitareoIntercomSyncEventListener->handleUserProductUpdated($userProductUpdated);
-        }
+        $this->syncUserMembershipAndProductData(
+            $userProductUpdated->getNewUserProduct()
+                ->getUser()
+                ->getId()
+        );
     }
 
     /**
@@ -177,18 +200,11 @@ class IntercomSyncEventListenerBase
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
-        $userProduct = $userProductDeleted->getUserProduct();
-
-        if ($userProduct->getProduct()
-                ->getBrand() == 'pianote') {
-
-            $this->pianoteIntercomSyncEventListener->handleUserProductDeleted($userProductDeleted);
-        }
-        elseif ($userProduct->getProduct()
-                ->getBrand() == 'guitareo') {
-
-            $this->guitareoIntercomSyncEventListener->handleUserProductDeleted($userProductDeleted);
-        }
+        $this->syncUserMembershipAndProductData(
+            $userProductDeleted->getUserProduct()
+                ->getUser()
+                ->getId()
+        );
     }
 
     /**
@@ -196,8 +212,10 @@ class IntercomSyncEventListenerBase
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
-        $this->handleSubscriptionUpdated(
-            new SubscriptionUpdated($subscriptionCreated->getSubscription(), $subscriptionCreated->getSubscription())
+        $this->syncUserMembershipAndProductData(
+            $subscriptionCreated->getSubscription()
+                ->getUser()
+                ->getId()
         );
     }
 
@@ -206,31 +224,12 @@ class IntercomSyncEventListenerBase
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        $subscription = $subscriptionUpdated->getNewSubscription();
-
-        if (!empty($subscription->getProduct()) &&
-            $subscription->getProduct()
-                ->getBrand() == 'pianote') {
-
-            $this->pianoteIntercomSyncEventListener->handleSubscriptionUpdated($subscriptionUpdated);
-        }
-        elseif (!empty($subscription->getOrder()) &&
-            $subscription->getOrder()
-                ->getBrand() == 'pianote') {
-
-            $this->pianoteIntercomSyncEventListener->handleSubscriptionUpdated($subscriptionUpdated);
-        }
-        elseif (!empty($subscription->getProduct()) &&
-            $subscription->getProduct()
-                ->getBrand() == 'guitareo') {
-
-            $this->guitareoIntercomSyncEventListener->handleSubscriptionUpdated($subscriptionUpdated);
-        }
-        elseif (!empty($subscription->getOrder()) &&
-            $subscription->getOrder()
-                ->getBrand() == 'guitareo') {
-
-            $this->guitareoIntercomSyncEventListener->handleSubscriptionUpdated($subscriptionUpdated);
-        }
+        $this->syncUserMembershipAndProductData(
+            $subscriptionUpdated->getNewSubscription()
+                ->getUser()
+                ->getId()
+        );
     }
+
+    abstract public function syncUserMembershipAndProductData($userId);
 }
