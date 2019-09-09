@@ -11,6 +11,10 @@ return [
     'pianote_membership_product_ids' => [],
     'guitareo_membership_product_ids' => [],
 
+    'intercom_attribute_name_to_pack_product_ids' => [
+        'pack_attribute_name' => [], // an array of product ids, ex: [1,2,3]
+    ],
+
     'infusionsoft_app_name' => '',
     'infusionsoft_api_key' => '',
     'infusionsoft_db_on' => '',

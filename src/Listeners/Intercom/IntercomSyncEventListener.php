@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Listeners\Intercom;
 use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Entities\Subscription;
+use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -245,11 +246,20 @@ class IntercomSyncEventListener
 
         foreach (self::BRANDS_TO_SYNC as $brand) {
 
+            // user product related attributes
+            $finalCustomAttributes = array_merge(
+                $finalCustomAttributes,
+                $this->getUserProductAttributes($userProducts, $brand)
+            );
+
+            $isLifetime = $finalCustomAttributes[$brand . '_membership_is_lifetime'] == true;
+
             // subscription related attributes
             $finalCustomAttributes = array_merge(
                 $finalCustomAttributes,
-                $this->getSubscriptionAttributes($userSubscriptions, $brand)
+                $this->getSubscriptionAttributes($userSubscriptions, $brand, $isLifetime)
             );
+
         }
 
         if (!empty($finalCustomAttributes)) {
@@ -261,30 +271,15 @@ class IntercomSyncEventListener
                 )
             );
         }
-
     }
-
-
-    // pianote_completed_2018_foundations_learning_path
-    // pianote_user
-    // pianote_birthday (PDT)
-    // pianote_primary_payment_method_expiration_date (PDT)
-    // pianote_membership_access_expiration_date (PDT)
-    // pianote_membership_subscription_status
-    // pianote_membership_subscription_renewal_date (PDT)
-    // pianote_membership_subscription_type
-    // pianote_membership_subscription_cancellation_date (PDT)
-    // pianote_membership_subscription_started_date (PDT)
-    // pianote_500_songs_in_5_days_pack_owner
-    // pianote_completed_2016_foundations_learning_path
-
 
     /**
      * @param Subscription[] $userSubscriptions
      * @param $brand
+     * @param bool $isLifetime
      * @return array
      */
-    private function getSubscriptionAttributes(array $userSubscriptions, $brand)
+    private function getSubscriptionAttributes(array $userSubscriptions, $brand, $isLifetime = false)
     {
         /**
          * @var $subscriptionToSync Subscription|null
@@ -307,10 +302,7 @@ class IntercomSyncEventListener
                 $userSubscription->getProduct()
                     ->getId(),
                 config(
-                    'event-data-synchronizer.' .
-                    $userSubscription->getProduct()
-                        ->getBrand() .
-                    '_membership_product_ids'
+                    'event-data-synchronizer.' . $brand . '_membership_product_ids'
                 )
             )) {
                 continue;
@@ -343,14 +335,14 @@ class IntercomSyncEventListener
             }
 
             $membershipRenewalDate = $subscriptionToSync->getPaidUntil()->timestamp;
-            $membershipCancellationDate = $subscriptionToSync->getCanceledOn();
+            $membershipCancellationDate =
+                !empty($subscriptionToSync->getCanceledOn()) ? $subscriptionToSync->getCanceledOn()->timestamp : null;
             $subscriptionStatus = $subscriptionToSync->getState();
             $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
         }
         else {
             $membershipRenewalDate = null;
-            $paymentMethodExpirationDate = null;
             $membershipCancellationDate = null;
             $subscriptionStatus = null;
             $subscriptionStartedDate = null;
@@ -364,6 +356,15 @@ class IntercomSyncEventListener
 
         }
 
+        // if the user is a lifetime make sure all subscription related info is set to null
+        if ($isLifetime) {
+            $membershipRenewalDate = null;
+            $membershipCancellationDate = null;
+            $subscriptionStatus = null;
+            $subscriptionStartedDate = null;
+            $subscriptionProductTag = null;
+        }
+
         return [
             $brand . '_membership_subscription_status' => $subscriptionStatus,
             $brand . '_membership_subscription_type' => $subscriptionProductTag,
@@ -371,5 +372,93 @@ class IntercomSyncEventListener
             $brand . '_membership_subscription_cancellation_date' => $membershipCancellationDate,
             $brand . '_membership_subscription_started_date' => $subscriptionStartedDate,
         ];
+    }
+
+    /**
+     * @param UserProduct[] $userProducts
+     * @param $brand
+     * @return array
+     */
+    private function getUserProductAttributes(array $userProducts, $brand)
+    {
+        // sync membership expiration date
+        $membershipUserProductToSync = null;
+
+        foreach ($userProducts as $userProduct) {
+            if ($userProduct->getProduct()
+                    ->getBrand() !== $brand) {
+                continue;
+            }
+
+            // make sure the subscriptions product is in this brands pre-configured products that represent a membership
+            if (!in_array(
+                $userProduct->getProduct()
+                    ->getId(),
+                config(
+                    'event-data-synchronizer.' . $brand . '_membership_product_ids'
+                )
+            )) {
+                continue;
+            }
+
+            if (empty($membershipUserProductToSync)) {
+                $membershipUserProductToSync = $userProduct;
+
+                continue;
+            }
+
+            // if its lifetime, use it
+            if (!empty($membershipUserProductToSync) && empty($userProduct->getExpirationDate())) {
+                $membershipUserProductToSync = $userProduct;
+
+                break;
+            }
+
+            // if this subscription paid_until is further in the past than whatever is currently set, skip it
+            // unless the set subscription is not-active and this one is, then use the active one
+            if (!empty($membershipUserProductToSync) &&
+                ($membershipUserProductToSync->getExpirationDate() < $userProduct->getExpirationDate())) {
+                $membershipUserProductToSync = $userProduct;
+            }
+        }
+
+        if (!empty($membershipUserProductToSync)) {
+            $membershipAccessExpirationDate = $membershipUserProductToSync->getExpirationDate();
+            $isLifetime = empty($membershipUserProductToSync->getExpirationDate());
+        }
+        else {
+            $membershipAccessExpirationDate = null;
+            $isLifetime = null;
+        }
+
+        $attributes = [
+            $brand . '_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
+                $membershipAccessExpirationDate->timestamp : null,
+            $brand . '_membership_is_lifetime' => $isLifetime,
+        ];
+
+        // sync non-membership products
+        foreach ($userProducts as $userProduct) {
+            if ($userProduct->getProduct()
+                    ->getBrand() !== $brand) {
+                continue;
+            }
+
+            foreach (config('event-data-synchronizer.intercom_attribute_name_to_pack_product_ids') as $attributeName =>
+                     $productIds) {
+                if (!in_array(
+                    $userProduct->getProduct()
+                        ->getId(),
+                    $productIds
+                )) {
+                    continue;
+                }
+                else {
+                    $attributes[$attributeName] = true;
+                }
+            }
+        }
+
+        return $attributes;
     }
 }
