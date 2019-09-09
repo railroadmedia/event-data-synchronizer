@@ -47,7 +47,7 @@ class MaropostEventListener
 
         list($addTags, $removeTags) = $this->getMaropostTags($userProduct, $brand);
 
-        dispatch_now(
+        dispatch(
             new SyncContact(
                 new ContactVO(
                     $user->getEmail(),
@@ -84,7 +84,7 @@ class MaropostEventListener
         );
 
         if ($isMembership) {
-            dispatch_now(
+            dispatch(
                 new SyncContact(
                     new ContactVO(
 
@@ -118,7 +118,7 @@ class MaropostEventListener
 
         list($addTags, $removeTags) = $this->getMaropostTags($userProduct, $brand);
 
-        dispatch_now(
+        dispatch(
             new SyncContact(
                 new ContactVO(
                     $user->getEmail(),

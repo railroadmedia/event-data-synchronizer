@@ -70,7 +70,9 @@ class InfusionsoftSyncEventListener
                 );
             }
 
-            $this->infusionsoft->addTagsToContact($infusionsoftContactId, $tagIds);
+            if (!empty($tagIds)) {
+                $this->infusionsoft->addTagsToContact($infusionsoftContactId, $tagIds);
+            }
 
         } catch (Throwable $throwable) {
             error_log($throwable);
