@@ -293,7 +293,7 @@ class IntercomSyncEventListener
 
         foreach ($userSubscriptions as $userSubscription) {
             // make sure this subscription is for the brand being processed
-            if ($userSubscription->getBrand() !== $brand) {
+            if ($userSubscription->getBrand() !== $brand || empty($userSubscription->getProduct())) {
                 continue;
             }
 
