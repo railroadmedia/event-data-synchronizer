@@ -314,19 +314,21 @@ class IntercomSyncEventListener
             $subscriptionStatus = $subscriptionToSync->getState();
             $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
-            if ($subscriptionToSync->getPaymentMethod()
-                    ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+            if (!empty($subscriptionToSync->getPaymentMethod())) {
+                if ($subscriptionToSync->getPaymentMethod()
+                        ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
 
-                $expirationDate = Carbon::parse(
-                    $subscriptionToSync->getPaymentMethod()
-                        ->getMethod()
-                        ->getExpirationDate()
-                )->timestamp;
-            }
-            elseif ($subscriptionToSync->getPaymentMethod()
-                    ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+                    $expirationDate = Carbon::parse(
+                        $subscriptionToSync->getPaymentMethod()
+                            ->getMethod()
+                            ->getExpirationDate()
+                    )->timestamp;
+                }
+                elseif ($subscriptionToSync->getPaymentMethod()
+                        ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
 
-                $expirationDate = null;
+                    $expirationDate = null;
+                }
             }
         }
 
