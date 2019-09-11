@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Listeners\Intercom;
 
 use Carbon\Carbon;
+use Exception;
 use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\UserProduct;
@@ -314,22 +315,27 @@ class IntercomSyncEventListener
             $subscriptionStatus = $subscriptionToSync->getState();
             $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
-            if (!empty($subscriptionToSync->getPaymentMethod())) {
-                if ($subscriptionToSync->getPaymentMethod()
-                        ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+            // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
+             try {
+                 if (!empty($subscriptionToSync->getPaymentMethod())) {
+                     if ($subscriptionToSync->getPaymentMethod()
+                             ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
 
-                    $expirationDate = Carbon::parse(
-                        $subscriptionToSync->getPaymentMethod()
-                            ->getMethod()
-                            ->getExpirationDate()
-                    )->timestamp;
-                }
-                elseif ($subscriptionToSync->getPaymentMethod()
-                        ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+                         $expirationDate = Carbon::parse(
+                             $subscriptionToSync->getPaymentMethod()
+                                 ->getMethod()
+                                 ->getExpirationDate()
+                         )->timestamp;
+                     }
+                     elseif ($subscriptionToSync->getPaymentMethod()
+                             ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
 
-                    $expirationDate = null;
-                }
-            }
+                         $expirationDate = null;
+                     }
+                 }
+             } catch (Exception $exception) {
+                 $expirationDate = null;
+             }
         }
 
         $subscriptionProductTag = null;
