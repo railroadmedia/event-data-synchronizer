@@ -27,6 +27,7 @@ class InfusionsoftSyncEventListener
     const INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX = 'HasAccessToo:';
     const INFUSIONSOFT_TAG_IS_MEMBER = 'Pianote Member';
     const INFUSIONSOFT_TAG_500_SONGS = '500-Songs-Pack-Owner';
+    const INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER = 'AGME - Pack Owner';
 
     /**
      * InfusionsoftSyncEventListener constructor.
@@ -89,11 +90,14 @@ class InfusionsoftSyncEventListener
 
             $userProduct = $userProductUpdated->getNewUserProduct();
 
+            // pianote
             if (in_array(
+                    $userProduct->getProduct()
+                        ->getId(),
+                    config('event-data-synchronizer.pianote_membership_product_ids')
+                ) ||
                 $userProduct->getProduct()
-                    ->getId(),
-                config('event-data-synchronizer.pianote_membership_product_ids')
-            )) {
+                    ->getBrand() == 'guitareo') {
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
                     $userProduct->getUser()
                         ->getEmail()
@@ -180,7 +184,43 @@ class InfusionsoftSyncEventListener
                         ]
                     );
                 }
+            }
 
+            // agme jan semester
+            if ($userProductUpdated->getNewUserProduct()
+                    ->getProduct()
+                    ->getSku() == 'AGME-JAN-2019-SEMESTER') {
+
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()
+                        ->getEmail()
+                );
+
+                if ($userProductUpdated->getNewUserProduct()
+                        ->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()
+                        ->getExpirationDate() > Carbon::now()) {
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER
+                            )
+                        ]
+                    );
+
+                }
+                else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER
+                            )
+                        ]
+                    );
+                }
             }
 
         } catch (Throwable $throwable) {
@@ -214,11 +254,14 @@ class InfusionsoftSyncEventListener
         try {
 
             if (in_array(
+                    $userProductDeleted->getUserProduct()
+                        ->getProduct()
+                        ->getId(),
+                    config('event-data-synchronizer.pianote_membership_product_ids')
+                ) ||
                 $userProductDeleted->getUserProduct()
                     ->getProduct()
-                    ->getId(),
-                config('event-data-synchronizer.pianote_membership_product_ids')
-            )) {
+                    ->getBrand() == 'guitareo') {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
                     $userProductDeleted->getUserProduct()
@@ -285,6 +328,27 @@ class InfusionsoftSyncEventListener
                         ]
                     );
 
+                }
+
+                // agme jan semester
+                if ($userProductDeleted->getUserProduct()
+                        ->getProduct()
+                        ->getSku() == 'AGME-JAN-2019-SEMESTER') {
+
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()
+                            ->getUser()
+                            ->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER
+                            )
+                        ]
+                    );
                 }
             }
 

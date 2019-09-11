@@ -31,7 +31,7 @@
     "railroad/ecommerce": "2.2.*",
     "railroad/usora": "2.0.*",
     "railroad/intercomeo": "2.0.*",
-    "railroad-infusionsoft/infusionsoft-xml-isdk": "@dev",
+    "railroad-infusionsoft/infusionsoft-xml-isdk": "^1.0",
     "railroad/maropost": "dev-master"
   },
   "require-dev": {
