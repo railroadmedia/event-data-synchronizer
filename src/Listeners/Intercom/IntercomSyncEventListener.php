@@ -88,7 +88,7 @@ class IntercomSyncEventListener
                 new IntercomSyncUser(
                     self::USER_ID_PREFIX . $user->getId(), [
                         'email' => $user->getEmail(),
-                        'created_at' => Carbon::parse($user->getCreatedAt())->timestamp,
+                        'created_at' => Carbon::parse($user->getCreatedAt(), 'UTC')->timestamp,
                         'name' => $user->getFirstName() .
                             (!empty($user->getLastName()) ? ' ' . $user->getLastName() : ''),
                         'avatar' => ['type' => 'avatar', 'image_url' => $user->getProfilePictureUrl()],
@@ -129,47 +129,13 @@ class IntercomSyncEventListener
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
-        $paymentMethod = $paymentMethodUpdated->getNewPaymentMethod();
-        $userPaymentMethod = $this->userPaymentMethodsRepository->getByMethodId($paymentMethod->getId());
-
-        if (!empty($paymentMethod) && !empty($paymentMethodUpdated->getUser())) {
-
-            $brand = null;
-
-            if ($paymentMethod->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
-
-                $brand =
-                    $paymentMethod->getCreditCard()
-                        ->getPaymentGatewayName();
-
-                $expirationDate = Carbon::parse(
-                    $paymentMethod->getMethod()
-                        ->getExpirationDate()
-                )->timestamp;
-            }
-            elseif ($paymentMethod->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
-                $brand =
-                    $paymentMethod->getPaypalBillingAgreement()
-                        ->getPaymentGatewayName();
-
-                $expirationDate = null;
-            }
-
-            // we only want to sync their primary payment method
-            if (empty($brand) || !$userPaymentMethod->getIsPrimary() || empty($expirationDate)) {
-                return;
-            }
-
-            dispatch(
-                new IntercomSyncUser(
-                    self::USER_ID_PREFIX .
-                    $paymentMethodUpdated->getUser()
-                        ->getId(), [
-                        'custom_attributes' => [
-                            $brand . '_primary_payment_method_expiration_date' => $expirationDate,
-                        ],
-                    ]
-                )
+        if (!empty(
+        $paymentMethodUpdated->getUser()
+            ->getId()
+        )) {
+            $this->syncUserMembershipAndProductData(
+                $paymentMethodUpdated->getUser()
+                    ->getId()
             );
         }
     }
@@ -281,6 +247,12 @@ class IntercomSyncEventListener
      */
     private function getSubscriptionAttributes(array $userSubscriptions, $brand, $isLifetime = false)
     {
+        $membershipRenewalDate = null;
+        $membershipCancellationDate = null;
+        $subscriptionStatus = null;
+        $subscriptionStartedDate = null;
+        $expirationDate = null;
+
         /**
          * @var $subscriptionToSync Subscription|null
          */
@@ -324,6 +296,8 @@ class IntercomSyncEventListener
             }
         }
 
+        $expirationDate = null;
+
         if (!empty($subscriptionToSync)) {
 
             $totalPaymentsOnActiveSubscription = 0;
@@ -340,12 +314,20 @@ class IntercomSyncEventListener
             $subscriptionStatus = $subscriptionToSync->getState();
             $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
-        }
-        else {
-            $membershipRenewalDate = null;
-            $membershipCancellationDate = null;
-            $subscriptionStatus = null;
-            $subscriptionStartedDate = null;
+            if ($subscriptionToSync->getPaymentMethod()
+                    ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+
+                $expirationDate = Carbon::parse(
+                    $subscriptionToSync->getPaymentMethod()
+                        ->getMethod()
+                        ->getExpirationDate()
+                )->timestamp;
+            }
+            elseif ($subscriptionToSync->getPaymentMethod()
+                    ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+
+                $expirationDate = null;
+            }
         }
 
         $subscriptionProductTag = null;
@@ -363,6 +345,7 @@ class IntercomSyncEventListener
             $subscriptionStatus = null;
             $subscriptionStartedDate = null;
             $subscriptionProductTag = null;
+            $expirationDate = null;
         }
 
         return [
@@ -371,6 +354,7 @@ class IntercomSyncEventListener
             $brand . '_membership_subscription_renewal_date' => $membershipRenewalDate,
             $brand . '_membership_subscription_cancellation_date' => $membershipCancellationDate,
             $brand . '_membership_subscription_started_date' => $subscriptionStartedDate,
+            $brand . '_primary_payment_method_expiration_date' => $expirationDate,
         ];
     }
 
