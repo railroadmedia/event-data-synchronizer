@@ -88,7 +88,7 @@ class MaropostEventListener
 
                 if ($this->userHasProductSku($allUsersProducts, $brand, $sku)) {
                     $addTags[] = $tagName;
-                } else {
+                } elseif (!in_array($tagName, $addTags)) {
                     $removeTags[] = $tagName;
                 }
 
