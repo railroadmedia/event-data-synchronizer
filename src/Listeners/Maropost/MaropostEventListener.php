@@ -69,6 +69,15 @@ class MaropostEventListener
      */
     public function syncUser($userId)
     {
+        dispatch(new SyncContact($this->getContactVOToSync($userId)));
+    }
+
+    /**
+     * @param $userId
+     * @return ContactVO
+     */
+    public function getContactVOToSync($userId)
+    {
         $user = $this->userRepository->find($userId);
 
         /**
@@ -137,7 +146,7 @@ class MaropostEventListener
             }
         }
 
-        $contact = new ContactVO(
+        return new ContactVO(
             $user->getEmail(),
             $user->getFirstName(),
             $user->getLastName(),
@@ -146,8 +155,6 @@ class MaropostEventListener
             $removeTags,
             $listIdsToSubscribeTo
         );
-
-        dispatch(new SyncContact($contact));
     }
 
     /**
