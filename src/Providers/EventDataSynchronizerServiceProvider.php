@@ -45,19 +45,19 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             IntercomSyncEventListener::class . '@handleUserProductCreated',
             UserProductToUserContentPermissionListener::class . '@handleCreated',
             InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
-//            MaropostEventListener::class . '@handleUserProductCreated',
+            MaropostEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserProductUpdated',
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
             InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
-//            MaropostEventListener::class . '@handleUserProductUpdated',
+            MaropostEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
             IntercomSyncEventListener::class . '@handleUserProductDeleted',
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
             InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
-//            MaropostEventListener::class . '@handleUserProductDeleted',
+            MaropostEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
@@ -90,9 +90,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         $this->publishes(
             [
                 __DIR__ . '/../../config/event-data-synchronizer.php' => config_path('event-data-synchronizer.php'),
-                __DIR__ . '/../../config/product_sku_maropost_tag_mapping.php' => config_path(
-                    'product_sku_maropost_tag_mapping.php'
-                ),
             ]
         );
     }

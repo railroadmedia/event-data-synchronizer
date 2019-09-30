@@ -2,12 +2,11 @@
 
 namespace Railroad\EventDataSynchronizer\Listeners\Maropost;
 
-
-use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Maropost\Jobs\SyncContact;
 use Railroad\Maropost\ValueObjects\ContactVO;
 use Railroad\Usora\Repositories\UserRepository;
@@ -20,151 +19,173 @@ class MaropostEventListener
     private $userRepository;
 
     /**
+     * @var UserProductRepository
+     */
+    private $userProductRepository;
+
+    /**
      * MaropostEventListener constructor.
      *
-     * @param UserRepository $userRepository
+     * @param  UserRepository  $userRepository
      */
-    public function __construct(UserRepository $userRepository)
+    public function __construct(UserRepository $userRepository, UserProductRepository $userProductRepository)
     {
         $this->userRepository = $userRepository;
+        $this->userProductRepository = $userProductRepository;
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
         $userProduct = $userProductUpdated->getNewUserProduct();
 
-        $user = $this->userRepository->find(
-            $userProduct->getUser()
-                ->getId()
-        );
-
-        $brand =
-            $userProduct->getProduct()
-                ->getBrand();
-
-        list($addTags, $removeTags) = $this->getMaropostTags($userProduct, $brand);
-
-        dispatch(
-            new SyncContact(
-                new ContactVO(
-                    $user->getEmail(),
-                    $user->getFirstName(),
-                    $user->getLastName(),
-                    ['type' => config('event-data-synchronizer.maropost_contact_type')[$brand]],
-                    $addTags,
-                    $removeTags
-                )
-            )
-        );
+        $this->syncUser($userProduct->getUser()->getId());
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
         $userProduct = $userProductDeleted->getUserProduct();
 
-        $user = $this->userRepository->find(
-            $userProduct->getUser()
-                ->getId()
-        );
-
-        $brand =
-            $userProduct->getProduct()
-                ->getBrand();
-
-        $isMembership = in_array(
-            $userProduct->getProduct()
-                ->getId(),
-            config('event-data-synchronizer.' . $brand . '_membership_product_ids',[])
-        );
-
-        if ($isMembership) {
-            dispatch(
-                new SyncContact(
-                    new ContactVO(
-
-                        $user->getEmail(),
-                        $user->getFirstName(),
-                        $user->getLastName(),
-                        ['type' => config('event-data-synchronizer.maropost_contact_type')[$brand]],
-                        [config('event-data-synchronizer.maropost_member_expired_tag')[$brand]],
-                        [config('event-data-synchronizer.maropost_member_active_tag')[$brand]]
-                    )
-                )
-            );
-        }
+        $this->syncUser($userProduct->getUser()->getId());
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
         $userProduct = $userProductCreated->getUserProduct();
 
-        $user = $this->userRepository->find(
-            $userProduct->getUser()
-                ->getId()
-        );
-
-        $brand =
-            $userProduct->getProduct()
-                ->getBrand();
-
-        list($addTags, $removeTags) = $this->getMaropostTags($userProduct, $brand);
-
-        dispatch(
-            new SyncContact(
-                new ContactVO(
-                    $user->getEmail(),
-                    $user->getFirstName(),
-                    $user->getLastName(),
-                    ['type' => config('event-data-synchronizer.maropost_contact_type')[$brand]],
-                    $addTags,
-                    $removeTags
-                )
-            )
-        );
+        $this->syncUser($userProduct->getUser()->getId());
     }
 
     /**
-     * @param UserProduct $userProduct
-     * @param string $brand
-     * @return array
+     * @param $userId
      */
-    private function getMaropostTags(UserProduct $userProduct, string $brand)
-    : array {
+    public function syncUser($userId)
+    {
+        $user = $this->userRepository->find($userId);
 
-        $isMembership = in_array(
-            $userProduct->getProduct()
-                ->getId(),
-            config('event-data-synchronizer.' . $brand . '_membership_product_ids',[])
-        );
+        /**
+         * @var $allUsersProducts UserProduct[]
+         */
+        $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userId);
+
+        $brandsSkuTagMap = config('event-data-synchronizer.product_sku_maropost_tag_mapping', []);
 
         $addTags = [];
         $removeTags = [];
+        $listIdsToSubscribeTo = [];
 
-        if ($isMembership) {
-            if ($userProduct->getExpirationDate() == null ||
-                Carbon::parse($userProduct->getExpirationDate()) > Carbon::now()) {
+        // product sku tags
+        foreach ($brandsSkuTagMap as $brand => $skuTagMap) {
+            foreach ($skuTagMap as $sku => $tagName) {
+
+                if ($this->userHasProductSku($allUsersProducts, $brand, $sku)) {
+                    $addTags[] = $tagName;
+                } else {
+                    $removeTags[] = $tagName;
+                }
+
+            }
+        }
+
+        // active/expired membership tags
+        foreach (config('event-data-synchronizer.maropost_member_active_tag') as $brand => $tagName) {
+            $hasMembershipAccess = false;
+
+            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_ids', []) as $productId) {
+                if ($this->userHasProductId($allUsersProducts, $brand, $productId)) {
+                    $hasMembershipAccess = true;
+                }
+            }
+
+            if ($hasMembershipAccess) {
                 $addTags[] = config('event-data-synchronizer.maropost_member_active_tag')[$brand];
-                $removeTags[] = config('event-data-synchronizer.maropost_member_expired_tag')[$brand];
             } else {
-                $addTags[] = config('event-data-synchronizer.maropost_member_expired_tag')[$brand];
                 $removeTags[] = config('event-data-synchronizer.maropost_member_active_tag')[$brand];
             }
-        } else {
-            $addTags[] = config(
-                'product_sku_maropost_tag_mapping.' .
-                $userProduct->getProduct()
-                    ->getSku()
-            );
         }
-        return [$addTags, $removeTags];
+
+        // brand lists to subscribe to
+        foreach (config('event-data-synchronizer.maropost_product_brand_list_id_map') as $brand => $listId) {
+            if ($this->userHasOrHasAnyProductUnderBrand($allUsersProducts, $brand)) {
+                $listIdsToSubscribeTo[] = $listId;
+            }
+        }
+
+        $contact = new ContactVO(
+            $user->getEmail(),
+            $user->getFirstName(),
+            $user->getLastName(),
+            [config('event-data-synchronizer.maropost_user_id_custom_field_name', 'user_id') => $user->getId()],
+            $addTags,
+            $removeTags,
+            $listIdsToSubscribeTo
+        );
+
+        dispatch(new SyncContact($contact));
+    }
+
+    /**
+     * @param  UserProduct[]  $allUsersProducts
+     * @param $brand
+     * @param $sku
+     *
+     * @return bool
+     */
+    private function userHasProductSku(array $allUsersProducts, $brand, $sku)
+    {
+        foreach ($allUsersProducts as $userProduct) {
+            $product = $userProduct->getProduct();
+
+            if ($product->getSku() == $sku && $product->getBrand() == $brand && $userProduct->isValid()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  UserProduct[]  $allUsersProducts
+     * @param $brand
+     * @param $id
+     * @return bool
+     */
+    private function userHasProductId(array $allUsersProducts, $brand, $id)
+    {
+        foreach ($allUsersProducts as $userProduct) {
+            $product = $userProduct->getProduct();
+
+            if ($product->getId() == $id && $product->getBrand() == $brand && $userProduct->isValid()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  UserProduct[]  $allUsersProducts
+     * @param $brand
+     * @return bool
+     */
+    private function userHasOrHasAnyProductUnderBrand(array $allUsersProducts, $brand)
+    {
+        foreach ($allUsersProducts as $userProduct) {
+            $product = $userProduct->getProduct();
+
+            if ($product->getBrand() == $brand) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
