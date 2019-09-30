@@ -74,12 +74,6 @@ class SetMaropostTagsForExpiredUserProducts extends Command
         $userProducts = $qb->getQuery()->getResult();
 
         foreach ($userProducts as $userProduct) {
-            if ($userProduct->getUser()->getId() != 163963) {
-                continue;
-            }
-
-            $this->info('hit');
-
             $this->maropostEventListener->syncUser($userProduct->getUser()->getId());
         }
 
