@@ -95,7 +95,7 @@ class MaropostEventListener
             }
         }
 
-        // active/expired membership tags
+        // active membership tag
         foreach (config('event-data-synchronizer.maropost_member_active_tag') as $brand => $tagName) {
             $hasMembershipAccess = false;
 
@@ -109,6 +109,24 @@ class MaropostEventListener
                 $addTags[] = config('event-data-synchronizer.maropost_member_active_tag')[$brand];
             } else {
                 $removeTags[] = config('event-data-synchronizer.maropost_member_active_tag')[$brand];
+            }
+        }
+
+        // expired membership tag
+        foreach (config('event-data-synchronizer.maropost_member_active_tag') as $brand => $tagName) {
+            $hasExpiredAccess = false;
+
+            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_ids', []) as $productId) {
+                if ($this->userHasInvalidProductId($allUsersProducts, $brand, $productId)) {
+                    $hasExpiredAccess = true;
+                }
+            }
+
+            if ($hasExpiredAccess &&
+                !in_array(config('event-data-synchronizer.maropost_member_active_tag')[$brand], $addTags)) {
+                $addTags[] = config('event-data-synchronizer.maropost_member_expired_tag')[$brand];
+            } else {
+                $removeTags[] = config('event-data-synchronizer.maropost_member_expired_tag')[$brand];
             }
         }
 
@@ -182,6 +200,25 @@ class MaropostEventListener
             $product = $userProduct->getProduct();
 
             if ($product->getBrand() == $brand) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  UserProduct[]  $allUsersProducts
+     * @param $brand
+     * @param $id
+     * @return bool
+     */
+    private function userHasInvalidProductId(array $allUsersProducts, $brand, $id)
+    {
+        foreach ($allUsersProducts as $userProduct) {
+            $product = $userProduct->getProduct();
+
+            if ($product->getId() == $id && $product->getBrand() == $brand && !$userProduct->isValid()) {
                 return true;
             }
         }
