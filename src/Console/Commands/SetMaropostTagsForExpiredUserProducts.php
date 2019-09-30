@@ -6,8 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
-use Railroad\Maropost\Jobs\SyncContact;
-use Railroad\Maropost\ValueObjects\ContactVO;
+use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\Usora\Repositories\UserRepository;
 
 class SetMaropostTagsForExpiredUserProducts extends Command
@@ -25,7 +24,7 @@ class SetMaropostTagsForExpiredUserProducts extends Command
      *
      * @var string
      */
-    protected $description = 'Find all the user products that expired in the last 6 hours and assigns their Maropost tags accordingly.';
+    protected $description = 'Find all the user products that expired in the last day and assigns their Maropost tags accordingly.';
 
     /**
      * @var UserProductRepository
@@ -33,22 +32,24 @@ class SetMaropostTagsForExpiredUserProducts extends Command
     private $userProductRepository;
 
     /**
-     * @var UserRepository
+     * @var MaropostEventListener
      */
-    private $userRepository;
+    private $maropostEventListener;
 
     /**
      * SetLevelTagsForExpiredLevels constructor.
      *
-     * @param UserProductRepository $userProductRepository
-     * @param UserRepository $userRepository
+     * @param  UserProductRepository  $userProductRepository
+     * @param  UserRepository  $userRepository
      */
-    public function __construct(UserProductRepository $userProductRepository, UserRepository $userRepository)
-    {
+    public function __construct(
+        UserProductRepository $userProductRepository,
+        MaropostEventListener $maropostEventListener
+    ) {
         parent::__construct();
 
         $this->userProductRepository = $userProductRepository;
-        $this->userRepository = $userRepository;
+        $this->maropostEventListener = $maropostEventListener;
     }
 
     /**
@@ -58,58 +59,33 @@ class SetMaropostTagsForExpiredUserProducts extends Command
      */
     public function handle()
     {
-        $sixHoursAgo =
-            Carbon::now()
-                ->subHours(6);
-
-        error_log('6 hours ago: ' . $sixHoursAgo->format('d.m.y - H:i:s'));
-        error_log(
-            'now: ' .
-            Carbon::now()
-                ->format('d.m.y - H:i:s')
-        );
+        $lastDay = Carbon::now()->subDay();
 
         $qb = $this->userProductRepository->createQueryBuilder('up');
-        $qb->where(
-            $qb->expr()
-                ->gte('up.expirationDate', ':sixHoursAgo')
-        )
-            ->andWhere(
-                $qb->expr()
-                    ->lt('up.expirationDate', ':now')
-            )
-            ->setParameter('sixHoursAgo', $sixHoursAgo)
+
+        $qb->where($qb->expr()->gte('up.expirationDate', ':lastDay'))
+            ->andWhere($qb->expr()->lt('up.expirationDate', ':now'))
+            ->setParameter('lastDay', $lastDay)
             ->setParameter('now', Carbon::now());
 
-        $userProducts =
-            $qb->getQuery()
-                ->getResult();
+        /**
+         * @var $userProducts UserProduct[]
+         */
+        $userProducts = $qb->getQuery()->getResult();
 
         foreach ($userProducts as $userProduct) {
-            $user = $userProduct->getUser();
-            $product = $userProduct->getProduct();
-            $brand = $product->getBrand();
+            if ($userProduct->getUser()->getId() != 163963) {
+                continue;
+            }
 
-            list($addTags, $removeTags) = $this->getMaropostTags($userProduct, $brand);
+            $this->info('hit');
 
-            $userDetails = $this->userRepository->find($user->getId());
-
-            dispatch_now(
-                new SyncContact(
-                    new ContactVO(
-                        $userDetails->getEmail(),
-                        $userDetails->getFirstName(),
-                        $userDetails->getLastName(),
-                        ['type' => config('event-data-synchronizer.maropost_contact_type')[$brand]],
-                        $addTags,
-                        $removeTags
-                    )
-                )
-            );
+            $this->maropostEventListener->syncUser($userProduct->getUser()->getId());
         }
 
-        $this->info('Updated tags for '.count($userProducts).' expired products.');
-        error_log('Updated tags for '.count($userProducts).' expired products.');
+        $this->info('Updated tags for ' . count($userProducts) . ' expired products.');
+
+        return true;
     }
 
     /**
@@ -130,31 +106,5 @@ class SetMaropostTagsForExpiredUserProducts extends Command
     protected function getOptions()
     {
         return [];
-    }
-
-    /**
-     * @param UserProduct $userProduct
-     * @param string $brand
-     * @return array
-     */
-    private function getMaropostTags(UserProduct $userProduct, string $brand)
-    : array {
-
-        $isMembership = in_array(
-            $userProduct->getProduct()
-                ->getId(),
-            config('event-data-synchronizer.' . $brand . '_membership_product_ids', [])
-        );
-
-        $addTags = [];
-        $removeTags = [];
-
-        if ($isMembership) {
-            $addTags[] = config('event-data-synchronizer.maropost_member_expired_tag')[$brand];
-            $removeTags[] = config('event-data-synchronizer.maropost_member_active_tag')[$brand];
-
-        }
-
-        return [$addTags, $removeTags];
     }
 }
