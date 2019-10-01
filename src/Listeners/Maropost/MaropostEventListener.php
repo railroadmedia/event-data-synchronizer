@@ -50,6 +50,10 @@ class MaropostEventListener
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
         $userProduct = $userProductUpdated->getNewUserProduct();
 
         $this->syncUser($userProduct->getUser()->getId());
@@ -60,6 +64,10 @@ class MaropostEventListener
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
         $userProduct = $userProductDeleted->getUserProduct();
 
         $this->syncUser($userProduct->getUser()->getId());
@@ -70,12 +78,18 @@ class MaropostEventListener
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
         $userProduct = $userProductCreated->getUserProduct();
 
         $this->syncUser($userProduct->getUser()->getId());
     }
 
     // todo: handle subscription events
+    // todo: handle order events
+    // todo: handle refund events
 
     /**
      * @param $userId
@@ -223,6 +237,8 @@ class MaropostEventListener
                 $listIdsToSubscribeTo[] = $listId;
             }
         }
+
+        // todo: order items tags for non-level based tags
 
         return new ContactVO(
             $user->getEmail(),
