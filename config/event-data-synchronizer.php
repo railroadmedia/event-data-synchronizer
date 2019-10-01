@@ -69,6 +69,12 @@ return [
         'pianote' => [
             '500-songs-in-5-days' => 'Pianote - Customer - Pack - 500 Songs',
             '500-songs-in-5-days-99' => 'Pianote - Customer - Pack - 500 Songs',
+            '1-DOLLAR' => 'Pianote - Customer - Accessory - Misc - One Dollar Membership',
+            '2019-TSHIRT-XXL' => 'Pianote - Customer - Accessory - Merch - TShirt',
+            '2019-TSHIRT-XL' => 'Pianote - Customer - Accessory - Merch - TShirt',
+            '2019-TSHIRT-L' => 'Pianote - Customer - Accessory - Merch - TShirt',
+            '2019-TSHIRT-M' => 'Pianote - Customer - Accessory - Merch - TShirt',
+            '2019-TSHIRT-S' => 'Pianote - Customer - Accessory - Merch - TShirt',
         ],
 
         'guitareo' => [

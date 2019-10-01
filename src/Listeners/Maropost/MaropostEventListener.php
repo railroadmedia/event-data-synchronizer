@@ -238,7 +238,14 @@ class MaropostEventListener
             }
         }
 
-        // todo: order items tags for non-level based tags
+        // remove all addTags from removeTags if they are set
+        foreach ($addTags as $addTag) {
+            foreach ($removeTags as $removeTagIndex => $removeTag) {
+                if ($addTag == $removeTag) {
+                    unset($removeTags[$removeTagIndex]);
+                }
+            }
+        }
 
         return new ContactVO(
             $user->getEmail(),
