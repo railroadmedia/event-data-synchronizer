@@ -40,7 +40,32 @@ return [
         'drumeo' => 31,
     ],
 
-    'product_sku_maropost_tag_mapping' => [
+    // in general a user can only be 1 membership type:
+    // 1 month recurring, 3 month recurring, 1 year recurring, or lifetime
+    'membership_type_product_sku_maropost_tag_mapping' => [
+        'pianote' => [
+            'recurring' => [
+                'PIANOTE-MEMBERSHIP-1-MONTH' => 'Pianote - Customer - Member - 1 Month',
+                'PIANOTE-MEMBERSHIP-1-YEAR' => 'Pianote - Customer - Member - 1 Year',
+            ],
+            'lifetime' => [
+                'PIANOTE-MEMBERSHIP-LIFETIME' => 'Pianote - Customer - Member - Lifetime',
+                'PIANOTE-MEMBERSHIP-LIFETIME-EXISTING-MEMBERS' => 'Pianote - Customer - Member - Lifetime',
+            ],
+        ],
+        'guitareo' => [
+            'recurring' => [
+                'GUITAREO-1-MONTH-MEMBERSHIP' => 'Guitareo - Customer - Member - 1 Month',
+                'GUITAREO-1-YEAR-MEMBERSHIP' => 'Guitareo - Customer - Member - 1 Year',
+                'GUITAREO-6-MONTH-MEMBERSHIP' => 'Guitareo - Customer - Member - 6 Month',
+            ],
+            'lifetime' => [
+                'GUITAREO-LIFETIME-MEMBERSHIP' => 'Guitareo - Customer - Member - Lifetime',
+            ],
+        ],
+    ],
+
+    'one_time_product_sku_maropost_tag_mapping' => [
         'pianote' => [
             '500-songs-in-5-days' => 'Pianote - Customer - Pack - 500 Songs',
             '500-songs-in-5-days-99' => 'Pianote - Customer - Pack - 500 Songs',

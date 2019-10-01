@@ -2,10 +2,12 @@
 
 namespace Railroad\EventDataSynchronizer\Listeners\Maropost;
 
+use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Maropost\Jobs\SyncContact;
 use Railroad\Maropost\ValueObjects\ContactVO;
@@ -24,14 +26,23 @@ class MaropostEventListener
     private $userProductRepository;
 
     /**
+     * @var SubscriptionRepository
+     */
+    private $subscriptionRepository;
+
+    /**
      * MaropostEventListener constructor.
      *
      * @param  UserRepository  $userRepository
      */
-    public function __construct(UserRepository $userRepository, UserProductRepository $userProductRepository)
-    {
+    public function __construct(
+        UserRepository $userRepository,
+        UserProductRepository $userProductRepository,
+        SubscriptionRepository $subscriptionRepository
+    ) {
         $this->userRepository = $userRepository;
         $this->userProductRepository = $userProductRepository;
+        $this->subscriptionRepository = $subscriptionRepository;
     }
 
     /**
@@ -64,6 +75,8 @@ class MaropostEventListener
         $this->syncUser($userProduct->getUser()->getId());
     }
 
+    // todo: handle subscription events
+
     /**
      * @param $userId
      */
@@ -84,15 +97,80 @@ class MaropostEventListener
          * @var $allUsersProducts UserProduct[]
          */
         $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userId);
+        $allUsersSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($userId);
 
-        $brandsSkuTagMap = config('event-data-synchronizer.product_sku_maropost_tag_mapping', []);
+        $oneTimeProductBrandsSkuTagMap =
+            config('event-data-synchronizer.one_time_product_sku_maropost_tag_mapping', []);
+        $membershipTypeBrandsSkuTagMap =
+            config('event-data-synchronizer.membership_type_product_sku_maropost_tag_mapping', []);
 
         $addTags = [];
         $removeTags = [];
         $listIdsToSubscribeTo = [];
 
+        // find the membership tag for the user
+        // a user can only have one membership type tag per brand
+        // generally the options are: 1 month recurring, 6 month recurring, 1 year recurring, lifetime
+
+        foreach ($membershipTypeBrandsSkuTagMap as $brand => $recurringOrLifetime) {
+            $membershipTagToAdd = null;
+
+            // check if this user is lifetime, if so only add the lifetime tag and skip checking their subscriptions
+            foreach ($recurringOrLifetime['lifetime'] as $productSku => $tagName) {
+                if ($this->userHasProductSku($allUsersProducts, $brand, $productSku)) {
+                    $membershipTagToAdd = $tagName;
+                }
+            }
+
+            // if not lifetime, figure out what membership type they have based on subscriptions
+            if (empty($membershipTagToAdd)) {
+                // figure out which recurring type this user is and add tags accordingly
+                foreach ($allUsersSubscriptions as $userSubscription) {
+                    if (!empty($userSubscription->getProduct()) &&
+                        $userSubscription->getProduct()->getBrand() == $brand &&
+                        !empty($recurringOrLifetime['recurring'][$userSubscription->getProduct()->getSku()]) &&
+                        $userSubscription->getIsActive() &&
+                        $userSubscription->getState() == Subscription::STATE_ACTIVE) {
+
+                        $membershipTagToAdd =
+                            $recurringOrLifetime['recurring'][$userSubscription->getProduct()->getSku()];
+
+                        break;
+                    }
+                }
+
+                // if they don't have an active subscription we still want to sync the membership type if they have
+                // an expired or cancelled subscription
+                if (empty($membershipTagToAdd)) {
+                    foreach ($allUsersSubscriptions as $userSubscription) {
+                        if (!empty($userSubscription->getProduct()) &&
+                            $userSubscription->getProduct()->getBrand() == $brand &&
+                            !empty($recurringOrLifetime['recurring'][$userSubscription->getProduct()->getSku()])) {
+
+                            $membershipTagToAdd =
+                                $recurringOrLifetime['recurring'][$userSubscription->getProduct()->getSku()];
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!empty($membershipTagToAdd)) {
+                $addTags[] = $membershipTagToAdd;
+            }
+
+            // remove all other tags
+            foreach (array_merge($recurringOrLifetime['lifetime'], $recurringOrLifetime['recurring']) as $productSku =>
+                     $tagName) {
+                if (!in_array($tagName, $addTags)) {
+                    $removeTags[] = $tagName;
+                }
+            }
+        }
+
         // product sku tags
-        foreach ($brandsSkuTagMap as $brand => $skuTagMap) {
+        foreach ($oneTimeProductBrandsSkuTagMap as $brand => $skuTagMap) {
             foreach ($skuTagMap as $sku => $tagName) {
 
                 if ($this->userHasProductSku($allUsersProducts, $brand, $sku)) {
