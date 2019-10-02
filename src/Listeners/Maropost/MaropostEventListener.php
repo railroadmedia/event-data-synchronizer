@@ -318,6 +318,9 @@ class MaropostEventListener
             }
         }
 
+        $addTags = array_values(array_unique(array_filter($addTags)));
+        $removeTags = array_values(array_unique(array_filter($removeTags)));
+
         return new ContactVO(
             $user->getEmail(),
             $user->getFirstName(),
