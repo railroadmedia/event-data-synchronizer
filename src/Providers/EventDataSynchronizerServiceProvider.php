@@ -62,10 +62,12 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
             DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
+            MaropostEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
             DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
+            MaropostEventListener::class . '@handleSubscriptionUpdated',
         ],
         OrderEvent::class => [
             InfusionsoftSyncEventListener::class . '@handleOrderEvent',

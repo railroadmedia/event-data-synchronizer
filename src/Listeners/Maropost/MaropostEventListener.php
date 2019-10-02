@@ -2,8 +2,11 @@
 
 namespace Railroad\EventDataSynchronizer\Listeners\Maropost;
 
+use Exception;
 use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\UserProduct;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
@@ -34,6 +37,8 @@ class MaropostEventListener
      * MaropostEventListener constructor.
      *
      * @param  UserRepository  $userRepository
+     * @param  UserProductRepository  $userProductRepository
+     * @param  SubscriptionRepository  $subscriptionRepository
      */
     public function __construct(
         UserRepository $userRepository,
@@ -45,6 +50,32 @@ class MaropostEventListener
         $this->subscriptionRepository = $subscriptionRepository;
     }
 
+    public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
+    {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
+        try {
+            $this->syncUser($subscriptionCreated->getSubscription()->getUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
+    }
+
+    public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
+    {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
+        try {
+            $this->syncUser($subscriptionUpdated->getNewSubscription()->getUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
+    }
+
     /**
      * @param  UserProductUpdated  $userProductUpdated
      */
@@ -54,9 +85,11 @@ class MaropostEventListener
             return;
         }
 
-        $userProduct = $userProductUpdated->getNewUserProduct();
-
-        $this->syncUser($userProduct->getUser()->getId());
+        try {
+            $this->syncUser($userProductUpdated->getNewUserProduct()->getUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
     }
 
     /**
@@ -68,9 +101,11 @@ class MaropostEventListener
             return;
         }
 
-        $userProduct = $userProductDeleted->getUserProduct();
-
-        $this->syncUser($userProduct->getUser()->getId());
+        try {
+            $this->syncUser($userProductDeleted->getUserProduct()->getUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
     }
 
     /**
@@ -82,14 +117,12 @@ class MaropostEventListener
             return;
         }
 
-        $userProduct = $userProductCreated->getUserProduct();
-
-        $this->syncUser($userProduct->getUser()->getId());
+        try {
+            $this->syncUser($userProductCreated->getUserProduct()->getUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
     }
-
-    // todo: handle subscription events
-    // todo: handle order events
-    // todo: handle refund events
 
     /**
      * @param $userId
