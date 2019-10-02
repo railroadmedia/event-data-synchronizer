@@ -14,6 +14,8 @@ use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Maropost\Jobs\SyncContact;
 use Railroad\Maropost\ValueObjects\ContactVO;
+use Railroad\Usora\Events\User\UserCreated;
+use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 
 class MaropostEventListener
@@ -48,6 +50,42 @@ class MaropostEventListener
         $this->userRepository = $userRepository;
         $this->userProductRepository = $userProductRepository;
         $this->subscriptionRepository = $subscriptionRepository;
+    }
+
+    // todo: only send one sync request at the and when the response is create instead of many multiple API calls
+
+    /**
+     * @param  UserCreated  $userCreated
+     */
+    public function handleUserCreated(UserCreated $userCreated)
+    {
+        // turning this off for now since we only need to listen for user email updates
+        
+//        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+//            return;
+//        }
+//
+//        try {
+//            $this->syncUser($userCreated->getUser()->getId());
+//        } catch (Exception $exception) {
+//            error_log($exception);
+//        }
+    }
+
+    /**
+     * @param  UserUpdated  $userUpdated
+     */
+    public function handleUserUpdated(UserUpdated $userUpdated)
+    {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+            return;
+        }
+
+        try {
+            $this->syncUser($userUpdated->getNewUser()->getId());
+        } catch (Exception $exception) {
+            error_log($exception);
+        }
     }
 
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
