@@ -40,6 +40,8 @@ return [
         'drumeo' => 31,
     ],
 
+    'sync_expired_levels_maropost_days_buffer' => 1,
+
     // in general a user can only be 1 membership type:
     // 1 month recurring, 3 month recurring, 1 year recurring, or lifetime
     'membership_type_product_sku_maropost_tag_mapping' => [

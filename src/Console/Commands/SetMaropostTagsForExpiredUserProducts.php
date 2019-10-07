@@ -59,7 +59,7 @@ class SetMaropostTagsForExpiredUserProducts extends Command
      */
     public function handle()
     {
-        $lastDay = Carbon::now()->subDay();
+        $lastDay = Carbon::now()->subDays(config('event-data-synchronizer.sync_expired_levels_maropost_days_buffer', 1));
 
         $qb = $this->userProductRepository->createQueryBuilder('up');
 
