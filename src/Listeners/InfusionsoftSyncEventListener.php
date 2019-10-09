@@ -26,13 +26,15 @@ class InfusionsoftSyncEventListener
     const INFUSIONSOFT_TAG_NEW_BUYER_PREFIX = 'NewProductBuyer:';
     const INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX = 'HasAccessToo:';
     const INFUSIONSOFT_TAG_IS_MEMBER = 'Pianote Member';
+    const INFUSIONSOFT_TAG_GUITAREO_IS_MEMBER = 'Guitareo';
     const INFUSIONSOFT_TAG_500_SONGS = '500-Songs-Pack-Owner';
     const INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER = 'AGME - Pack Owner';
+    const INFUSIONSOFT_TAG_GUITAREO_TRIAL = 'Trigger - Active Trial';
 
     /**
      * InfusionsoftSyncEventListener constructor.
-     * @param Infusionsoft $infusionsoft
-     * @param UserProductService $userProductService
+     * @param  Infusionsoft  $infusionsoft
+     * @param  UserProductService  $userProductService
      */
     public function __construct(Infusionsoft $infusionsoft, UserProductService $userProductService)
     {
@@ -41,33 +43,27 @@ class InfusionsoftSyncEventListener
     }
 
     /**
-     * @param OrderEvent $orderEvent
+     * @param  OrderEvent  $orderEvent
      */
     public function handleOrderEvent(OrderEvent $orderEvent)
     {
         try {
 
             if (empty(
-            $orderEvent->getOrder()
-                ->getUser()
+            $orderEvent->getOrder()->getUser()
             )) {
                 return;
             }
 
             $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                $orderEvent->getOrder()
-                    ->getUser()
-                    ->getEmail()
+                $orderEvent->getOrder()->getUser()->getEmail()
             );
 
             $tagIds = [];
 
-            foreach ($orderEvent->getOrder()
-                         ->getOrderItems() as $orderItem) {
+            foreach ($orderEvent->getOrder()->getOrderItems() as $orderItem) {
                 $tagIds[] = $this->infusionsoft->syncTag(
-                    self::INFUSIONSOFT_TAG_NEW_BUYER_PREFIX .
-                    $orderItem->getProduct()
-                        ->getSku()
+                    self::INFUSIONSOFT_TAG_NEW_BUYER_PREFIX . $orderItem->getProduct()->getSku()
                 );
             }
 
@@ -82,7 +78,7 @@ class InfusionsoftSyncEventListener
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
@@ -92,15 +88,11 @@ class InfusionsoftSyncEventListener
 
             // pianote
             if (in_array(
-                    $userProduct->getProduct()
-                        ->getId(),
+                    $userProduct->getProduct()->getId(),
                     config('event-data-synchronizer.pianote_membership_product_ids')
-                ) ||
-                $userProduct->getProduct()
-                    ->getBrand() == 'guitareo') {
+                ) || $userProduct->getProduct()->getBrand() == 'guitareo') {
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProduct->getUser()
-                        ->getEmail()
+                    $userProduct->getUser()->getEmail()
                 );
 
                 // product access tag
@@ -111,9 +103,7 @@ class InfusionsoftSyncEventListener
                         $infusionsoftContactId,
                         [
                             $this->infusionsoft->syncTag(
-                                self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
-                                $userProduct->getProduct()
-                                    ->getSku()
+                                self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX . $userProduct->getProduct()->getSku()
                             )
                         ]
                     );
@@ -121,8 +111,7 @@ class InfusionsoftSyncEventListener
 
                 // is member tag
                 if ($this->userProductService->hasAnyOfProducts(
-                    $userProduct->getUser()
-                        ->getId(),
+                    $userProduct->getUser()->getId(),
                     config('event-data-synchronizer.pianote_membership_product_ids')
                 )) {
                     $this->infusionsoft->addTagsToContact(
@@ -133,8 +122,7 @@ class InfusionsoftSyncEventListener
                             )
                         ]
                     );
-                }
-                else {
+                } else {
                     $this->infusionsoft->removeTagsFromContact(
                         $infusionsoftContactId,
                         [
@@ -147,22 +135,15 @@ class InfusionsoftSyncEventListener
             }
 
             // 500 songs
-            if ($userProductUpdated->getNewUserProduct()
-                    ->getProduct()
-                    ->getSku() == '500-songs-in-5-days' ||
-                $userProductUpdated->getNewUserProduct()
-                    ->getProduct()
-                    ->getSku() == '500-songs-in-5-days-99') {
+            if ($userProductUpdated->getNewUserProduct()->getProduct()->getSku() == '500-songs-in-5-days' ||
+                $userProductUpdated->getNewUserProduct()->getProduct()->getSku() == '500-songs-in-5-days-99') {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProduct->getUser()
-                        ->getEmail()
+                    $userProduct->getUser()->getEmail()
                 );
 
-                if ($userProductUpdated->getNewUserProduct()
-                        ->getExpirationDate() == null ||
-                    $userProductUpdated->getNewUserProduct()
-                        ->getExpirationDate() > Carbon::now()) {
+                if ($userProductUpdated->getNewUserProduct()->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()->getExpirationDate() > Carbon::now()) {
 
                     $this->infusionsoft->addTagsToContact(
                         $infusionsoftContactId,
@@ -173,8 +154,7 @@ class InfusionsoftSyncEventListener
                         ]
                     );
 
-                }
-                else {
+                } else {
                     $this->infusionsoft->removeTagsFromContact(
                         $infusionsoftContactId,
                         [
@@ -187,19 +167,14 @@ class InfusionsoftSyncEventListener
             }
 
             // agme jan semester
-            if ($userProductUpdated->getNewUserProduct()
-                    ->getProduct()
-                    ->getSku() == 'AGME-JAN-2019-SEMESTER') {
+            if ($userProductUpdated->getNewUserProduct()->getProduct()->getSku() == 'AGME-JAN-2019-SEMESTER') {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProduct->getUser()
-                        ->getEmail()
+                    $userProduct->getUser()->getEmail()
                 );
 
-                if ($userProductUpdated->getNewUserProduct()
-                        ->getExpirationDate() == null ||
-                    $userProductUpdated->getNewUserProduct()
-                        ->getExpirationDate() > Carbon::now()) {
+                if ($userProductUpdated->getNewUserProduct()->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()->getExpirationDate() > Carbon::now()) {
 
                     $this->infusionsoft->addTagsToContact(
                         $infusionsoftContactId,
@@ -210,8 +185,7 @@ class InfusionsoftSyncEventListener
                         ]
                     );
 
-                }
-                else {
+                } else {
                     $this->infusionsoft->removeTagsFromContact(
                         $infusionsoftContactId,
                         [
@@ -223,6 +197,69 @@ class InfusionsoftSyncEventListener
                 }
             }
 
+            // guitareo trial
+            if ($userProductUpdated->getNewUserProduct()->getProduct()->getSku() == 'GUITAREO-7-DAY-TRIAL-ONE-TIME') {
+
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()->getEmail()
+                );
+
+                if ($userProductUpdated->getNewUserProduct()->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()->getExpirationDate() > Carbon::now()) {
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_TRIAL
+                            )
+                        ]
+                    );
+
+                } else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_TRIAL
+                            )
+                        ]
+                    );
+                }
+            }
+
+            // guitareo membership tag
+            if ($this->userProductService->hasAnyOfProducts(
+                $userProduct->getUser()->getId(),
+                config('event-data-synchronizer.guitareo_membership_product_ids')
+            )) {
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()->getEmail()
+                );
+
+                $this->infusionsoft->addTagsToContact(
+                    $infusionsoftContactId,
+                    [
+                        $this->infusionsoft->syncTag(
+                            self::INFUSIONSOFT_TAG_GUITAREO_IS_MEMBER
+                        )
+                    ]
+                );
+            } else {
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()->getEmail()
+                );
+
+                $this->infusionsoft->removeTagsFromContact(
+                    $infusionsoftContactId,
+                    [
+                        $this->infusionsoft->syncTag(
+                            self::INFUSIONSOFT_TAG_GUITAREO_IS_MEMBER
+                        )
+                    ]
+                );
+            }
+
         } catch (Throwable $throwable) {
             error_log($throwable);
             error_log('Error syncing to infusionsoft, API failure');
@@ -230,7 +267,7 @@ class InfusionsoftSyncEventListener
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
@@ -247,26 +284,19 @@ class InfusionsoftSyncEventListener
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
         try {
 
             if (in_array(
-                    $userProductDeleted->getUserProduct()
-                        ->getProduct()
-                        ->getId(),
+                    $userProductDeleted->getUserProduct()->getProduct()->getId(),
                     config('event-data-synchronizer.pianote_membership_product_ids')
-                ) ||
-                $userProductDeleted->getUserProduct()
-                    ->getProduct()
-                    ->getBrand() == 'guitareo') {
+                ) || $userProductDeleted->getUserProduct()->getProduct()->getBrand() == 'guitareo') {
 
                 $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                    $userProductDeleted->getUserProduct()
-                        ->getUser()
-                        ->getEmail()
+                    $userProductDeleted->getUserProduct()->getUser()->getEmail()
                 );
 
                 $this->infusionsoft->removeTagsFromContact(
@@ -274,18 +304,14 @@ class InfusionsoftSyncEventListener
                     [
                         $this->infusionsoft->syncTag(
                             self::INFUSIONSOFT_TAG_PRODUCT_ACCESS_PREFIX .
-                            $userProductDeleted->getUserProduct()
-                                ->getProduct()
-                                ->getSku()
+                            $userProductDeleted->getUserProduct()->getProduct()->getSku()
                         )
                     ]
                 );
 
                 // is member tag
                 if ($this->userProductService->hasAnyOfProducts(
-                    $userProductDeleted->getUserProduct()
-                        ->getUser()
-                        ->getId(),
+                    $userProductDeleted->getUserProduct()->getUser()->getId(),
                     config('event-data-synchronizer.pianote_membership_product_ids')
                 )) {
                     $this->infusionsoft->addTagsToContact(
@@ -296,8 +322,7 @@ class InfusionsoftSyncEventListener
                             )
                         ]
                     );
-                }
-                else {
+                } else {
                     $this->infusionsoft->removeTagsFromContact(
                         $infusionsoftContactId,
                         [
@@ -309,14 +334,10 @@ class InfusionsoftSyncEventListener
                 }
 
                 // 500 songs
-                if ($userProductDeleted->getUserProduct()
-                        ->getProduct()
-                        ->getSku() == '500-songs-in-5-days') {
+                if ($userProductDeleted->getUserProduct()->getProduct()->getSku() == '500-songs-in-5-days') {
 
                     $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                        $userProductDeleted->getUserProduct()
-                            ->getUser()
-                            ->getEmail()
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
                     );
 
                     $this->infusionsoft->removeTagsFromContact(
@@ -331,14 +352,10 @@ class InfusionsoftSyncEventListener
                 }
 
                 // agme jan semester
-                if ($userProductDeleted->getUserProduct()
-                        ->getProduct()
-                        ->getSku() == 'AGME-JAN-2019-SEMESTER') {
+                if ($userProductDeleted->getUserProduct()->getProduct()->getSku() == 'AGME-JAN-2019-SEMESTER') {
 
                     $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
-                        $userProductDeleted->getUserProduct()
-                            ->getUser()
-                            ->getEmail()
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
                     );
 
                     $this->infusionsoft->removeTagsFromContact(
@@ -346,6 +363,55 @@ class InfusionsoftSyncEventListener
                         [
                             $this->infusionsoft->syncTag(
                                 self::INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER
+                            )
+                        ]
+                    );
+                }
+
+                // guitareo trial
+                if ($userProductDeleted->getUserProduct()->getProduct()->getSku() == 'GUITAREO-7-DAY-TRIAL-ONE-TIME') {
+
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_TRIAL
+                            )
+                        ]
+                    );
+                }
+
+                // is guitareo tag
+                if ($this->userProductService->hasAnyOfProducts(
+                    $userProductDeleted->getUserProduct()->getUser()->getId(),
+                    config('event-data-synchronizer.guitareo_membership_product_ids')
+                )) {
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
+                    );
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_IS_MEMBER
+                            )
+                        ]
+                    );
+                } else {
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_IS_MEMBER
                             )
                         ]
                     );
