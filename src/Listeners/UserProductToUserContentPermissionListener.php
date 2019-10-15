@@ -94,6 +94,7 @@ class UserProductToUserContentPermissionListener
         $permissionId =
             $this->permissionRepository->query()
                 ->where('name', $permissionName)
+                ->where('brand', $userProduct->getProduct()->getBrand())
                 ->first(['id'])['id'] ?? null;
 
         if (empty($permissionId)) {
@@ -128,6 +129,7 @@ class UserProductToUserContentPermissionListener
         $permissionId =
             $this->permissionRepository->query()
                 ->where('name', $permissionName)
+                ->where('brand', $userProduct->getProduct()->getBrand())
                 ->first(['id'])['id'] ?? null;
 
         if (empty($permissionId)) {

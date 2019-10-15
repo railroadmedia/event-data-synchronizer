@@ -30,6 +30,8 @@ class InfusionsoftSyncEventListener
     const INFUSIONSOFT_TAG_500_SONGS = '500-Songs-Pack-Owner';
     const INFUSIONSOFT_TAG_AGME_JAN_2019_SEMESTER = 'AGME - Pack Owner';
     const INFUSIONSOFT_TAG_GUITAREO_TRIAL = 'Trigger - Active Trial';
+    const INFUSIONSOFT_TAG_PIANOTE_SIGHT_READING_MADE_SIMPLE_PACK = 'SRMS-Pack-Owner';
+    const INFUSIONSOFT_TAG_GUITAREO_500_SONGS = '500-Songs-Pack-Owner-Guitareo';
 
     /**
      * InfusionsoftSyncEventListener constructor.
@@ -160,6 +162,68 @@ class InfusionsoftSyncEventListener
                         [
                             $this->infusionsoft->syncTag(
                                 self::INFUSIONSOFT_TAG_500_SONGS
+                            )
+                        ]
+                    );
+                }
+            }
+
+            // sight reading made simple pianote
+            if ($userProductUpdated->getNewUserProduct()->getProduct()->getSku() == 'sight-reading-made-simple') {
+
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()->getEmail()
+                );
+
+                if ($userProductUpdated->getNewUserProduct()->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()->getExpirationDate() > Carbon::now()) {
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_PIANOTE_SIGHT_READING_MADE_SIMPLE_PACK
+                            )
+                        ]
+                    );
+
+                } else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_PIANOTE_SIGHT_READING_MADE_SIMPLE_PACK
+                            )
+                        ]
+                    );
+                }
+            }
+
+            // 500 songs guitareo
+            if ($userProductUpdated->getNewUserProduct()->getProduct()->getSku() == '500-songs-in-5-days-guitareo') {
+
+                $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                    $userProduct->getUser()->getEmail()
+                );
+
+                if ($userProductUpdated->getNewUserProduct()->getExpirationDate() == null ||
+                    $userProductUpdated->getNewUserProduct()->getExpirationDate() > Carbon::now()) {
+
+                    $this->infusionsoft->addTagsToContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_500_SONGS
+                            )
+                        ]
+                    );
+
+                } else {
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_500_SONGS
                             )
                         ]
                     );
@@ -345,6 +409,42 @@ class InfusionsoftSyncEventListener
                         [
                             $this->infusionsoft->syncTag(
                                 self::INFUSIONSOFT_TAG_500_SONGS
+                            )
+                        ]
+                    );
+
+                }
+
+                // sight reading made simple pianote
+                if ($userProductDeleted->getUserProduct()->getProduct()->getSku() == 'sight-reading-made-simple') {
+
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_PIANOTE_SIGHT_READING_MADE_SIMPLE_PACK
+                            )
+                        ]
+                    );
+
+                }
+
+                // 500 songs guitareo
+                if ($userProductDeleted->getUserProduct()->getProduct()->getSku() == '500-songs-in-5-days-guitareo') {
+
+                    $infusionsoftContactId = $this->infusionsoft->syncContactsForEmailOnly(
+                        $userProductDeleted->getUserProduct()->getUser()->getEmail()
+                    );
+
+                    $this->infusionsoft->removeTagsFromContact(
+                        $infusionsoftContactId,
+                        [
+                            $this->infusionsoft->syncTag(
+                                self::INFUSIONSOFT_TAG_GUITAREO_500_SONGS
                             )
                         ]
                     );
