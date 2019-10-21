@@ -146,7 +146,6 @@ class UserProductToUserContentPermissionListener
         if (!empty($userProduct->getExpirationDate())) {
             $expirationDate =
                 Carbon::instance($userProduct->getExpirationDate())
-                    ->addDays(3)
                     ->toDateTimeString();
         }
 
