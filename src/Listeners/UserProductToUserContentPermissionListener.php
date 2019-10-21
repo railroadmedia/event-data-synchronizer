@@ -113,7 +113,7 @@ class UserProductToUserContentPermissionListener
         }
     }
 
-    private function handleFromEntity(UserProduct $userProduct)
+    public function handleFromEntity(UserProduct $userProduct)
     {
         $permissionName =
             config(
