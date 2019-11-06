@@ -28,7 +28,7 @@
     "php": "~7",
     "laravel/framework": "5.6.*",
     "railroad/railcontent": "0.5.*",
-    "railroad/ecommerce": "2.2.*",
+    "railroad/ecommerce": "2.2.* || 2.3.*",
     "railroad/usora": "2.0.*",
     "railroad/intercomeo": "2.0.*",
     "railroad-infusionsoft/infusionsoft-xml-isdk": "^1.0",
