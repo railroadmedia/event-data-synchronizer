@@ -18,6 +18,7 @@ use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserPaymentMethodsRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Intercomeo\Jobs\IntercomSyncUser;
+use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
 use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -137,6 +138,14 @@ class IntercomSyncEventListener
             $this->syncUserMembershipAndProductData(
                 $paymentMethodUpdated->getUser()
                     ->getId()
+            );
+
+            dispatch(
+                new IntercomTriggerEventForUser(
+                    self::USER_ID_PREFIX . $paymentMethodUpdated->getUser()->getId(),
+                    'payment_method_updated',
+                    Carbon::now()->toDateTimeString()
+                )
             );
         }
     }
