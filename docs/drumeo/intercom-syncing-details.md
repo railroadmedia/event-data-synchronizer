@@ -22,3 +22,5 @@
 
 ### Events
 - drumeo_payment_method_updated
+
+# Legacy
