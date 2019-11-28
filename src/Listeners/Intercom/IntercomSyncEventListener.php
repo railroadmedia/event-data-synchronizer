@@ -52,16 +52,23 @@ class IntercomSyncEventListener
     private $userPaymentMethodsRepository;
 
     protected const USER_ID_PREFIX = 'musora_';
-    protected const BRANDS_TO_SYNC = ['pianote', 'guitareo'];
+    protected const BRANDS_TO_SYNC = ['pianote', 'guitareo', 'drumeo'];
 
+    /**
+     * IntercomSyncEventListener constructor.
+     * @param  IntercomeoService  $intercomeoService
+     * @param  UserRepository  $userRepository
+     * @param  SubscriptionRepository  $subscriptionRepository
+     * @param  UserProductRepository  $userProductRepository
+     * @param  UserPaymentMethodsRepository  $userPaymentMethodsRepository
+     */
     public function __construct(
         IntercomeoService $intercomeoService,
         UserRepository $userRepository,
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
         UserPaymentMethodsRepository $userPaymentMethodsRepository
-    )
-    {
+    ) {
         $this->intercomeoService = $intercomeoService;
         $this->userRepository = $userRepository;
         $this->subscriptionRepository = $subscriptionRepository;
@@ -70,7 +77,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserCreated $userCreated
+     * @param  UserCreated  $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
@@ -78,7 +85,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserUpdated $userUpdated
+     * @param  UserUpdated  $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
@@ -113,7 +120,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param PaymentMethodCreated $paymentMethodCreated
+     * @param  PaymentMethodCreated  $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
@@ -127,23 +134,18 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param PaymentMethodUpdated $paymentMethodUpdated
+     * @param  PaymentMethodUpdated  $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
-        if (!empty(
-        $paymentMethodUpdated->getUser()
-            ->getId()
-        )) {
-            $this->syncUserMembershipAndProductData(
-                $paymentMethodUpdated->getUser()
-                    ->getId()
-            );
+        if (!empty($paymentMethodUpdated->getUser()->getId())) {
+            $this->syncUserMembershipAndProductData($paymentMethodUpdated->getUser()->getId());
 
             dispatch(
                 new IntercomTriggerEventForUser(
                     self::USER_ID_PREFIX . $paymentMethodUpdated->getUser()->getId(),
-                    'payment_method_updated',
+                    $paymentMethodUpdated->getNewPaymentMethod()->getMethod()->getPaymentGatewayName() .
+                    '_payment_method_updated',
                     Carbon::now()->toDateTimeString()
                 )
             );
@@ -151,62 +153,52 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
         $this->syncUserMembershipAndProductData(
-            $userProductCreated->getUserProduct()
-                ->getUser()
-                ->getId()
+            $userProductCreated->getUserProduct()->getUser()->getId()
         );
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
         $this->syncUserMembershipAndProductData(
-            $userProductUpdated->getNewUserProduct()
-                ->getUser()
-                ->getId()
+            $userProductUpdated->getNewUserProduct()->getUser()->getId()
         );
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
         $this->syncUserMembershipAndProductData(
-            $userProductDeleted->getUserProduct()
-                ->getUser()
-                ->getId()
+            $userProductDeleted->getUserProduct()->getUser()->getId()
         );
     }
 
     /**
-     * @param SubscriptionCreated $subscriptionCreated
+     * @param  SubscriptionCreated  $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
         $this->syncUserMembershipAndProductData(
-            $subscriptionCreated->getSubscription()
-                ->getUser()
-                ->getId()
+            $subscriptionCreated->getSubscription()->getUser()->getId()
         );
     }
 
     /**
-     * @param SubscriptionUpdated $subscriptionUpdated
+     * @param  SubscriptionUpdated  $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
         $this->syncUserMembershipAndProductData(
-            $subscriptionUpdated->getNewSubscription()
-                ->getUser()
-                ->getId()
+            $subscriptionUpdated->getNewSubscription()->getUser()->getId()
         );
     }
 
@@ -250,9 +242,9 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param Subscription[] $userSubscriptions
-     * @param $brand
-     * @param bool $isLifetime
+     * @param  Subscription[]  $userSubscriptions
+     * @param  string  $brand
+     * @param  bool  $isLifetime
      * @return array
      */
     private function getSubscriptionAttributes(array $userSubscriptions, $brand, $isLifetime = false)
@@ -281,8 +273,7 @@ class IntercomSyncEventListener
 
             // make sure the subscriptions product is in this brands pre-configured products that represent a membership
             if (!in_array(
-                $userSubscription->getProduct()
-                    ->getId(),
+                $userSubscription->getProduct()->getId(),
                 config(
                     'event-data-synchronizer.' . $brand . '_membership_product_ids'
                 )
@@ -325,26 +316,21 @@ class IntercomSyncEventListener
             $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
             // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
-             try {
-                 if (!empty($subscriptionToSync->getPaymentMethod())) {
-                     if ($subscriptionToSync->getPaymentMethod()
-                             ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+            try {
+                if (!empty($subscriptionToSync->getPaymentMethod())) {
+                    if ($subscriptionToSync->getPaymentMethod()->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
 
-                         $expirationDate = Carbon::parse(
-                             $subscriptionToSync->getPaymentMethod()
-                                 ->getMethod()
-                                 ->getExpirationDate()
-                         )->timestamp;
-                     }
-                     elseif ($subscriptionToSync->getPaymentMethod()
-                             ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+                        $expirationDate = Carbon::parse(
+                            $subscriptionToSync->getPaymentMethod()->getMethod()->getExpirationDate()
+                        )->timestamp;
+                    } elseif ($subscriptionToSync->getPaymentMethod()->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
 
-                         $expirationDate = null;
-                     }
-                 }
-             } catch (Exception $exception) {
-                 $expirationDate = null;
-             }
+                        $expirationDate = null;
+                    }
+                }
+            } catch (Exception $exception) {
+                $expirationDate = null;
+            }
         }
 
         $subscriptionProductTag = null;
@@ -376,7 +362,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserProduct[] $userProducts
+     * @param  UserProduct[]  $userProducts
      * @param $brand
      * @return array
      */
@@ -386,15 +372,13 @@ class IntercomSyncEventListener
         $membershipUserProductToSync = null;
 
         foreach ($userProducts as $userProduct) {
-            if ($userProduct->getProduct()
-                    ->getBrand() !== $brand) {
+            if ($userProduct->getProduct()->getBrand() !== $brand) {
                 continue;
             }
 
             // make sure the subscriptions product is in this brands pre-configured products that represent a membership
             if (!in_array(
-                $userProduct->getProduct()
-                    ->getId(),
+                $userProduct->getProduct()->getId(),
                 config(
                     'event-data-synchronizer.' . $brand . '_membership_product_ids'
                 )
@@ -426,8 +410,7 @@ class IntercomSyncEventListener
         if (!empty($membershipUserProductToSync)) {
             $membershipAccessExpirationDate = $membershipUserProductToSync->getExpirationDate();
             $isLifetime = empty($membershipUserProductToSync->getExpirationDate());
-        }
-        else {
+        } else {
             $membershipAccessExpirationDate = null;
             $isLifetime = null;
         }
@@ -440,21 +423,18 @@ class IntercomSyncEventListener
 
         // sync non-membership products
         foreach ($userProducts as $userProduct) {
-            if ($userProduct->getProduct()
-                    ->getBrand() !== $brand) {
+            if ($userProduct->getProduct()->getBrand() !== $brand) {
                 continue;
             }
 
             foreach (config('event-data-synchronizer.intercom_attribute_name_to_pack_product_ids') as $attributeName =>
                      $productIds) {
                 if (!in_array(
-                    $userProduct->getProduct()
-                        ->getId(),
+                    $userProduct->getProduct()->getId(),
                     $productIds
                 )) {
                     continue;
-                }
-                else {
+                } else {
                     $attributes[$attributeName] = true;
                 }
             }
