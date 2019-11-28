@@ -13,7 +13,6 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
-use Railroad\EventDataSynchronizer\Listeners\InfusionsoftSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -44,19 +43,16 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         UserProductCreated::class => [
             IntercomSyncEventListener::class . '@handleUserProductCreated',
             UserProductToUserContentPermissionListener::class . '@handleCreated',
-            InfusionsoftSyncEventListener::class . '@handleUserProductCreated',
             MaropostEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserProductUpdated',
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
-            InfusionsoftSyncEventListener::class . '@handleUserProductUpdated',
             MaropostEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
             IntercomSyncEventListener::class . '@handleUserProductDeleted',
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
-            InfusionsoftSyncEventListener::class . '@handleUserProductDeleted',
             MaropostEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
@@ -70,7 +66,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             MaropostEventListener::class . '@handleSubscriptionUpdated',
         ],
         OrderEvent::class => [
-            InfusionsoftSyncEventListener::class . '@handleOrderEvent',
         ],
     ];
 

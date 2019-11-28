@@ -8,12 +8,15 @@ use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Routing\Router;
 use Orchestra\Testbench\TestCase as BaseTestCase;
+use Railroad\Ecommerce\Contracts\UserProviderInterface as EcommerceUserProviderInterface;
 use Railroad\Ecommerce\Faker\Factory;
 use Railroad\Ecommerce\Faker\Faker as EcommerceFaker;
 use Railroad\Ecommerce\Providers\EcommerceServiceProvider;
 use Railroad\EventDataSynchronizer\Providers\EventDataSynchronizerServiceProvider;
+use Railroad\EventDataSynchronizer\Tests\Providers\EcommerceUserProvider;
 use Railroad\Railcontent\Providers\RailcontentServiceProvider;
 use Railroad\Railcontent\Repositories\RepositoryBase;
+use Railroad\Usora\Providers\UsoraServiceProvider;
 
 class EventDataSynchronizerTestCase extends BaseTestCase
 {
@@ -62,7 +65,7 @@ class EventDataSynchronizerTestCase extends BaseTestCase
     /**
      * Define environment setup.
      *
-     * @param  \Illuminate\Foundation\Application $app
+     * @param  \Illuminate\Foundation\Application  $app
      * @return void
      */
     protected function getEnvironmentSetUp($app)
@@ -86,6 +89,11 @@ class EventDataSynchronizerTestCase extends BaseTestCase
             ]
         );
 
+        $app['config']->set('ecommerce.database_driver', 'pdo_sqlite');
+        $app['config']->set('ecommerce.database_user', 'root');
+        $app['config']->set('ecommerce.database_password', 'root');
+        $app['config']->set('ecommerce.database_in_memory', true);
+
         // ecommerce
         config(
             [
@@ -97,6 +105,52 @@ class EventDataSynchronizerTestCase extends BaseTestCase
                     'brand' => 'testbench',
                     'typeSubscription' => 'subscription',
                     'typeProduct' => 'product',
+                    'redis_host' => 'redis',
+                    'database_driver' => 'pdo_sqlite',
+                    'database_user' => 'root',
+                    'database_password' => 'root',
+                    'database_in_memory' => true,
+                    'enable_query_log' => false,
+                    'entities' => [
+                        [
+                            'path' => __DIR__ . '/../src/Entities',
+                            'namespace' => 'Railroad\Usora\Entities',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        // ecommerce
+        config(
+            [
+                'usora' => [
+                    'database_connection_name' => 'testbench',
+                    'cache_duration' => 60,
+                    'table_prefix' => 'ecommerce_',
+                    'data_mode' => 'host',
+                    'brand' => 'testbench',
+                    'typeSubscription' => 'subscription',
+                    'typeProduct' => 'product',
+                    'redis_host' => 'redis',
+                    'database_driver' => 'pdo_sqlite',
+                    'database_user' => 'root',
+                    'database_password' => 'root',
+                    'database_in_memory' => true,
+                    'enable_query_log' => false,
+                    'entities' => [
+                        [
+                            'path' => __DIR__ . '/../src/Entities',
+                            'namespace' => 'Railroad\Ecommerce\Entities',
+                        ],
+                    ],
+                    'tables' => [
+                        'users' => 'usora_users',
+                        'user_fields' => 'usora_user_fields',
+                        'password_resets' => 'usora_password_resets',
+                        'email_changes' => 'usora_email_changes',
+                        'remember_tokens' => 'usora_remember_tokens',
+                    ],
                 ],
             ]
         );
@@ -111,6 +165,75 @@ class EventDataSynchronizerTestCase extends BaseTestCase
                     'table_prefix' => 'railcontent_',
                     'brand' => 'testbench',
                     'available_brand' => 'testbench',
+                    'redis_host' => 'redis',
+                ],
+            ]
+        );
+
+        // maropost
+        config(
+            [
+                'maropost' => [
+                    'account_id' => '123',
+                    'auth_token' => '123',
+                ],
+            ]
+        );
+
+        // jwt
+        config(
+            [
+                'jwt' => [
+
+                    'secret' => env('JWT_SECRET', 'jwt_secret_key_123_mobile'),
+
+                    'keys' => [
+
+                        'public' => env('JWT_PUBLIC_KEY'),
+
+                        'private' => env('JWT_PRIVATE_KEY'),
+
+                        'passphrase' => env('JWT_PASSPHRASE'),
+                    ],
+
+                    /**
+                     * Specify the length of time (in minutes) that the token will be valid for. Defaults to 1 hour
+                     */ 'ttl' => env('JWT_TTL', 60),
+
+                    'refresh_ttl' => env('JWT_REFRESH_TTL', 20160),
+
+                    'algo' => env('JWT_ALGO', 'HS256'),
+
+                    'required_claims' => [
+                        'iss',
+                        'exp',
+                        'nbf',
+                        'sub',
+                        'jti',
+                    ],
+
+                    'persistent_claims' => [
+                        // 'foo',
+                        // 'bar',
+                    ],
+
+                    'lock_subject' => true,
+
+                    'leeway' => 60,
+
+                    'blacklist_enabled' => env('JWT_BLACKLIST_ENABLED', true),
+
+                    'blacklist_grace_period' => env('JWT_BLACKLIST_GRACE_PERIOD', 0),
+
+                    'decrypt_cookies' => false,
+
+                    'providers' => [
+                        'jwt' => \Tymon\JWTAuth\Providers\JWT\Lcobucci::class,
+
+                        'auth' => \Tymon\JWTAuth\Providers\Auth\Illuminate::class,
+
+                        'storage' => \Tymon\JWTAuth\Providers\Storage\Illuminate::class,
+                    ],
                 ],
             ]
         );
@@ -119,6 +242,9 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         $app->register(EventDataSynchronizerServiceProvider::class);
         $app->register(EcommerceServiceProvider::class);
         $app->register(RailcontentServiceProvider::class);
+        $app->register(UsoraServiceProvider::class);
+
+        app()->instance(EcommerceUserProviderInterface::class, app()->make(EcommerceUserProvider::class));
 
         // this is required for railcontent connection masking to work properly from test to test
         RepositoryBase::$connectionMask = null;

@@ -2,29 +2,13 @@
 
 ## Things That Need to Happen Cross Application
 
-1. Infusionsoft sync
-    - purchased order items (NewProductBuyer:SKU)
-    - subscription status (ActiveSub:SKU, ExSub:SKU)
-    - contact email on email change
-2. Intercom sync
+1. Intercom sync
     - user details
     - payment method expiration date (active)
     - user access expiration date
     - subscription details
     
 ## Event/Data List
-
-## Infusionsoft
-
-<!--- on subscription C/U/D-->
-<!--    - if sub is active add tag: ActiveSub:_SKU_-->
-<!--    - if sub is active remove tag: ExSub:_SKU_-->
-<!--    - if sub is not active, canceled, or deleted, add tag: ExSub:_SKU_ -->
-<!--    - if sub is not active, canceled, or deleted, remove tag: ActiveSub:_SKU_ -->
-- on new order placed
-    - for each new product purchased, add tag: NewProductBuyer:_SKU_
-- on product access C/U/D:
-    - if has product access: HasAccessToo:_SKU_
     
 ## Intercom
 

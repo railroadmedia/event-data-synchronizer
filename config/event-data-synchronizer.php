@@ -15,10 +15,6 @@ return [
         'pack_attribute_name' => [], // an array of product ids, ex: [1,2,3]
     ],
 
-    'infusionsoft_app_name' => '',
-    'infusionsoft_api_key' => '',
-    'infusionsoft_db_on' => '',
-
     'maropost_disable_syncing' => env('APP_DEBUG', false),
 
     'maropost_user_id_custom_field_name' => 'musora_user_id',
