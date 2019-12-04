@@ -3,6 +3,8 @@
 namespace Railroad\EventDataSynchronizer\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider;
+use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
+use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
@@ -67,6 +69,12 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         OrderEvent::class => [
         ],
+        AppSignupStartedEvent::class => [
+            IntercomSyncEventListener::class . '@handleAppSignupStarted'
+        ],
+        AppSignupFinishedEvent::class => [
+            IntercomSyncEventListener::class . '@handleAppSignupFinished'
+        ]
     ];
 
     /**

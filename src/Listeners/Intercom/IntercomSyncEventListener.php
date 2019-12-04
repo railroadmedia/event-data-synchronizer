@@ -7,6 +7,8 @@ use Exception;
 use Railroad\Ecommerce\Entities\PaymentMethod;
 use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\UserProduct;
+use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
+use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -18,6 +20,8 @@ use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserPaymentMethodsRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Intercomeo\Jobs\IntercomSyncUser;
+use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
+use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
 use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Events\User\UserCreated;
@@ -441,5 +445,31 @@ class IntercomSyncEventListener
         }
 
         return $attributes;
+    }
+
+    /**
+     * @param AppSignupStartedEvent $appSignupStarted
+     */
+    public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
+    {
+        dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
+
+        dispatch(new IntercomTagUserByAttributes('started_app_signup_flow', $appSignupStarted->getAttributes()));
+    }
+
+    /**
+     * @param AppSignupFinishedEvent $appSignupFinished
+     */
+    public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
+    {
+        dispatch(
+            new IntercomSyncUserByAttributes(
+                $appSignupFinished->getAttributes()['user_id'], [
+                    'email' => $appSignupFinished->getAttributes()['email'],
+                ]
+            )
+        );
+
+        dispatch(new IntercomTagUserByAttributes([$appSignupFinished->getAttributes()['user_id']], 'started_app_signup_flow'));
     }
 }
