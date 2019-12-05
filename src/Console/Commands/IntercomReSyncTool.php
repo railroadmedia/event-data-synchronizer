@@ -5,7 +5,9 @@ namespace Railroad\EventDataSynchronizer\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
+use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Repositories\UserRepository;
 
 class IntercomReSyncTool extends Command
@@ -48,21 +50,29 @@ class IntercomReSyncTool extends Command
     private $intercomSyncService;
 
     /**
+     * @var IntercomeoService
+     */
+    private $intercomeoService;
+
+    /**
      * SetLevelTagsForExpiredLevels constructor.
      * @param  DatabaseManager  $databaseManager
      * @param  UserRepository  $userRepository
      * @param  IntercomSyncService  $intercomSyncService
+     * @param  IntercomeoService  $intercomeoService
      */
     public function __construct(
         DatabaseManager $databaseManager,
         UserRepository $userRepository,
-        IntercomSyncService $intercomSyncService
+        IntercomSyncService $intercomSyncService,
+        IntercomeoService $intercomeoService
     ) {
         parent::__construct();
 
         $this->databaseManager = $databaseManager;
         $this->userRepository = $userRepository;
         $this->intercomSyncService = $intercomSyncService;
+        $this->intercomeoService = $intercomeoService;
     }
 
     /**
@@ -84,12 +94,17 @@ class IntercomReSyncTool extends Command
     {
         $ecommerceConnection = $this->databaseManager->connection(config('ecommerce.database_connection_name'));
 
+        $done = 0;
+        $total =
+            $ecommerceConnection->table('usora_users')
+                ->count();
+
         $ecommerceConnection->table('usora_users')
-            ->orderBy('id', 'asc')
-            ->where('email', 'wengel@gmx.net') // todo: remove
+            ->orderBy('id', 'desc')
+            //            ->where('email', 'wengel@gmx.net') // todo: remove
             ->chunk(
-                500,
-                function (Collection $userRows) {
+                25,
+                function (Collection $userRows) use (&$done, $total) {
                     $users = $this->userRepository->findByIds(
                         $userRows->pluck('id')
                             ->toArray()
@@ -101,7 +116,27 @@ class IntercomReSyncTool extends Command
 
                         // tags
                         $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+
+                        $done++;
+
+                        if (((integer)$this->intercomeoService->getRateLimitDetails()['remaining'] ?? 50) < 10) {
+                            $this->info('Waiting for API.');
+                            sleep(10);
+                        }
+
+                        $this->info('Starting ' . $user->getEmail());
+
+                        $this->info(
+                            'Done ' .
+                            $done .
+                            ' out of ' .
+                            $total .
+                            ' - ' .
+                            ($this->intercomeoService->getRateLimitDetails()['remaining'] ?? 0) .
+                            ' requests left for intercom API limit.');
                     }
+
+                    $this->info('Done ' . $done . ' out of ' . $total);
                 }
             );
     }
@@ -125,4 +160,12 @@ class IntercomReSyncTool extends Command
     {
         return [];
     }
+
+    public function info($string, $verbosity = null)
+    {
+        Log::info($string);
+
+        parent::info($string, $verbosity);
+    }
+
 }
