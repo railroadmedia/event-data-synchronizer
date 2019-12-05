@@ -454,7 +454,7 @@ class IntercomSyncService
             }
 
             // if the user is a lifetime make sure all subscription related info is set to null
-            if ($userProductAttributes[$brand . '_membership_is_lifetime'] == true) {
+            if (($userProductAttributes[$brand . '_membership_is_lifetime'] ?? false) == true) {
                 $membershipRenewalDate = null;
                 $membershipCancellationDate = null;
                 $subscriptionStatus = null;
