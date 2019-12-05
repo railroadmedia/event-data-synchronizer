@@ -1,22 +1,26 @@
 <?php
 
 return [
-    'brand' => 'musora',
+    // brands membership product skus
+    'brand_membership_product_skus' => ['MY-SKU1'],
+    'otherBrand_membership_product_skus' => ['MY-SKU2'],
 
+    // ecommerce
     'ecommerce_product_sku_to_content_permission_name_map' => [
         'SKU-1' => 'My Permission 1',
         'SKU-2' => 'My Permission 2',
     ],
 
-    'pianote_membership_product_ids' => [],
-    'guitareo_membership_product_ids' => [],
-
-    'intercom_attribute_name_to_pack_product_ids' => [
-        'pack_attribute_name' => [], // an array of product ids, ex: [1,2,3]
+    // intercom
+    'intercom_tag_name_to_product_skus' => [
+        'tag_name' => ['PRODUCT-SKU1', 'PRODUCT-SKU2'],
     ],
 
-    'maropost_disable_syncing' => env('APP_DEBUG', false),
+    'intercom_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
+    'intercom_user_id_prefix' => 'musora_',
 
+    // maropost
+    'maropost_disable_syncing' => env('APP_DEBUG', false),
     'maropost_user_id_custom_field_name' => 'musora_user_id',
 
     'maropost_member_active_tag' => [

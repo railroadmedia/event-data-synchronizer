@@ -13,6 +13,7 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
@@ -67,8 +68,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
             MaropostEventListener::class . '@handleSubscriptionUpdated',
         ],
-        OrderEvent::class => [
-        ],
+        OrderEvent::class => [],
         AppSignupStartedEvent::class => [
             IntercomSyncEventListener::class . '@handleAppSignupStarted'
         ],
@@ -88,7 +88,8 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
         $this->commands(
             [
-                SetMaropostTagsForExpiredUserProducts::class
+                SetMaropostTagsForExpiredUserProducts::class,
+                IntercomReSyncTool::class,
             ]
         );
 
