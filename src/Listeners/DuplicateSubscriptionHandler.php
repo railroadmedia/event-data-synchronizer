@@ -53,41 +53,42 @@ class DuplicateSubscriptionHandler
         // for the existing time
     }
 
+    // todo: add support for multiple brands. finish functionality
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        $subscription = $subscriptionUpdated->getNewSubscription();
-
-        if (!empty($subscription->getProduct()) &&
-            $subscription->getProduct()->getBrand() == 'pianote' &&
-            $subscription->getType() == Subscription::TYPE_SUBSCRIPTION && in_array(
-                $subscription->getProduct()
-                    ->getId(),
-                config('event-data-synchronizer.pianote_membership_product_ids')
-            ) && $subscription->getIsActive() && empty($subscription->getCanceledOn())) {
-
-            $allUserSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions(
-                $subscription->getUser()
-                    ->getId(),
-                config('event-data-synchronizer.pianote_membership_product_ids')
-            );
-
-            foreach ($allUserSubscriptions as $otherSubscription) {
-
-                if (in_array(
-                        $otherSubscription->getProduct()
-                            ->getId(),
-                        config('event-data-synchronizer.pianote_membership_product_ids')
-                    ) &&
-                    $otherSubscription->getIsActive() &&
-                    empty($otherSubscription->getCanceledOn()) &&
-                    $otherSubscription->getId() != $subscription->getId()) {
-
-                    $otherSubscription->setIsActive(false);
-
-                    $this->ecommerceEntityManager->persist($otherSubscription);
-                    $this->ecommerceEntityManager->flush();
-                }
-            }
-        }
+//        $subscription = $subscriptionUpdated->getNewSubscription();
+//
+//        if (!empty($subscription->getProduct()) &&
+//            $subscription->getProduct()->getBrand() == 'pianote' &&
+//            $subscription->getType() == Subscription::TYPE_SUBSCRIPTION && in_array(
+//                $subscription->getProduct()
+//                    ->getId(),
+//                config('event-data-synchronizer.pianote_membership_product_ids')
+//            ) && $subscription->getIsActive() && empty($subscription->getCanceledOn())) {
+//
+//            $allUserSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions(
+//                $subscription->getUser()
+//                    ->getId(),
+//                config('event-data-synchronizer.pianote_membership_product_ids')
+//            );
+//
+//            foreach ($allUserSubscriptions as $otherSubscription) {
+//
+//                if (in_array(
+//                        $otherSubscription->getProduct()
+//                            ->getId(),
+//                        config('event-data-synchronizer.pianote_membership_product_ids')
+//                    ) &&
+//                    $otherSubscription->getIsActive() &&
+//                    empty($otherSubscription->getCanceledOn()) &&
+//                    $otherSubscription->getId() != $subscription->getId()) {
+//
+//                    $otherSubscription->setIsActive(false);
+//
+//                    $this->ecommerceEntityManager->persist($otherSubscription);
+//                    $this->ecommerceEntityManager->flush();
+//                }
+//            }
+//        }
     }
 }

@@ -31,11 +31,6 @@ class IntercomSyncService
     private $userProductRepository;
 
     /**
-     * @var string
-     */
-    private $userIdPrefix;
-
-    /**
      * @var ProductRepository
      */
     private $productRepository;
@@ -44,6 +39,11 @@ class IntercomSyncService
      * @var IntercomeoService
      */
     private $intercomeoService;
+
+    /**
+     * @var string
+     */
+    public static $userIdPrefix;
 
     /**
      * @param  SubscriptionRepository  $subscriptionRepository
@@ -62,7 +62,7 @@ class IntercomSyncService
         $this->productRepository = $productRepository;
         $this->intercomeoService = $intercomeoService;
 
-        $this->userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
+        self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
     }
 
     /**
@@ -75,7 +75,7 @@ class IntercomSyncService
     {
         dispatch(
             new IntercomSyncUser(
-                $this->userIdPrefix . $user->getId(), array_merge(
+                self::$userIdPrefix . $user->getId(), array_merge(
                     $this->getUsersBuiltInAttributes($user),
                     [
                         'custom_attributes' => $this->getUsersCustomAttributes(
@@ -106,7 +106,7 @@ class IntercomSyncService
         $intercomUser = null;
 
         try {
-            $intercomUser = $this->intercomeoService->getUser($this->userIdPrefix . $user->getId());
+            $intercomUser = $this->intercomeoService->getUser(self::$userIdPrefix . $user->getId());
         } catch (Throwable $throwable) {
         }
 
@@ -128,7 +128,7 @@ class IntercomSyncService
         foreach ($productOwnershipTagsVO->tagsToAdd as $tagToAdd) {
             dispatch(
                 new IntercomTagUsers(
-                    [$this->userIdPrefix . $user->getId()], $tagToAdd
+                    [self::$userIdPrefix . $user->getId()], $tagToAdd
                 )
             );
         }
@@ -137,7 +137,7 @@ class IntercomSyncService
         foreach ($productOwnershipTagsVO->tagsToRemove as $tagsToRemove) {
             dispatch(
                 new IntercomUnTagUsers(
-                    [$this->userIdPrefix . $user->getId()], $tagsToRemove
+                    [self::$userIdPrefix . $user->getId()], $tagsToRemove
                 )
             );
         }
