@@ -35,8 +35,8 @@ class IntercomSyncEventListener
     /**
      * IntercomSyncEventListener constructor.
      *
-     * @param  IntercomSyncService  $intercomSyncService
-     * @param  UserRepository  $userRepository
+     * @param IntercomSyncService $intercomSyncService
+     * @param UserRepository $userRepository
      */
     public function __construct(IntercomSyncService $intercomSyncService, UserRepository $userRepository)
     {
@@ -45,7 +45,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserCreated  $userCreated
+     * @param UserCreated $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
@@ -53,7 +53,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserUpdated  $userUpdated
+     * @param UserUpdated $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
@@ -65,7 +65,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  PaymentMethodCreated  $paymentMethodCreated
+     * @param PaymentMethodCreated $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
@@ -79,7 +79,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  PaymentMethodUpdated  $paymentMethodUpdated
+     * @param PaymentMethodUpdated $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
@@ -110,7 +110,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductCreated  $userProductCreated
+     * @param UserProductCreated $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
@@ -125,7 +125,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductUpdated  $userProductUpdated
+     * @param UserProductUpdated $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
@@ -140,7 +140,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductDeleted  $userProductDeleted
+     * @param UserProductDeleted $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
@@ -155,7 +155,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  SubscriptionCreated  $subscriptionCreated
+     * @param SubscriptionCreated $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
@@ -169,7 +169,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  SubscriptionUpdated  $subscriptionUpdated
+     * @param SubscriptionUpdated $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
@@ -183,17 +183,22 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  AppSignupStartedEvent  $appSignupStarted
+     * @param AppSignupStartedEvent $appSignupStarted
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
         dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
 
-        dispatch(new IntercomTagUserByAttributes('started_app_signup_flow', $appSignupStarted->getAttributes()));
+        dispatch(
+            new IntercomTagUserByAttributes(
+                $appSignupStarted->getAttributes()['brand'] . '_started_app_signup_flow',
+                $appSignupStarted->getAttributes()
+            )
+        );
     }
 
     /**
-     * @param  AppSignupFinishedEvent  $appSignupFinished
+     * @param AppSignupFinishedEvent $appSignupFinished
      */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
@@ -206,7 +211,10 @@ class IntercomSyncEventListener
         );
 
         dispatch(
-            new IntercomTagUserByAttributes([$appSignupFinished->getAttributes()['user_id']], 'started_app_signup_flow')
+            new IntercomTagUserByAttributes(
+                [$appSignupFinished->getAttributes()['user_id']],
+                $appSignupFinished->getAttributes()['brand'] . '_started_app_signup_flow'
+            )
         );
     }
 }
