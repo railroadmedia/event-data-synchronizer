@@ -16,6 +16,7 @@ use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
 use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
+use Railroad\Intercomeo\Jobs\IntercomUnTagUserByAttributes;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
@@ -197,23 +198,21 @@ class IntercomSyncEventListener
         );
     }
 
-    /**
-     * @param AppSignupFinishedEvent $appSignupFinished
-     */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
         dispatch(
-            new IntercomSyncUserByAttributes(
-                $appSignupFinished->getAttributes()['user_id'], [
-                    'email' => $appSignupFinished->getAttributes()['email'],
-                ]
+            new IntercomUnTagUserByAttributes(
+                $appSignupFinished->getAttributes()['brand'] . '_started_app_signup_flow',
+                [$appSignupFinished->getAttributes()['user_id']]
             )
         );
 
         dispatch(
-            new IntercomTagUserByAttributes(
-                [$appSignupFinished->getAttributes()['user_id']],
-                $appSignupFinished->getAttributes()['brand'] . '_started_app_signup_flow'
+            new IntercomSyncUserByAttributes(
+                [
+                    'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').$appSignupFinished->getAttributes()['user_id'],
+                    'email' => $appSignupFinished->getAttributes()['email'],
+                ]
             )
         );
     }
