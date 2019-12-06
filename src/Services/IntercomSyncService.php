@@ -361,6 +361,7 @@ class IntercomSyncService
             $subscriptionStatus = null;
             $subscriptionStartedDate = null;
             $expirationDate = null;
+            $isAppSignup = false;
 
             /**
              * @var $subscriptionToSync Subscription|null
@@ -426,6 +427,12 @@ class IntercomSyncService
                 $subscriptionStatus = $subscriptionToSync->getState();
                 $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
+                if(in_array($subscriptionToSync->getType(), [
+                    Subscription::TYPE_APPLE_SUBSCRIPTION,
+                    Subscription::TYPE_GOOGLE_SUBSCRIPTION
+                ])) {
+                    $isAppSignup = true;
+                }
                 // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
                 try {
                     if (!empty($subscriptionToSync->getPaymentMethod())) {
@@ -470,6 +477,7 @@ class IntercomSyncService
                 $brand . '_membership_subscription_cancellation_date' => $membershipCancellationDate,
                 $brand . '_membership_subscription_started_date' => $subscriptionStartedDate,
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
+                $brand . '_app_membership' => $isAppSignup,
             ];
         }
 
