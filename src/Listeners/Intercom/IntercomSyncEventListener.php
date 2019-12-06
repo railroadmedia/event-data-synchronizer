@@ -201,7 +201,7 @@ class IntercomSyncEventListener
     {
         dispatch(
             new IntercomUnTagUserByAttributes(
-                'drumeo_started_app_signup_flow', $appSignupFinished->getAttributes()
+                'drumeo_started_app_signup_flow', ['email' => $appSignupFinished->getAttributes()['email']]
             )
         );
 
