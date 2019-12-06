@@ -192,8 +192,7 @@ class IntercomSyncEventListener
 
         dispatch(
             new IntercomTagUserByAttributes(
-                $appSignupStarted->getAttributes()['brand'] . '_started_app_signup_flow',
-                $appSignupStarted->getAttributes()
+                'drumeo_started_app_signup_flow', $appSignupStarted->getAttributes()
             )
         );
     }
@@ -202,15 +201,15 @@ class IntercomSyncEventListener
     {
         dispatch(
             new IntercomUnTagUserByAttributes(
-                $appSignupFinished->getAttributes()['brand'] . '_started_app_signup_flow',
-                [$appSignupFinished->getAttributes()['user_id']]
+                'drumeo_started_app_signup_flow', [$appSignupFinished->getAttributes()['user_id']]
             )
         );
 
         dispatch(
             new IntercomSyncUserByAttributes(
                 [
-                    'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').$appSignupFinished->getAttributes()['user_id'],
+                    'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
+                        $appSignupFinished->getAttributes()['user_id'],
                     'email' => $appSignupFinished->getAttributes()['email'],
                 ]
             )
