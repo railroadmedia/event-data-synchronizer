@@ -13,11 +13,11 @@
 
 - drumeo_membership_is_lifetime
 - drumeo_membership_access_expiration_date
-- drumeo_membership_subscription_status
-- drumeo_membership_subscription_type
-- drumeo_membership_subscription_renewal_date
-- drumeo_membership_subscription_cancellation_date
-- drumeo_membership_subscription_started_date
+- drumeo_membership_status
+- drumeo_membership_type
+- drumeo_membership_renewal_date
+- drumeo_membership_cancellation_date
+- drumeo_membership_started_date
 - drumeo_primary_payment_method_expiration_date
 
 ### Events

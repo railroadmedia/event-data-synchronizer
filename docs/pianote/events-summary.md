@@ -30,9 +30,9 @@
     - pianote_membership_access_expiration_date
     
 - on subscription C/U/D
-    - pianote_membership_subscription_status (active, suspended, canceled)
-    - pianote_membership_subscription_type (interval_count . '_' . interval_type)
-    - pianote_membership_subscription_renewal_date
+    - pianote_membership_status (active, suspended, canceled)
+    - pianote_membership_type (interval_count . '_' . interval_type)
+    - pianote_membership_renewal_date
     - pianote_primary_payment_method_expiration_date
-    - pianote_membership_subscription_cancellation_date
-    - pianote_membership_subscription_started_date
+    - pianote_membership_cancellation_date
+    - pianote_membership_started_date

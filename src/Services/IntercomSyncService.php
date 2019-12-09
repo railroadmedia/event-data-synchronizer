@@ -471,11 +471,11 @@ class IntercomSyncService
             }
 
             $subscriptionAttributes += [
-                $brand . '_membership_subscription_status' => $subscriptionStatus,
-                $brand . '_membership_subscription_type' => $subscriptionProductTag,
-                $brand . '_membership_subscription_renewal_date' => $membershipRenewalDate,
-                $brand . '_membership_subscription_cancellation_date' => $membershipCancellationDate,
-                $brand . '_membership_subscription_started_date' => $subscriptionStartedDate,
+                $brand . '_membership_status' => $subscriptionStatus,
+                $brand . '_membership_type' => $subscriptionProductTag,
+                $brand . '_membership_renewal_date' => $membershipRenewalDate,
+                $brand . '_membership_cancellation_date' => $membershipCancellationDate,
+                $brand . '_membership_started_date' => $subscriptionStartedDate,
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
                 $brand . '_app_membership' => $isAppSignup,
             ];
