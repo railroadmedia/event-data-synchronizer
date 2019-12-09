@@ -267,7 +267,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
      * @param  array  $brands
      * @return array
      */
-    private function getUsersMembershipAttributes(User $user, $brands = [])
+    public function getUsersMembershipAttributes(User $user, $brands = [])
     {
         if (empty($brands)) {
             $brands = config('event-data-synchronizer.intercom_brands_to_sync');
@@ -347,7 +347,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
      * @param  array  $brands
      * @return array
      */
-    private function getUsersSubscriptionAttributes(User $user, array $userProductAttributes, $brands = [])
+    public function getUsersSubscriptionAttributes(User $user, array $userProductAttributes, $brands = [])
     {
         if (empty($brands)) {
             $brands = config('event-data-synchronizer.intercom_brands_to_sync');
