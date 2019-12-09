@@ -23,22 +23,22 @@ class IntercomSyncService extends IntercomSyncServiceBase
     /**
      * @var SubscriptionRepository
      */
-    private $subscriptionRepository;
+    protected $subscriptionRepository;
 
     /**
      * @var UserProductRepository
      */
-    private $userProductRepository;
+    protected $userProductRepository;
 
     /**
      * @var ProductRepository
      */
-    private $productRepository;
+    protected $productRepository;
 
     /**
      * @var IntercomeoService
      */
-    private $intercomeoService;
+    protected $intercomeoService;
 
     /**
      * @var string
