@@ -18,7 +18,7 @@ use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Entities\User;
 use Throwable;
 
-class IntercomSyncService
+class IntercomSyncService extends IntercomSyncServiceBase
 {
     /**
      * @var SubscriptionRepository
@@ -57,12 +57,14 @@ class IntercomSyncService
         ProductRepository $productRepository,
         IntercomeoService $intercomeoService
     ) {
+        parent::__construct();
+
+        self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
+
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
         $this->intercomeoService = $intercomeoService;
-
-        self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
     }
 
     /**

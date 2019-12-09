@@ -13,6 +13,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
+use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
@@ -24,7 +25,7 @@ use Railroad\Usora\Repositories\UserRepository;
 class IntercomSyncEventListener
 {
     /**
-     * @var IntercomSyncService
+     * @var IntercomSyncServiceBase
      */
     private $intercomSyncService;
 
@@ -36,10 +37,10 @@ class IntercomSyncEventListener
     /**
      * IntercomSyncEventListener constructor.
      *
-     * @param IntercomSyncService $intercomSyncService
+     * @param IntercomSyncServiceBase $intercomSyncService
      * @param UserRepository $userRepository
      */
-    public function __construct(IntercomSyncService $intercomSyncService, UserRepository $userRepository)
+    public function __construct(IntercomSyncServiceBase $intercomSyncService, UserRepository $userRepository)
     {
         $this->intercomSyncService = $intercomSyncService;
         $this->userRepository = $userRepository;
@@ -97,7 +98,7 @@ class IntercomSyncEventListener
 
             dispatch(
                 new IntercomTriggerEventForUser(
-                    IntercomSyncService::$userIdPrefix .
+                    IntercomSyncServiceBase::$userIdPrefix .
                     $paymentMethodUpdated->getUser()
                         ->getId(),
                     $paymentMethodUpdated->getNewPaymentMethod()

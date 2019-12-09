@@ -19,6 +19,8 @@ use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
+use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
+use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -98,6 +100,8 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 __DIR__ . '/../../config/event-data-synchronizer.php' => config_path('event-data-synchronizer.php'),
             ]
         );
+
+        $this->app->instance(IntercomSyncServiceBase::class, $this->app->make(IntercomSyncService::class));
     }
 
     /**

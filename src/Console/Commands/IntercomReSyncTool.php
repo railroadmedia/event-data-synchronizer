@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
+use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Repositories\UserRepository;
 
@@ -45,7 +45,7 @@ class IntercomReSyncTool extends Command
     private $userRepository;
 
     /**
-     * @var IntercomSyncService
+     * @var IntercomSyncServiceBase
      */
     private $intercomSyncService;
 
@@ -58,13 +58,13 @@ class IntercomReSyncTool extends Command
      * SetLevelTagsForExpiredLevels constructor.
      * @param  DatabaseManager  $databaseManager
      * @param  UserRepository  $userRepository
-     * @param  IntercomSyncService  $intercomSyncService
+     * @param  IntercomSyncServiceBase  $intercomSyncService
      * @param  IntercomeoService  $intercomeoService
      */
     public function __construct(
         DatabaseManager $databaseManager,
         UserRepository $userRepository,
-        IntercomSyncService $intercomSyncService,
+        IntercomSyncServiceBase $intercomSyncService,
         IntercomeoService $intercomeoService
     ) {
         parent::__construct();
