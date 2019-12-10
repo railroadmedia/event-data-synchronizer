@@ -12,12 +12,12 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
 use Railroad\Intercomeo\Jobs\IntercomUnTagUserByAttributes;
+use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
@@ -37,8 +37,8 @@ class IntercomSyncEventListener
     /**
      * IntercomSyncEventListener constructor.
      *
-     * @param IntercomSyncServiceBase $intercomSyncService
-     * @param UserRepository $userRepository
+     * @param  IntercomSyncServiceBase  $intercomSyncService
+     * @param  UserRepository  $userRepository
      */
     public function __construct(IntercomSyncServiceBase $intercomSyncService, UserRepository $userRepository)
     {
@@ -47,7 +47,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserCreated $userCreated
+     * @param  UserCreated  $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
@@ -55,7 +55,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserUpdated $userUpdated
+     * @param  UserUpdated  $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
@@ -67,28 +67,30 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param PaymentMethodCreated $paymentMethodCreated
+     * @param  PaymentMethodCreated  $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
-        $this->handleUserPaymentMethodUpdated(
-            new PaymentMethodUpdated(
-                $paymentMethodCreated->getPaymentMethod(),
-                $paymentMethodCreated->getPaymentMethod(),
-                $paymentMethodCreated->getUser()
-            )
-        );
+        if ($paymentMethodCreated->getUser() instanceof User) {
+            $this->handleUserPaymentMethodUpdated(
+                new PaymentMethodUpdated(
+                    $paymentMethodCreated->getPaymentMethod(),
+                    $paymentMethodCreated->getPaymentMethod(),
+                    $paymentMethodCreated->getUser()
+                )
+            );
+        }
     }
 
     /**
-     * @param PaymentMethodUpdated $paymentMethodUpdated
+     * @param  PaymentMethodUpdated  $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
         if (!empty(
-        $paymentMethodUpdated->getUser()
-            ->getId()
-        )) {
+            $paymentMethodUpdated->getUser()
+                ->getId()
+            ) && $paymentMethodUpdated->getUser() instanceof User) {
             $user = $this->userRepository->find(
                 $paymentMethodUpdated->getUser()
                     ->getId()
@@ -112,7 +114,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
@@ -127,7 +129,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
@@ -142,7 +144,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
@@ -157,35 +159,45 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param SubscriptionCreated $subscriptionCreated
+     * @param  SubscriptionCreated  $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
-        $user = $this->userRepository->find(
-            $subscriptionCreated->getSubscription()
-                ->getUser()
-                ->getId()
-        );
+        if (!empty(
+        $subscriptionCreated->getSubscription()
+            ->getUser()
+        )) {
+            $user = $this->userRepository->find(
+                $subscriptionCreated->getSubscription()
+                    ->getUser()
+                    ->getId()
+            );
 
-        $this->intercomSyncService->syncUsersAttributes($user);
+            $this->intercomSyncService->syncUsersAttributes($user);
+        }
     }
 
     /**
-     * @param SubscriptionUpdated $subscriptionUpdated
+     * @param  SubscriptionUpdated  $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        $user = $this->userRepository->find(
-            $subscriptionUpdated->getNewSubscription()
-                ->getUser()
-                ->getId()
-        );
+        if (!empty(
+        $subscriptionUpdated->getNewSubscription()
+            ->getUser()
+        )) {
+            $user = $this->userRepository->find(
+                $subscriptionUpdated->getNewSubscription()
+                    ->getUser()
+                    ->getId()
+            );
 
-        $this->intercomSyncService->syncUsersAttributes($user);
+            $this->intercomSyncService->syncUsersAttributes($user);
+        }
     }
 
     /**
-     * @param AppSignupStartedEvent $appSignupStarted
+     * @param  AppSignupStartedEvent  $appSignupStarted
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
