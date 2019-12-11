@@ -100,17 +100,34 @@ class IntercomReSyncTool extends Command
                 ->count();
 
         $ecommerceConnection->table('usora_users')
-            ->orderBy('id', 'desc')
+            ->orderBy('id', 'asc')
             //            ->where('email', 'wengel@gmx.net') // todo: remove
             ->chunk(
                 25,
-                function (Collection $userRows) use (&$done, $total) {
+                function (Collection $userRows) use ($ecommerceConnection, &$done, $total) {
                     $users = $this->userRepository->findByIds(
                         $userRows->pluck('id')
                             ->toArray()
                     );
 
+                    $usersProductsRows =
+                        $ecommerceConnection->table('ecommerce_user_products')
+                            ->whereIn(
+                                'user_id',
+                                $userRows->pluck('id')
+                                    ->toArray()
+                            )
+                            ->get()
+                            ->groupBy('user_id');
+
                     foreach ($users as $user) {
+
+                        // if the user doesn't have any products we should not sync them
+                        if (empty($usersProductsRows[$user->getId()])) {
+                            $this->info('Skipping ' . $user->getEmail());
+                            continue;
+                        }
+
                         // attributes
                         $this->intercomSyncService->syncUsersAttributes($user);
 
@@ -133,7 +150,8 @@ class IntercomReSyncTool extends Command
                             $total .
                             ' - ' .
                             ($this->intercomeoService->getRateLimitDetails()['remaining'] ?? 0) .
-                            ' requests left for intercom API limit.');
+                            ' requests left for intercom API limit.'
+                        );
                     }
 
                     $this->info('Done ' . $done . ' out of ' . $total);

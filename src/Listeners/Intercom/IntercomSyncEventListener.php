@@ -165,7 +165,8 @@ class IntercomSyncEventListener
     {
         if (!empty(
         $subscriptionCreated->getSubscription()
-            ->getUser()
+            ->getUser() &&
+        $subscriptionCreated->getSubscription()->getUser() instanceof User
         )) {
             $user = $this->userRepository->find(
                 $subscriptionCreated->getSubscription()
@@ -184,7 +185,8 @@ class IntercomSyncEventListener
     {
         if (!empty(
         $subscriptionUpdated->getNewSubscription()
-            ->getUser()
+            ->getUser() &&
+        $subscriptionUpdated->getSubscription()->getUser() instanceof User
         )) {
             $user = $this->userRepository->find(
                 $subscriptionUpdated->getNewSubscription()
