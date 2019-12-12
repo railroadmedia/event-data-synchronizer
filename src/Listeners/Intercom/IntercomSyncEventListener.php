@@ -21,6 +21,7 @@ use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
+use Throwable;
 
 class IntercomSyncEventListener
 {
@@ -51,7 +52,11 @@ class IntercomSyncEventListener
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
-        $this->handleUserUpdated(new UserUpdated($userCreated->getUser(), $userCreated->getUser()));
+        try {
+            $this->handleUserUpdated(new UserUpdated($userCreated->getUser(), $userCreated->getUser()));
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 
     /**
@@ -59,10 +64,14 @@ class IntercomSyncEventListener
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
-        $user = $userUpdated->getNewUser();
+        try {
+            $user = $userUpdated->getNewUser();
 
-        if (!empty($user)) {
-            $this->intercomSyncService->syncUsersAttributes($user);
+            if (!empty($user)) {
+                $this->intercomSyncService->syncUsersAttributes($user);
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 
@@ -71,14 +80,18 @@ class IntercomSyncEventListener
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
-        if ($paymentMethodCreated->getUser() instanceof User) {
-            $this->handleUserPaymentMethodUpdated(
-                new PaymentMethodUpdated(
-                    $paymentMethodCreated->getPaymentMethod(),
-                    $paymentMethodCreated->getPaymentMethod(),
-                    $paymentMethodCreated->getUser()
-                )
-            );
+        try {
+            if ($paymentMethodCreated->getUser() instanceof User) {
+                $this->handleUserPaymentMethodUpdated(
+                    new PaymentMethodUpdated(
+                        $paymentMethodCreated->getPaymentMethod(),
+                        $paymentMethodCreated->getPaymentMethod(),
+                        $paymentMethodCreated->getUser()
+                    )
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 
@@ -87,29 +100,33 @@ class IntercomSyncEventListener
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
-        if (!empty(
-            $paymentMethodUpdated->getUser()
-                ->getId()
-            ) && $paymentMethodUpdated->getUser() instanceof User) {
-            $user = $this->userRepository->find(
+        try {
+            if (!empty(
                 $paymentMethodUpdated->getUser()
                     ->getId()
-            );
-
-            $this->intercomSyncService->syncUsersAttributes($user);
-
-            dispatch(
-                new IntercomTriggerEventForUser(
-                    IntercomSyncServiceBase::$userIdPrefix .
+                ) && $paymentMethodUpdated->getUser() instanceof User) {
+                $user = $this->userRepository->find(
                     $paymentMethodUpdated->getUser()
-                        ->getId(),
-                    $paymentMethodUpdated->getNewPaymentMethod()
-                        ->getMethod()
-                        ->getPaymentGatewayName() . '_payment_method_updated',
-                    Carbon::now()
-                        ->toDateTimeString()
-                )
-            );
+                        ->getId()
+                );
+
+                $this->intercomSyncService->syncUsersAttributes($user);
+
+                dispatch(
+                    new IntercomTriggerEventForUser(
+                        IntercomSyncServiceBase::$userIdPrefix .
+                        $paymentMethodUpdated->getUser()
+                            ->getId(),
+                        $paymentMethodUpdated->getNewPaymentMethod()
+                            ->getMethod()
+                            ->getPaymentGatewayName() . '_payment_method_updated',
+                        Carbon::now()
+                            ->toDateTimeString()
+                    )
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 
@@ -118,14 +135,18 @@ class IntercomSyncEventListener
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
-        $user = $this->userRepository->find(
-            $userProductCreated->getUserProduct()
-                ->getUser()
-                ->getId()
-        );
+        try {
+            $user = $this->userRepository->find(
+                $userProductCreated->getUserProduct()
+                    ->getUser()
+                    ->getId()
+            );
 
-        $this->intercomSyncService->syncUsersAttributes($user);
-        $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            $this->intercomSyncService->syncUsersAttributes($user);
+            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 
     /**
@@ -133,14 +154,18 @@ class IntercomSyncEventListener
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-        $user = $this->userRepository->find(
-            $userProductUpdated->getNewUserProduct()
-                ->getUser()
-                ->getId()
-        );
+        try {
+            $user = $this->userRepository->find(
+                $userProductUpdated->getNewUserProduct()
+                    ->getUser()
+                    ->getId()
+            );
 
-        $this->intercomSyncService->syncUsersAttributes($user);
-        $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            $this->intercomSyncService->syncUsersAttributes($user);
+            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 
     /**
@@ -148,14 +173,18 @@ class IntercomSyncEventListener
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
-        $user = $this->userRepository->find(
-            $userProductDeleted->getUserProduct()
-                ->getUser()
-                ->getId()
-        );
+        try {
+            $user = $this->userRepository->find(
+                $userProductDeleted->getUserProduct()
+                    ->getUser()
+                    ->getId()
+            );
 
-        $this->intercomSyncService->syncUsersAttributes($user);
-        $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            $this->intercomSyncService->syncUsersAttributes($user);
+            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 
     /**
@@ -163,18 +192,23 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
-        if (!empty(
-        $subscriptionCreated->getSubscription()
-            ->getUser() &&
-        $subscriptionCreated->getSubscription()->getUser() instanceof User
-        )) {
-            $user = $this->userRepository->find(
+        try {
+            if (!empty(
                 $subscriptionCreated->getSubscription()
-                    ->getUser()
-                    ->getId()
-            );
+                    ->getUser() &&
+                $subscriptionCreated->getSubscription()
+                    ->getUser() instanceof User
+            )) {
+                $user = $this->userRepository->find(
+                    $subscriptionCreated->getSubscription()
+                        ->getUser()
+                        ->getId()
+                );
 
-            $this->intercomSyncService->syncUsersAttributes($user);
+                $this->intercomSyncService->syncUsersAttributes($user);
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 
@@ -183,18 +217,23 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        if (!empty(
-        $subscriptionUpdated->getNewSubscription()
-            ->getUser() &&
-        $subscriptionUpdated->getSubscription()->getUser() instanceof User
-        )) {
-            $user = $this->userRepository->find(
+        try {
+            if (!empty(
                 $subscriptionUpdated->getNewSubscription()
-                    ->getUser()
-                    ->getId()
-            );
+                    ->getUser() &&
+                $subscriptionUpdated->getNewSubscription()
+                    ->getUser() instanceof User
+            )) {
+                $user = $this->userRepository->find(
+                    $subscriptionUpdated->getNewSubscription()
+                        ->getUser()
+                        ->getId()
+                );
 
-            $this->intercomSyncService->syncUsersAttributes($user);
+                $this->intercomSyncService->syncUsersAttributes($user);
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 
@@ -203,31 +242,39 @@ class IntercomSyncEventListener
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
-        dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
+        try {
+            dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
 
-        dispatch(
-            new IntercomTagUserByAttributes(
-                'drumeo_started_app_signup_flow', $appSignupStarted->getAttributes()
-            )
-        );
+            dispatch(
+                new IntercomTagUserByAttributes(
+                    'drumeo_started_app_signup_flow', $appSignupStarted->getAttributes()
+                )
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
-        dispatch(
-            new IntercomUnTagUserByAttributes(
-                'drumeo_started_app_signup_flow', ['email' => $appSignupFinished->getAttributes()['email']]
-            )
-        );
+        try {
+            dispatch(
+                new IntercomUnTagUserByAttributes(
+                    'drumeo_started_app_signup_flow', ['email' => $appSignupFinished->getAttributes()['email']]
+                )
+            );
 
-        dispatch(
-            new IntercomSyncUserByAttributes(
-                [
-                    'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
-                        $appSignupFinished->getAttributes()['user_id'],
-                    'email' => $appSignupFinished->getAttributes()['email'],
-                ]
-            )
-        );
+            dispatch(
+                new IntercomSyncUserByAttributes(
+                    [
+                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
+                            $appSignupFinished->getAttributes()['user_id'],
+                        'email' => $appSignupFinished->getAttributes()['email'],
+                    ]
+                )
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 }
