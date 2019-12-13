@@ -328,7 +328,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $isLifetime = null;
             }
 
-            $productAttributes = [
+            $productAttributes += [
                 $brand . '_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
                     $membershipAccessExpirationDate->timestamp : null,
                 $brand . '_membership_is_lifetime' => $isLifetime,
