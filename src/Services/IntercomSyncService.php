@@ -360,6 +360,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
         foreach ($brands as $brand) {
             $membershipRenewalDate = null;
             $membershipCancellationDate = null;
+            $membershipCancellationReason = null;
             $subscriptionStatus = null;
             $subscriptionStartedDate = null;
             $expirationDate = null;
@@ -426,6 +427,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $membershipCancellationDate =
                     !empty($subscriptionToSync->getCanceledOn()) ? $subscriptionToSync->getCanceledOn()->timestamp :
                         null;
+                $membershipCancellationReason = $subscriptionToSync->getCancellationReason();
                 $subscriptionStatus = $subscriptionToSync->getState();
                 $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
 
@@ -455,6 +457,14 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 }
             }
 
+            // if the cancelled_on date is changed to null, then set the cancellation_reason to null as well
+            if (!empty($subscriptionToSync)) {
+                $cancelledOnIsNull = is_null($subscriptionToSync->getCanceledOn());
+                if($cancelledOnIsNull){
+                    $subscriptionToSync->setCancellationReason(null);
+                }
+            }
+
             $subscriptionProductTag = null;
 
             if (!empty($subscriptionToSync)) {
@@ -466,6 +476,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             if (($userProductAttributes[$brand . '_membership_is_lifetime'] ?? false) == true) {
                 $membershipRenewalDate = null;
                 $membershipCancellationDate = null;
+                $membershipCancellationReason = null;
                 $subscriptionStatus = null;
                 $subscriptionStartedDate = null;
                 $subscriptionProductTag = null;
@@ -477,6 +488,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $brand . '_membership_type' => $subscriptionProductTag,
                 $brand . '_membership_renewal_date' => $membershipRenewalDate,
                 $brand . '_membership_cancellation_date' => $membershipCancellationDate,
+                $brand . '_membership_cancellation_reason' => $membershipCancellationReason,
                 $brand . '_membership_started_date' => $subscriptionStartedDate,
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
                 $brand . '_app_membership' => $isAppSignup,

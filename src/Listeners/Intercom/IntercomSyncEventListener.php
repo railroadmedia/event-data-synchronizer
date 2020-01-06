@@ -217,19 +217,15 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
+        $newSubscription = $subscriptionUpdated->getNewSubscription();
         try {
-            if (!empty(
-                $subscriptionUpdated->getNewSubscription()
-                    ->getUser() &&
-                $subscriptionUpdated->getNewSubscription()
-                    ->getUser() instanceof User
-            )) {
-                $user = $this->userRepository->find(
-                    $subscriptionUpdated->getNewSubscription()
-                        ->getUser()
-                        ->getId()
-                );
+            $user = $newSubscription->getUser();
 
+            if (!($user instanceof User)){
+                $user = $this->userRepository->find($newSubscription->getUser()->getId());
+            }
+
+            if ($user instanceof User) {
                 $this->intercomSyncService->syncUsersAttributes($user);
             }
         } catch (Throwable $throwable) {
