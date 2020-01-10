@@ -95,7 +95,9 @@ class MaropostEventListener
         }
 
         try {
-            $this->syncUser($subscriptionCreated->getSubscription()->getUser()->getId());
+            if (!empty($subscriptionCreated->getSubscription()->getUser())) {
+                $this->syncUser($subscriptionCreated->getSubscription()->getUser()->getId());
+            }
         } catch (Exception $exception) {
             error_log($exception);
         }
@@ -108,7 +110,9 @@ class MaropostEventListener
         }
 
         try {
-            $this->syncUser($subscriptionUpdated->getNewSubscription()->getUser()->getId());
+            if (!empty($subscriptionUpdated->getNewSubscription()->getUser())) {
+                $this->syncUser($subscriptionUpdated->getNewSubscription()->getUser()->getId());
+            }
         } catch (Exception $exception) {
             error_log($exception);
         }

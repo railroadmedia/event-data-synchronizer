@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Listeners\Intercom;
 
 use Carbon\Carbon;
+use Railroad\Ecommerce\Entities\User as EcommerceUser;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
@@ -221,7 +222,7 @@ class IntercomSyncEventListener
         try {
             $user = $newSubscription->getUser();
 
-            if (!($user instanceof User)){
+            if ($user instanceof EcommerceUser) {
                 $user = $this->userRepository->find($newSubscription->getUser()->getId());
             }
 
