@@ -143,7 +143,7 @@ class IntercomReSyncTool extends Command
 
                         $done++;
 
-                        if (((integer)$this->intercomeoService->getRateLimitDetails()['remaining'] ?? 50) < 10) {
+                        if (((integer)($this->intercomeoService->getRateLimitDetails()['remaining'] ?? 50)) < 10) {
                             $this->info('Waiting for API.');
                             sleep(10);
                         }
