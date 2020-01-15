@@ -32,7 +32,7 @@ class IntercomReSyncTool extends Command
      *
      * @var string
      */
-    protected $signature = 'IntercomResyncService {scope} {brand?}';
+    protected $signature = 'IntercomResyncService {scope} {--brand=}';
 
     /**
      * @var DatabaseManager
@@ -83,7 +83,7 @@ class IntercomReSyncTool extends Command
     public function handle()
     {
         if ($this->argument('scope') == 'all') {
-            $this->all($this->argument('brand'));
+            $this->all($this->option('brand'));
         }
     }
 
@@ -104,7 +104,7 @@ class IntercomReSyncTool extends Command
             //            ->where('email', 'wengel@gmx.net') // todo: remove
             ->chunk(
                 25,
-                function (Collection $userRows) use ($ecommerceConnection, &$done, $total) {
+                function (Collection $userRows) use ($ecommerceConnection, &$done, $total, $brand) {
                     $users = $this->userRepository->findByIds(
                         $userRows->pluck('id')
                             ->toArray()
@@ -116,7 +116,14 @@ class IntercomReSyncTool extends Command
                                 'user_id',
                                 $userRows->pluck('id')
                                     ->toArray()
-                            )
+                            );
+
+                    if (!empty($brand)) {
+                        $usersProductsRows->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
+                            ->where('ecommerce_products.brand', $brand);
+                    }
+
+                    $usersProductsRows = $usersProductsRows
                             ->get()
                             ->groupBy('user_id');
 
