@@ -15,7 +15,6 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
-use Railroad\EventDataSynchronizer\Listeners\DuplicateSubscriptionHandler;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -62,12 +61,10 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
-            DuplicateSubscriptionHandler::class . '@handleSubscriptionCreated',
             MaropostEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
-            DuplicateSubscriptionHandler::class . '@handleSubscriptionUpdated',
             MaropostEventListener::class . '@handleSubscriptionUpdated',
         ],
         OrderEvent::class => [],
