@@ -6,8 +6,10 @@ use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Intercomeo\Services\IntercomeoService;
+use Railroad\Usora\Managers\UsoraEntityManager;
 use Railroad\Usora\Repositories\UserRepository;
 
 class IntercomReSyncTool extends Command
@@ -55,17 +57,31 @@ class IntercomReSyncTool extends Command
     private $intercomeoService;
 
     /**
+     * @var EcommerceEntityManager
+     */
+    private $ecommerceEntityManager;
+
+    /**
+     * @var UsoraEntityManager
+     */
+    private $usoraEntityManager;
+
+    /**
      * SetLevelTagsForExpiredLevels constructor.
-     * @param  DatabaseManager  $databaseManager
-     * @param  UserRepository  $userRepository
-     * @param  IntercomSyncServiceBase  $intercomSyncService
-     * @param  IntercomeoService  $intercomeoService
+     * @param DatabaseManager $databaseManager
+     * @param UserRepository $userRepository
+     * @param IntercomSyncServiceBase $intercomSyncService
+     * @param IntercomeoService $intercomeoService
+     * @param EcommerceEntityManager $ecommerceEntityManager
+     * @param UsoraEntityManager $usoraEntityManager
      */
     public function __construct(
         DatabaseManager $databaseManager,
         UserRepository $userRepository,
         IntercomSyncServiceBase $intercomSyncService,
-        IntercomeoService $intercomeoService
+        IntercomeoService $intercomeoService,
+        EcommerceEntityManager $ecommerceEntityManager,
+        UsoraEntityManager $usoraEntityManager
     ) {
         parent::__construct();
 
@@ -73,6 +89,8 @@ class IntercomReSyncTool extends Command
         $this->userRepository = $userRepository;
         $this->intercomSyncService = $intercomSyncService;
         $this->intercomeoService = $intercomeoService;
+        $this->ecommerceEntityManager = $ecommerceEntityManager;
+        $this->usoraEntityManager = $usoraEntityManager;
     }
 
     /**
@@ -88,7 +106,7 @@ class IntercomReSyncTool extends Command
     }
 
     /**
-     * @param  null  $brand
+     * @param null $brand
      */
     protected function all($brand = null)
     {
@@ -119,13 +137,14 @@ class IntercomReSyncTool extends Command
                             );
 
                     if (!empty($brand)) {
-                        $usersProductsRows->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
+                        $usersProductsRows->join('ecommerce_products', 'ecommerce_products.id', '=',
+                            'ecommerce_user_products.product_id')
                             ->where('ecommerce_products.brand', $brand);
                     }
 
                     $usersProductsRows = $usersProductsRows
-                            ->get()
-                            ->groupBy('user_id');
+                        ->get()
+                        ->groupBy('user_id');
 
                     foreach ($users as $user) {
 
@@ -162,6 +181,10 @@ class IntercomReSyncTool extends Command
                     }
 
                     $this->info('Done ' . $done . ' out of ' . $total);
+                    $this->info("real: ".(memory_get_peak_usage(true)/1024/1024)." MiB\n\n");
+
+                    $this->ecommerceEntityManager->clear();
+                    $this->usoraEntityManager->clear();
                 }
             );
     }
