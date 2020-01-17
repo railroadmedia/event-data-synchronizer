@@ -3,7 +3,6 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
-use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
@@ -61,7 +60,7 @@ class UserProductToUserContentPermissionListener
      */
     public function handleCreated(UserProductCreated $createdEvent)
     {
-        $this->handleFromEntity($createdEvent->getUserProduct());
+        $this->syncUserId($createdEvent->getUserProduct()->getUser()->getId());
     }
 
     /**
@@ -69,7 +68,7 @@ class UserProductToUserContentPermissionListener
      */
     public function handleUpdated(UserProductUpdated $updatedEvent)
     {
-        $this->handleFromEntity($updatedEvent->getNewUserProduct());
+        $this->syncUserId($updatedEvent->getNewUserProduct()->getUser()->getId());
     }
 
     /**
@@ -77,12 +76,12 @@ class UserProductToUserContentPermissionListener
      */
     public function handleDeleted(UserProductDeleted $deletedEvent)
     {
-        $this->handleFromEntity($deletedEvent->getUserProduct());
+        $this->syncUserId($deletedEvent->getUserProduct()->getUser()->getId());
     }
 
-    public function handleFromEntity(UserProduct $userProduct)
+    public function syncUserId($userId)
     {
-        $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userProduct->getUser()->getId());
+        $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userId);
 
         $permissionsToCreate = [];
 
