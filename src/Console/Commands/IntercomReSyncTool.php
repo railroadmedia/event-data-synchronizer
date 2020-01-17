@@ -183,8 +183,14 @@ class IntercomReSyncTool extends Command
                     $this->info('Done ' . $done . ' out of ' . $total);
                     $this->info("real: ".(memory_get_peak_usage(true)/1024/1024)." MiB\n\n");
 
+                    $this->ecommerceEntityManager->flush();
+                    $this->usoraEntityManager->flush();
+
                     $this->ecommerceEntityManager->clear();
                     $this->usoraEntityManager->clear();
+
+                    $this->ecommerceEntityManager->getConnection()->ping();
+                    $this->usoraEntityManager->getConnection()->ping();
                 }
             );
     }
