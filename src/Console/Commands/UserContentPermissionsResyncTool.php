@@ -120,11 +120,20 @@ class UserContentPermissionsResyncTool extends Command
 
         $done = 0;
 
-        $query->chunk(500, function (Collection $userProductRows) use (&$done) {
+        $query->chunk(250, function (Collection $userProductRows) use (&$done) {
             foreach ($userProductRows as $userProductRow) {
                 $this->userProductToUserContentPermissionListener->syncUserId($userProductRow->user_id);
                 $done++;
             }
+
+            $this->ecommerceEntityManager->flush();
+            $this->usoraEntityManager->flush();
+
+            $this->ecommerceEntityManager->clear();
+            $this->usoraEntityManager->clear();
+
+            $this->ecommerceEntityManager->getConnection()->ping();
+            $this->usoraEntityManager->getConnection()->ping();
 
             $this->info('Done ' . $done);
         });
