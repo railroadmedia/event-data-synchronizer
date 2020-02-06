@@ -275,8 +275,8 @@ class MaropostEventListener
         foreach (config('event-data-synchronizer.maropost_member_active_tag') as $brand => $tagName) {
             $hasMembershipAccess = false;
 
-            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_ids', []) as $productId) {
-                if ($this->userHasProductId($allUsersProducts, $brand, $productId)) {
+            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_skus', []) as $productSku) {
+                if ($this->userHasProductSku($allUsersProducts, $brand, $productSku)) {
                     $hasMembershipAccess = true;
                 }
             }
@@ -292,8 +292,8 @@ class MaropostEventListener
         foreach (config('event-data-synchronizer.maropost_member_active_tag') as $brand => $tagName) {
             $hasExpiredAccess = false;
 
-            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_ids', []) as $productId) {
-                if ($this->userHasInvalidProductId($allUsersProducts, $brand, $productId)) {
+            foreach (config('event-data-synchronizer.' . $brand . '_membership_product_skus', []) as $productSku) {
+                if ($this->userHasInvalidProductSku($allUsersProducts, $brand, $productSku)) {
                     $hasExpiredAccess = true;
                 }
             }
@@ -359,25 +359,6 @@ class MaropostEventListener
     /**
      * @param  UserProduct[]  $allUsersProducts
      * @param $brand
-     * @param $id
-     * @return bool
-     */
-    private function userHasProductId(array $allUsersProducts, $brand, $id)
-    {
-        foreach ($allUsersProducts as $userProduct) {
-            $product = $userProduct->getProduct();
-
-            if ($product->getId() == $id && $product->getBrand() == $brand && $userProduct->isValid()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @param  UserProduct[]  $allUsersProducts
-     * @param $brand
      * @return bool
      */
     private function userHasOrHasAnyProductUnderBrand(array $allUsersProducts, $brand)
@@ -399,12 +380,12 @@ class MaropostEventListener
      * @param $id
      * @return bool
      */
-    private function userHasInvalidProductId(array $allUsersProducts, $brand, $id)
+    private function userHasInvalidProductSku(array $allUsersProducts, $brand, $sku)
     {
         foreach ($allUsersProducts as $userProduct) {
             $product = $userProduct->getProduct();
 
-            if ($product->getId() == $id && $product->getBrand() == $brand && !$userProduct->isValid()) {
+            if ($product->getSku() == $sku && $product->getBrand() == $brand && !$userProduct->isValid()) {
                 return true;
             }
         }
