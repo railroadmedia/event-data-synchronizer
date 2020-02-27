@@ -259,6 +259,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             'musora_profile_birthday' => !empty($user->getBirthday()) ? $user->getBirthday()->timestamp : null,
             'musora_phone_number' => $user->getPhoneNumber(),
             'musora_timezone' => $user->getTimezone(),
+            'musora_notify_of_weekly_updates' => $user->getNotifyWeeklyUpdate(),
         ];
     }
 
