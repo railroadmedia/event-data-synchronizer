@@ -362,14 +362,20 @@ class IntercomSyncService extends IntercomSyncServiceBase
             $membershipCancellationDate = null;
             $membershipCancellationReason = null;
             $subscriptionStatus = null;
-            $subscriptionStartedDate = null;
+            $latestSubscriptionStartedDate = null;
+            $firstSubscriptionStartedDate = null;
             $expirationDate = null;
             $isAppSignup = false;
 
             /**
-             * @var $subscriptionToSync Subscription|null
+             * @var $latestSubscriptionToSync Subscription|null
              */
-            $subscriptionToSync = null;
+            $latestSubscriptionToSync = null;
+
+            /**
+             * @var $latestSubscriptionToSync Subscription|null
+             */
+            $firstSubscriptionToSync = null;
 
             // We only want to sync attributes to subscriptions for membership products.
             // If there are multiple active membership subs we will always sync the one with the further paid_until
@@ -397,41 +403,81 @@ class IntercomSyncService extends IntercomSyncServiceBase
                     continue;
                 }
 
-                if (empty($subscriptionToSync)) {
-                    $subscriptionToSync = $userSubscription;
+                if (empty($latestSubscriptionToSync)) {
+                    $latestSubscriptionToSync = $userSubscription;
 
                     continue;
                 }
 
                 // if this subscription paid_until is further in the past than whatever is currently set, skip it
                 // unless the set subscription is not-active and this one is, then use the active one
-                if (!empty($subscriptionToSync) &&
-                    ($subscriptionToSync->getPaidUntil() < $userSubscription->getPaidUntil() ||
-                        !$subscriptionToSync->getIsActive() &&
+                if (!empty($latestSubscriptionToSync) &&
+                    ($latestSubscriptionToSync->getPaidUntil() < $userSubscription->getPaidUntil() ||
+                        !$latestSubscriptionToSync->getIsActive() &&
                         $userSubscription->getIsActive())) {
-                    $subscriptionToSync = $userSubscription;
+                    $latestSubscriptionToSync = $userSubscription;
                 }
             }
 
+            foreach ($userSubscriptions as $userSubscription) {
+                // make sure this subscription is for a single membership product and its the right brand
+                if (empty($userSubscription->getProduct()) ||
+                    $userSubscription->getProduct()
+                        ->getBrand() != $brand) {
+                    continue;
+                }
+
+                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
+                if (!in_array(
+                    $userSubscription->getProduct()
+                        ->getSku(),
+                    config(
+                        'event-data-synchronizer.' .
+                        $userSubscription->getProduct()
+                            ->getBrand() .
+                        '_membership_product_skus',
+                        []
+                    )
+                )) {
+                    continue;
+                }
+
+                if (empty($firstSubscriptionToSync)) {
+                    $firstSubscriptionToSync = $userSubscription;
+
+                    continue;
+                }
+
+                // get the earliest started subscription
+                if (!empty($firstSubscriptionToSync) &&
+                    $firstSubscriptionToSync->getStartDate() > $userSubscription->getStartDate()) {
+                    $firstSubscriptionToSync = $userSubscription;
+                }
+            }
+
+            if (!empty($firstSubscriptionToSync)) {
+                $firstSubscriptionStartedDate = $firstSubscriptionToSync->getStartDate()->timestamp;
+            }
+
             // Get expiration date
-            if (!empty($subscriptionToSync)) {
+            if (!empty($latestSubscriptionToSync)) {
                 $totalPaymentsOnActiveSubscription = 0;
 
-                foreach ($subscriptionToSync->getPayments() as $_payment) {
+                foreach ($latestSubscriptionToSync->getPayments() as $_payment) {
                     if ($_payment->getTotalPaid() == $_payment->getTotalDue()) {
                         $totalPaymentsOnActiveSubscription++;
                     }
                 }
 
-                $membershipRenewalDate = $subscriptionToSync->getPaidUntil()->timestamp;
+                $membershipRenewalDate = $latestSubscriptionToSync->getPaidUntil()->timestamp;
                 $membershipCancellationDate =
-                    !empty($subscriptionToSync->getCanceledOn()) ? $subscriptionToSync->getCanceledOn()->timestamp :
+                    !empty($latestSubscriptionToSync->getCanceledOn()) ? $latestSubscriptionToSync->getCanceledOn()->timestamp :
                         null;
-                $membershipCancellationReason = $subscriptionToSync->getCancellationReason();
-                $subscriptionStatus = $subscriptionToSync->getState();
-                $subscriptionStartedDate = $subscriptionToSync->getCreatedAt()->timestamp;
+                $membershipCancellationReason = $latestSubscriptionToSync->getCancellationReason();
+                $subscriptionStatus = $latestSubscriptionToSync->getState();
+                $latestSubscriptionStartedDate = $latestSubscriptionToSync->getCreatedAt()->timestamp;
 
-                if(in_array($subscriptionToSync->getType(), [
+                if(in_array($latestSubscriptionToSync->getType(), [
                     Subscription::TYPE_APPLE_SUBSCRIPTION,
                     Subscription::TYPE_GOOGLE_SUBSCRIPTION
                 ])) {
@@ -439,15 +485,15 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 }
                 // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
                 try {
-                    if (!empty($subscriptionToSync->getPaymentMethod())) {
-                        if ($subscriptionToSync->getPaymentMethod()
+                    if (!empty($latestSubscriptionToSync->getPaymentMethod())) {
+                        if ($latestSubscriptionToSync->getPaymentMethod()
                                 ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
                             $expirationDate = Carbon::parse(
-                                $subscriptionToSync->getPaymentMethod()
+                                $latestSubscriptionToSync->getPaymentMethod()
                                     ->getMethod()
                                     ->getExpirationDate()
                             )->timestamp;
-                        } elseif ($subscriptionToSync->getPaymentMethod()
+                        } elseif ($latestSubscriptionToSync->getPaymentMethod()
                                 ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
                             $expirationDate = null;
                         }
@@ -458,18 +504,18 @@ class IntercomSyncService extends IntercomSyncServiceBase
             }
 
             // if the cancelled_on date is changed to null, then set the cancellation_reason to null as well
-            if (!empty($subscriptionToSync)) {
-                $cancelledOnIsNull = is_null($subscriptionToSync->getCanceledOn());
+            if (!empty($latestSubscriptionToSync)) {
+                $cancelledOnIsNull = is_null($latestSubscriptionToSync->getCanceledOn());
                 if($cancelledOnIsNull){
-                    $subscriptionToSync->setCancellationReason(null);
+                    $latestSubscriptionToSync->setCancellationReason(null);
                 }
             }
 
             $subscriptionProductTag = null;
 
-            if (!empty($subscriptionToSync)) {
+            if (!empty($latestSubscriptionToSync)) {
                 $subscriptionProductTag =
-                    $subscriptionToSync->getIntervalCount() . '_' . $subscriptionToSync->getIntervalType();
+                    $latestSubscriptionToSync->getIntervalCount() . '_' . $latestSubscriptionToSync->getIntervalType();
             }
 
             // if the user is a lifetime make sure all subscription related info is set to null
@@ -478,7 +524,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $membershipCancellationDate = null;
                 $membershipCancellationReason = null;
                 $subscriptionStatus = null;
-                $subscriptionStartedDate = null;
+                $latestSubscriptionStartedDate = null;
                 $subscriptionProductTag = null;
                 $expirationDate = null;
             }
@@ -489,7 +535,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $brand . '_membership_renewal_date' => $membershipRenewalDate,
                 $brand . '_membership_cancellation_date' => $membershipCancellationDate,
                 $brand . '_membership_cancellation_reason' => $membershipCancellationReason,
-                $brand . '_membership_started_date' => $subscriptionStartedDate,
+                $brand . '_membership_latest_start_date' => $latestSubscriptionStartedDate,
+                $brand . '_membership_first_start_date' => $firstSubscriptionStartedDate,
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
                 $brand . '_app_membership' => $isAppSignup,
             ];
