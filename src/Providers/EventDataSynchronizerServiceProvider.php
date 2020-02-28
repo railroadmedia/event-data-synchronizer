@@ -9,6 +9,7 @@ use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -70,10 +71,13 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         OrderEvent::class => [],
         AppSignupStartedEvent::class => [
-            IntercomSyncEventListener::class . '@handleAppSignupStarted'
+            IntercomSyncEventListener::class . '@handleAppSignupStarted',
         ],
         AppSignupFinishedEvent::class => [
-            IntercomSyncEventListener::class . '@handleAppSignupFinished'
+            IntercomSyncEventListener::class . '@handleAppSignupFinished',
+        ],
+        SubscriptionRenewed::class => [
+            IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
         ]
     ];
 

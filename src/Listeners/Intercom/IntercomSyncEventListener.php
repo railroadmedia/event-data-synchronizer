@@ -9,6 +9,7 @@ use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -39,8 +40,8 @@ class IntercomSyncEventListener
     /**
      * IntercomSyncEventListener constructor.
      *
-     * @param  IntercomSyncServiceBase  $intercomSyncService
-     * @param  UserRepository  $userRepository
+     * @param IntercomSyncServiceBase $intercomSyncService
+     * @param UserRepository $userRepository
      */
     public function __construct(IntercomSyncServiceBase $intercomSyncService, UserRepository $userRepository)
     {
@@ -49,7 +50,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserCreated  $userCreated
+     * @param UserCreated $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
@@ -61,7 +62,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserUpdated  $userUpdated
+     * @param UserUpdated $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
@@ -77,7 +78,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  PaymentMethodCreated  $paymentMethodCreated
+     * @param PaymentMethodCreated $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
@@ -97,7 +98,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  PaymentMethodUpdated  $paymentMethodUpdated
+     * @param PaymentMethodUpdated $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
@@ -132,7 +133,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductCreated  $userProductCreated
+     * @param UserProductCreated $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
@@ -151,7 +152,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductUpdated  $userProductUpdated
+     * @param UserProductUpdated $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
@@ -170,7 +171,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  UserProductDeleted  $userProductDeleted
+     * @param UserProductDeleted $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
@@ -189,7 +190,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  SubscriptionCreated  $subscriptionCreated
+     * @param SubscriptionCreated $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
@@ -214,7 +215,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  SubscriptionUpdated  $subscriptionUpdated
+     * @param SubscriptionUpdated $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
@@ -235,7 +236,7 @@ class IntercomSyncEventListener
     }
 
     /**
-     * @param  AppSignupStartedEvent  $appSignupStarted
+     * @param AppSignupStartedEvent $appSignupStarted
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
@@ -252,6 +253,9 @@ class IntercomSyncEventListener
         }
     }
 
+    /**
+     * @param AppSignupFinishedEvent $appSignupFinished
+     */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
         try {
@@ -270,6 +274,30 @@ class IntercomSyncEventListener
                     ]
                 )
             );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param SubscriptionRenewed $subscriptionRenewed
+     */
+    public function handleSubscriptionRenewed(SubscriptionRenewed $subscriptionRenewed)
+    {
+        try {
+            if (!empty($subscriptionRenewed->getSubscription()) &&
+                !empty($subscriptionRenewed->getSubscription()->getUser())) {
+
+                dispatch(
+                    new IntercomTriggerEventForUser(
+                        IntercomSyncServiceBase::$userIdPrefix .
+                        $subscriptionRenewed->getSubscription()->getUser()->getId(),
+                        $subscriptionRenewed->getSubscription()->getBrand() . '_membership_renewed',
+                        Carbon::now()
+                            ->toDateTimeString()
+                    )
+                );
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
