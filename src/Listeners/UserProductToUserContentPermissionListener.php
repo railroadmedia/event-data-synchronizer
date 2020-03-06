@@ -3,7 +3,6 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
@@ -101,23 +100,30 @@ class UserProductToUserContentPermissionListener
                 continue;
             }
 
-            if (!array_key_exists($permissionName, $permissionsToCreate)) {
-                $permissionsToCreate[$permissionName] = $allUsersProduct->getExpirationDate();
+            // we need to check by brand as well since some permissions across brands have the same name
+            $permissionArrayKey = $permissionName . '|' . $allUsersProduct->getProduct()->getBrand();
+
+            if (!array_key_exists($permissionArrayKey, $permissionsToCreate)) {
+                $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
             } elseif ($allUsersProduct->getExpirationDate() === null) {
-                $permissionsToCreate[$permissionName] = $allUsersProduct->getExpirationDate();
-            } elseif (isset($permissionsToCreate[$permissionName]) && $permissionsToCreate[$permissionName] !== null) {
-                if (Carbon::parse($permissionsToCreate[$permissionName]) < $allUsersProduct->getExpirationDate()) {
-                    $permissionsToCreate[$permissionName] = $allUsersProduct->getExpirationDate();
+                $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
+            } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
+                $permissionsToCreate[$permissionArrayKey] !== null) {
+                if (Carbon::parse($permissionsToCreate[$permissionArrayKey]) < $allUsersProduct->getExpirationDate()) {
+                    $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
                 }
             }
         }
 
-        foreach ($permissionsToCreate as $permissionNameToSync => $expirationDate) {
+        foreach ($permissionsToCreate as $permissionNameAndBrandToSync => $expirationDate) {
+
+            $permissionNameToSync = explode('|', $permissionNameAndBrandToSync)[0];
+            $permissionBrandToSync = explode('|', $permissionNameAndBrandToSync)[1];
 
             $permissionId =
                 $this->permissionRepository->query()
                     ->where('name', $permissionNameToSync)
-                    ->where('brand', $allUsersProduct->getProduct()->getBrand())
+                    ->where('brand', $permissionBrandToSync)
                     ->first(['id'])['id'] ?? null;
 
             if (empty($permissionId)) {
@@ -126,7 +132,7 @@ class UserProductToUserContentPermissionListener
 
             $existingPermission =
                 $this->userPermissionsRepository->getIdByPermissionAndUser(
-                    $allUsersProduct->getUser()->getId(),
+                    $userId,
                     $permissionId
                 )[0] ?? null;
 
@@ -137,7 +143,7 @@ class UserProductToUserContentPermissionListener
             if (empty($existingPermission)) {
                 $this->userPermissionsRepository->create(
                     [
-                        'user_id' => $allUsersProduct->getUser()->getId(),
+                        'user_id' => $userId,
                         'permission_id' => $permissionId,
                         'start_date' => Carbon::now()
                             ->toDateTimeString(),
@@ -150,7 +156,7 @@ class UserProductToUserContentPermissionListener
                 $this->userPermissionsRepository->update(
                     $existingPermission['id'],
                     [
-                        'user_id' => $allUsersProduct->getUser()->getId(),
+                        'user_id' => $userId,
                         'permission_id' => $permissionId,
                         'expiration_date' => $expirationDate,
                         'updated_on' => Carbon::now()
