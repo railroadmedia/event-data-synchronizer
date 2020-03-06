@@ -3,13 +3,16 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\Railcontent\Helpers\CacheHelper;
 use Railroad\Railcontent\Repositories\PermissionRepository;
 use Railroad\Railcontent\Repositories\UserPermissionsRepository;
+use Railroad\Railcontent\Services\ConfigService;
 use Railroad\Resora\Events\Created;
 use Railroad\Resora\Events\Updated;
 
@@ -48,7 +51,8 @@ class UserProductToUserContentPermissionListener
         ProductRepository $productRepository,
         PermissionRepository $permissionRepository,
         UserPermissionsRepository $userPermissionsRepository
-    ) {
+    )
+    {
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
         $this->permissionRepository = $permissionRepository;
@@ -155,5 +159,13 @@ class UserProductToUserContentPermissionListener
                 );
             }
         }
+
+        // clear the railcontent cache
+        CacheHelper::deleteUserFields(
+            [
+                ConfigService::$redisPrefix . ':userId_' . $userId,
+            ],
+            'content'
+        );
     }
 }
