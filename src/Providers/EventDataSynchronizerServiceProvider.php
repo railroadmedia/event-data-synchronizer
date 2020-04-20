@@ -10,6 +10,7 @@ use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -68,6 +69,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
             MaropostEventListener::class . '@handleSubscriptionUpdated',
+        ],
+        SubscriptionRenewFailed::class => [
+            IntercomSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
         ],
         OrderEvent::class => [],
         AppSignupStartedEvent::class => [

@@ -10,6 +10,7 @@ use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
+use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -300,6 +301,31 @@ class IntercomSyncEventListener
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
+        }
+    }
+
+    /**
+     * @param SubscriptionRenewFailed $subscriptionRenewFailed
+     */
+    public function handleSubscriptionRenewalAttemptFailed(SubscriptionRenewFailed $subscriptionRenewFailed)
+    {
+        if ($subscriptionRenewFailed->getSubscription()->getIsActive() == false &&
+            $subscriptionRenewFailed->getSubscription()->getCanceledOn() == null &&
+            $subscriptionRenewFailed->getSubscription()->getStopped() == false &&
+            $subscriptionRenewFailed->getSubscription()->getPaidUntil() < Carbon::now()) {
+
+            dispatch(
+                new IntercomSyncUserByAttributes(
+                    [
+                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
+                            $subscriptionRenewFailed->getSubscription()->getUser()->getId(),
+                        'custom_attributes' => [
+                            $subscriptionRenewFailed->getSubscription()->getBrand() . '_membership_renewal_attempt' =>
+                            $subscriptionRenewFailed->getSubscription()->getRenewalAttempt()
+                        ],
+                    ]
+                )
+            );
         }
     }
 }

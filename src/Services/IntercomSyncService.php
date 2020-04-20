@@ -362,6 +362,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             $membershipRenewalDate = null;
             $membershipCancellationDate = null;
             $membershipCancellationReason = null;
+            $membershipRenewalAttempts = 0;
             $subscriptionStatus = null;
             $latestSubscriptionStartedDate = null;
             $firstSubscriptionStartedDate = null;
@@ -471,6 +472,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 }
 
                 $membershipRenewalDate = $latestSubscriptionToSync->getPaidUntil()->timestamp;
+                $membershipRenewalAttempts = $latestSubscriptionToSync->getRenewalAttempt();
                 $membershipCancellationDate =
                     !empty($latestSubscriptionToSync->getCanceledOn()) ? $latestSubscriptionToSync->getCanceledOn()->timestamp :
                         null;
@@ -522,6 +524,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             // if the user is a lifetime make sure all subscription related info is set to null
             if (($userProductAttributes[$brand . '_membership_is_lifetime'] ?? false) == true) {
                 $membershipRenewalDate = null;
+                $membershipRenewalAttempts = null;
                 $membershipCancellationDate = null;
                 $membershipCancellationReason = null;
                 $subscriptionStatus = null;
@@ -534,6 +537,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $brand . '_membership_status' => $subscriptionStatus,
                 $brand . '_membership_type' => $subscriptionProductTag,
                 $brand . '_membership_renewal_date' => $membershipRenewalDate,
+                $brand . '_membership_renewal_attempt' => $membershipRenewalAttempts,
                 $brand . '_membership_cancellation_date' => $membershipCancellationDate,
                 $brand . '_membership_cancellation_reason' => $membershipCancellationReason,
                 $brand . '_membership_latest_start_date' => $latestSubscriptionStartedDate,
