@@ -120,7 +120,7 @@ class UserProductToUserContentPermissionListener
             } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
                 $permissionsToCreate[$permissionArrayKey] !== null) {
 
-                if (Carbon::parse($permissionsToCreate[$permissionArrayKey]) < $allUsersProduct->getExpirationDate()) {
+                if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate()) {
                     $permissionsToCreate[$permissionArrayKey] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
