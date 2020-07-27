@@ -217,4 +217,9 @@ class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserP
 
         return null;
     }
+
+    public function checkCredentials(string $email, string $password): bool
+    {
+        // TODO: Implement checkCredentials() method.
+    }
 }

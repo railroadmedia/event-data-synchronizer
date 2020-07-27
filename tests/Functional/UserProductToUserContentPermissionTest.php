@@ -8,6 +8,7 @@ use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Railcontent\Repositories\PermissionRepository;
 use Railroad\Railcontent\Services\ConfigService;
 
+// todo: update tests for new ecom package...
 class UserProductToUserContentPermissionTest extends EventDataSynchronizerTestCase
 {
     /**
