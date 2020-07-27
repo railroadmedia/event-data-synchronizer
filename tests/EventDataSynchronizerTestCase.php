@@ -7,6 +7,7 @@ use Faker\Generator;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Routing\Router;
+use Intercom\IntercomClient;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Railroad\Ecommerce\Contracts\UserProviderInterface as EcommerceUserProviderInterface;
 use Railroad\Ecommerce\Faker\Factory;
@@ -65,7 +66,7 @@ class EventDataSynchronizerTestCase extends BaseTestCase
     /**
      * Define environment setup.
      *
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param \Illuminate\Foundation\Application $app
      * @return void
      */
     protected function getEnvironmentSetUp($app)
@@ -113,47 +114,60 @@ class EventDataSynchronizerTestCase extends BaseTestCase
                     'enable_query_log' => false,
                     'entities' => [
                         [
-                            'path' => __DIR__ . '/../src/Entities',
-                            'namespace' => 'Railroad\Usora\Entities',
+                            'path' => __DIR__ . '/../vendor/railroad/ecommerce/src/Entities',
+                            'namespace' => 'Railroad\Ecommerce\Entities',
                         ],
                     ],
                 ],
             ]
         );
 
-        // ecommerce
-        config(
+        // usora
+        config()->set('usora.authentication_controller_middleware', []);
+
+        // db
+        config()->set('usora.data_mode', 'host');
+        config()->set('usora.database_connection_name', config('usora.connection_mask_prefix') . 'testbench');
+        config()->set('usora.authentication_controller_middleware', []);
+
+        // database
+        config()->set('usora.database_user', 'root');
+        config()->set('usora.database_password', 'root');
+        config()->set('usora.database_driver', 'pdo_sqlite');
+        config()->set('usora.database_in_memory', true);
+
+        config()->set('usora.redis_host', 'redis');
+        config()->set('usora.development_mode', true);
+        config()->set('usora.database_driver', 'pdo_sqlite');
+        config()->set('usora.database_user', 'root');
+        config()->set('usora.database_password', 'root');
+        config()->set('usora.database_in_memory', true);
+        config()->set(
+            'usora.tables',
             [
-                'usora' => [
-                    'database_connection_name' => 'testbench',
-                    'cache_duration' => 60,
-                    'table_prefix' => 'ecommerce_',
-                    'data_mode' => 'host',
-                    'brand' => 'testbench',
-                    'typeSubscription' => 'subscription',
-                    'typeProduct' => 'product',
-                    'redis_host' => 'redis',
-                    'database_driver' => 'pdo_sqlite',
-                    'database_user' => 'root',
-                    'database_password' => 'root',
-                    'database_in_memory' => true,
-                    'enable_query_log' => false,
-                    'entities' => [
-                        [
-                            'path' => __DIR__ . '/../src/Entities',
-                            'namespace' => 'Railroad\Ecommerce\Entities',
-                        ],
-                    ],
-                    'tables' => [
-                        'users' => 'usora_users',
-                        'user_fields' => 'usora_user_fields',
-                        'password_resets' => 'usora_password_resets',
-                        'email_changes' => 'usora_email_changes',
-                        'remember_tokens' => 'usora_remember_tokens',
-                    ],
+                'users' => 'usora_users',
+                'user_fields' => 'usora_user_fields',
+                'email_changes' => 'usora_email_changes',
+                'password_resets' => 'usora_password_resets',
+                'remember_tokens' => 'usora_remember_tokens',
+                'firebase_tokens' => 'usora_user_firebase_tokens'
+            ]
+        );
+
+        // if new packages entities are required for testing, their entity directory/namespace config should be merged here
+        config()->set(
+            'usora.entities',
+            [
+                [
+                    'path' => __DIR__ . '/../vendor/railroad/usora/src/Entities',
+                    'namespace' => 'Railroad\Usora\Entities',
                 ],
             ]
         );
+
+        config()->set('usora.autoload_all_routes', true);
+        config()->set('usora.route_middleware_public_groups', ['test_public_route_group']);
+        config()->set('usora.route_middleware_logged_in_groups', ['test_logged_in_route_group']);
 
         // railcontent
         config(
@@ -245,6 +259,14 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         $app->register(UsoraServiceProvider::class);
 
         app()->instance(EcommerceUserProviderInterface::class, app()->make(EcommerceUserProvider::class));
+
+        // intercomeo
+        app()->singleton(
+            'Intercom\IntercomClient',
+            function ($app) {
+                return new IntercomClient('test', null);
+            }
+        );
 
         // this is required for railcontent connection masking to work properly from test to test
         RepositoryBase::$connectionMask = null;
