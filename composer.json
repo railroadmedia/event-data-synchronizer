@@ -29,7 +29,7 @@
     "laravel/framework": "5.6.*",
     "railroad/railcontent": "dev-1.0- as v0.5.99",
     "railroad/ecommerce": "2.4.*",
-    "railroad/usora": "2.0.*",
+    "railroad/usora": "dev-v2.0-skill as v2.0.68",
     "railroad/intercomeo": "2.0.*",
     "railroad/maropost": "1.0.*"
   },
