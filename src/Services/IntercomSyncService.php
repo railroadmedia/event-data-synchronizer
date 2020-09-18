@@ -46,17 +46,18 @@ class IntercomSyncService extends IntercomSyncServiceBase
     public static $userIdPrefix;
 
     /**
-     * @param  SubscriptionRepository  $subscriptionRepository
-     * @param  UserProductRepository  $userProductRepository
-     * @param  ProductRepository  $productRepository
-     * @param  IntercomeoService  $intercomeoService
+     * @param SubscriptionRepository $subscriptionRepository
+     * @param UserProductRepository $userProductRepository
+     * @param ProductRepository $productRepository
+     * @param IntercomeoService $intercomeoService
      */
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
         ProductRepository $productRepository,
         IntercomeoService $intercomeoService
-    ) {
+    )
+    {
         parent::__construct();
 
         self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
@@ -70,8 +71,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
     /**
      * If no brands are passed in this will get attributes for all brands in the config.
      *
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      */
     public function syncUsersAttributes(User $user, $brands = [])
     {
@@ -98,8 +99,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
      * When tagging in bulk we should not use this function rather use the intercomeo tag multiple users with 1 tag
      * functionality.
      *
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      */
     public function syncUsersProductOwnershipTags(User $user, $brands = [])
     {
@@ -146,8 +147,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
     }
 
     /**
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return IntercomAddRemoveTagsVO
      */
     public function getUsersProductOwnershipTags(User $user, $brands = [])
@@ -211,7 +212,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
     }
 
     /**
-     * @param  User  $user
+     * @param User $user
      * @return array
      */
     public function getUsersBuiltInAttributes(User $user)
@@ -225,8 +226,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
     }
 
     /**
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return array
      */
     public function getUsersCustomAttributes(User $user, $brands = [])
@@ -245,7 +246,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
     }
 
     /**
-     * @param  User  $user
+     * @param User $user
      * @return array
      */
     public function getUsersCustomProfileAttributes(User $user)
@@ -264,8 +265,8 @@ class IntercomSyncService extends IntercomSyncServiceBase
     }
 
     /**
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return array
      */
     public function getUsersMembershipAttributes(User $user, $brands = [])
@@ -343,9 +344,9 @@ class IntercomSyncService extends IntercomSyncServiceBase
      * If no brands are passed in this will get attributes for all brands in the config.
      * We need the $userProductAttributes since if the user is lifetime all the attributes should be null.
      *
-     * @param  User  $user
-     * @param  array  $userProductAttributes
-     * @param  array  $brands
+     * @param User $user
+     * @param array $userProductAttributes
+     * @param array $brands
      * @return array
      */
     public function getUsersSubscriptionAttributes(User $user, array $userProductAttributes, $brands = [])
@@ -365,6 +366,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             $subscriptionStatus = null;
             $latestSubscriptionStartedDate = null;
             $firstSubscriptionStartedDate = null;
+            $trialType = null;
             $expirationDate = null;
             $isAppSignup = false;
 
@@ -472,16 +474,20 @@ class IntercomSyncService extends IntercomSyncServiceBase
 
                 $membershipRenewalDate = $latestSubscriptionToSync->getPaidUntil()->timestamp;
                 $membershipCancellationDate =
-                    !empty($latestSubscriptionToSync->getCanceledOn()) ? $latestSubscriptionToSync->getCanceledOn()->timestamp :
+                    !empty($latestSubscriptionToSync->getCanceledOn()) ?
+                        $latestSubscriptionToSync->getCanceledOn()->timestamp :
                         null;
                 $membershipCancellationReason = $latestSubscriptionToSync->getCancellationReason();
                 $subscriptionStatus = $latestSubscriptionToSync->getState();
                 $latestSubscriptionStartedDate = $latestSubscriptionToSync->getCreatedAt()->timestamp;
 
-                if(in_array($latestSubscriptionToSync->getType(), [
-                    Subscription::TYPE_APPLE_SUBSCRIPTION,
-                    Subscription::TYPE_GOOGLE_SUBSCRIPTION
-                ])) {
+                if (in_array(
+                    $latestSubscriptionToSync->getType(),
+                    [
+                        Subscription::TYPE_APPLE_SUBSCRIPTION,
+                        Subscription::TYPE_GOOGLE_SUBSCRIPTION
+                    ]
+                )) {
                     $isAppSignup = true;
                 }
                 // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
@@ -507,7 +513,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
             // if the cancelled_on date is changed to null, then set the cancellation_reason to null as well
             if (!empty($latestSubscriptionToSync)) {
                 $cancelledOnIsNull = is_null($latestSubscriptionToSync->getCanceledOn());
-                if($cancelledOnIsNull){
+                if ($cancelledOnIsNull) {
                     $latestSubscriptionToSync->setCancellationReason(null);
                 }
             }
@@ -517,6 +523,19 @@ class IntercomSyncService extends IntercomSyncServiceBase
             if (!empty($latestSubscriptionToSync)) {
                 $subscriptionProductTag =
                     $latestSubscriptionToSync->getIntervalCount() . '_' . $latestSubscriptionToSync->getIntervalType();
+
+                // trial type
+                $intercomTrialProductSkuToType =
+                    config('event-data-synchronizer.intercom_trial_product_sku_to_type', []);
+
+                if (!empty($intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]) &&
+                    !empty(
+                    $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand(
+                    )][$latestSubscriptionToSync->getProduct()->getSku()]
+                    )) {
+                    $trialType = $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
+                        [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
+                }
             }
 
             // if the user is a lifetime make sure all subscription related info is set to null
@@ -527,8 +546,10 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $subscriptionStatus = null;
                 $latestSubscriptionStartedDate = null;
                 $subscriptionProductTag = null;
+                $trialType = null;
                 $expirationDate = null;
             }
+
 
             $subscriptionAttributes += [
                 $brand . '_membership_status' => $subscriptionStatus,
@@ -538,6 +559,7 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $brand . '_membership_cancellation_reason' => $membershipCancellationReason,
                 $brand . '_membership_latest_start_date' => $latestSubscriptionStartedDate,
                 $brand . '_membership_first_start_date' => $firstSubscriptionStartedDate,
+                $brand . '_membership_trial_type' => $trialType,
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
                 $brand . '_app_membership' => $isAppSignup,
             ];
