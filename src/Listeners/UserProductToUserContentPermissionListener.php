@@ -133,21 +133,38 @@ class UserProductToUserContentPermissionListener
                     ->getBrand();
 
             if (!array_key_exists($permissionArrayKey, $permissionsToCreate)) {
-                $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
+
+                $permissionsToCreate[$permissionArrayKey] = [
+                    'expiration_date' => $allUsersProduct->getExpirationDate(),
+                    'start_date' => $allUsersProduct->getStartDate(),
+                ];
+
             } elseif ($allUsersProduct->getExpirationDate() === null) {
-                $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
+
+                $permissionsToCreate[$permissionArrayKey] = [
+                    'expiration_date' => $allUsersProduct->getExpirationDate(),
+                    'start_date' => $allUsersProduct->getStartDate(),
+                ];
+
             } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
                 $permissionsToCreate[$permissionArrayKey] !== null) {
-                if (Carbon::parse($permissionsToCreate[$permissionArrayKey]) < $allUsersProduct->getExpirationDate()) {
-                    $permissionsToCreate[$permissionArrayKey] = $allUsersProduct->getExpirationDate();
+
+                if (Carbon::parse($permissionsToCreate[$permissionArrayKey]['expiration_date']) <
+                    $allUsersProduct->getExpirationDate()) {
+                    $permissionsToCreate[$permissionArrayKey] = [
+                        'expiration_date' => $allUsersProduct->getExpirationDate(),
+                        'start_date' => $allUsersProduct->getStartDate(),
+                    ];;
                 }
             }
         }
 
-        foreach ($permissionsToCreate as $permissionNameAndBrandToSync => $expirationDate) {
+        foreach ($permissionsToCreate as $permissionNameAndBrandToSync => $dates) {
 
             $permissionNameToSync = explode('|', $permissionNameAndBrandToSync)[0];
             $permissionBrandToSync = explode('|', $permissionNameAndBrandToSync)[1];
+            $expirationDate = $dates['expiration_date'];
+            $startDate = $dates['start_date'] ?? Carbon::now()->toDateTimeString();
 
             $permission =
                 $this->permissionRepository->createQueryBuilder('p')
