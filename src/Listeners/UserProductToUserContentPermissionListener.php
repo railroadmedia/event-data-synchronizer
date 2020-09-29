@@ -3,6 +3,8 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
+use Doctrine\Common\Persistence\ObjectRepository;
+use Doctrine\ORM\EntityRepository;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
@@ -29,12 +31,12 @@ class UserProductToUserContentPermissionListener
     private $productRepository;
 
     /**
-     * @var \Doctrine\Common\Persistence\ObjectRepository|\Doctrine\ORM\EntityRepository
+     * @var ObjectRepository|EntityRepository
      */
     private $permissionRepository;
 
     /**
-     * @var \Doctrine\Common\Persistence\ObjectRepository|\Doctrine\ORM\EntityRepository
+     * @var ObjectRepository|EntityRepository
      */
     private $userPermissionsRepository;
 
@@ -154,7 +156,7 @@ class UserProductToUserContentPermissionListener
                     $permissionsToCreate[$permissionArrayKey] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
-                    ];;
+                    ];
                 }
             }
         }
@@ -164,7 +166,11 @@ class UserProductToUserContentPermissionListener
             $permissionNameToSync = explode('|', $permissionNameAndBrandToSync)[0];
             $permissionBrandToSync = explode('|', $permissionNameAndBrandToSync)[1];
             $expirationDate = $dates['expiration_date'];
-            $startDate = $dates['start_date'] ?? Carbon::now()->toDateTimeString();
+            $startDate =
+                $dates['start_date']
+                ??
+                Carbon::now()
+                    ->toDateTimeString();
 
             $permission =
                 $this->permissionRepository->createQueryBuilder('p')
@@ -188,10 +194,7 @@ class UserProductToUserContentPermissionListener
                 $existingPermission = new UserPermission();
                 $existingPermission->setUser($user);
                 $existingPermission->setPermission($permission);
-                $existingPermission->setStartDate(
-                    Carbon::now()
-                        ->toDateTimeString()
-                );
+                $existingPermission->setStartDate(Carbon::now());
                 $existingPermission->setExpirationDate($expirationDate);
                 $existingPermission->setCreatedAt(Carbon::now());
 
