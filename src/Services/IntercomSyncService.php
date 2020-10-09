@@ -563,6 +563,10 @@ class IntercomSyncService extends IntercomSyncServiceBase
                 $brand . '_primary_payment_method_expiration_date' => $expirationDate,
                 $brand . '_app_membership' => $isAppSignup,
             ];
+
+            if ($isAppSignup) {
+                $subscriptionAttributes[$brand . '_membership_trial_type'] = '7_days_free';
+            }
         }
 
         return $subscriptionAttributes;
