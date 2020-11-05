@@ -36,17 +36,23 @@ class MaropostEventListener
     private $subscriptionRepository;
 
     /**
+     * @var bool
+     */
+    public static $disable = false;
+
+    /**
      * MaropostEventListener constructor.
      *
-     * @param  UserRepository  $userRepository
-     * @param  UserProductRepository  $userProductRepository
-     * @param  SubscriptionRepository  $subscriptionRepository
+     * @param UserRepository $userRepository
+     * @param UserProductRepository $userProductRepository
+     * @param SubscriptionRepository $subscriptionRepository
      */
     public function __construct(
         UserRepository $userRepository,
         UserProductRepository $userProductRepository,
         SubscriptionRepository $subscriptionRepository
-    ) {
+    )
+    {
         $this->userRepository = $userRepository;
         $this->userProductRepository = $userProductRepository;
         $this->subscriptionRepository = $subscriptionRepository;
@@ -55,13 +61,13 @@ class MaropostEventListener
     // todo: only send one sync request at the and when the response is create instead of many multiple API calls
 
     /**
-     * @param  UserCreated  $userCreated
+     * @param UserCreated $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
         // turning this off for now since we only need to listen for user email updates
-        
-//        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+
+//        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::self::$$disable === true) {
 //            return;
 //        }
 //
@@ -73,11 +79,11 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserUpdated  $userUpdated
+     * @param UserUpdated $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -90,7 +96,7 @@ class MaropostEventListener
 
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -105,7 +111,7 @@ class MaropostEventListener
 
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -119,11 +125,11 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProductUpdated  $userProductUpdated
+     * @param UserProductUpdated $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -135,11 +141,11 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProductDeleted  $userProductDeleted
+     * @param UserProductDeleted $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -151,11 +157,11 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProductCreated  $userProductCreated
+     * @param UserProductCreated $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
-        if (config('event-data-synchronizer.maropost_disable_syncing', false)) {
+        if (config('event-data-synchronizer.maropost_disable_syncing', false) || self::$disable === true) {
             return;
         }
 
@@ -337,7 +343,7 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProduct[]  $allUsersProducts
+     * @param UserProduct[] $allUsersProducts
      * @param $brand
      * @param $sku
      *
@@ -357,7 +363,7 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProduct[]  $allUsersProducts
+     * @param UserProduct[] $allUsersProducts
      * @param $brand
      * @return bool
      */
@@ -375,7 +381,7 @@ class MaropostEventListener
     }
 
     /**
-     * @param  UserProduct[]  $allUsersProducts
+     * @param UserProduct[] $allUsersProducts
      * @param $brand
      * @param $id
      * @return bool

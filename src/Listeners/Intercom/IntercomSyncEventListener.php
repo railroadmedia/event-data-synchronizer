@@ -39,6 +39,11 @@ class IntercomSyncEventListener
     private $userRepository;
 
     /**
+     * @var bool
+     */
+    public static $disable = false;
+
+    /**
      * IntercomSyncEventListener constructor.
      *
      * @param IntercomSyncServiceBase $intercomSyncService
@@ -55,6 +60,8 @@ class IntercomSyncEventListener
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
+        if (self::$disable) return;
+
         try {
             $this->handleUserUpdated(new UserUpdated($userCreated->getUser(), $userCreated->getUser()));
         } catch (Throwable $throwable) {
@@ -67,6 +74,8 @@ class IntercomSyncEventListener
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
+        if (self::$disable) return;
+
         try {
             $user = $userUpdated->getNewUser();
 
@@ -83,6 +92,8 @@ class IntercomSyncEventListener
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
+        if (self::$disable) return;
+
         try {
             if ($paymentMethodCreated->getUser() instanceof User) {
                 $this->handleUserPaymentMethodUpdated(
@@ -103,6 +114,8 @@ class IntercomSyncEventListener
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
+        if (self::$disable) return;
+
         try {
             if (!empty(
                 $paymentMethodUpdated->getUser()
@@ -138,6 +151,8 @@ class IntercomSyncEventListener
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
+        if (self::$disable) return;
+
         try {
             $user = $this->userRepository->find(
                 $userProductCreated->getUserProduct()
@@ -157,6 +172,8 @@ class IntercomSyncEventListener
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
+        if (self::$disable) return;
+
         try {
             $user = $this->userRepository->find(
                 $userProductUpdated->getNewUserProduct()
@@ -176,6 +193,8 @@ class IntercomSyncEventListener
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
+        if (self::$disable) return;
+
         try {
             $user = $this->userRepository->find(
                 $userProductDeleted->getUserProduct()
@@ -195,6 +214,8 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
+        if (self::$disable) return;
+
         try {
             if (!empty(
                 $subscriptionCreated->getSubscription()
@@ -220,6 +241,8 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
+        if (self::$disable) return;
+
         $newSubscription = $subscriptionUpdated->getNewSubscription();
         try {
             $user = $newSubscription->getUser();
@@ -241,6 +264,8 @@ class IntercomSyncEventListener
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
+        if (self::$disable) return;
+
         try {
             dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
 
@@ -259,6 +284,8 @@ class IntercomSyncEventListener
      */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
+        if (self::$disable) return;
+
         try {
             dispatch(
                 new IntercomUnTagUserByAttributes(
@@ -285,6 +312,8 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionRenewed(SubscriptionRenewed $subscriptionRenewed)
     {
+        if (self::$disable) return;
+
         try {
             if (!empty($subscriptionRenewed->getSubscription()) &&
                 !empty($subscriptionRenewed->getSubscription()->getUser())) {
@@ -309,6 +338,8 @@ class IntercomSyncEventListener
      */
     public function handleSubscriptionRenewalAttemptFailed(SubscriptionRenewFailed $subscriptionRenewFailed)
     {
+        if (self::$disable) return;
+
         if ($subscriptionRenewFailed->getSubscription()->getIsActive() == false &&
             $subscriptionRenewFailed->getSubscription()->getCanceledOn() == null &&
             $subscriptionRenewFailed->getSubscription()->getStopped() == false &&
