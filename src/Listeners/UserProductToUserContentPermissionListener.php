@@ -118,7 +118,8 @@ class UserProductToUserContentPermissionListener
                 ];
 
             } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
-                $permissionsToCreate[$permissionArrayKey] !== null) {
+                $permissionsToCreate[$permissionArrayKey] !== null &&
+                !empty($permissionsToCreate[$permissionArrayKey]['expiration_date'])) {
 
                 if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate()) {
                     $permissionsToCreate[$permissionArrayKey] = [
