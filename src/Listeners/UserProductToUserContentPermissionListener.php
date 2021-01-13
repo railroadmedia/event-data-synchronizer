@@ -137,6 +137,9 @@ class UserProductToUserContentPermissionListener
             $expirationDate = $dates['expiration_date'];
             $startDate = $dates['start_date'] ?? Carbon::now()->toDateTimeString();
 
+            error_log('$permissionNameToSync - ' . $permissionNameToSync);
+            error_log('$permissionBrandToSync - ' . $permissionBrandToSync);
+
             $permissionId =
                 $this->permissionRepository->query()
                     ->where('name', $permissionNameToSync)
