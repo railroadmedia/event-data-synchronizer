@@ -18,6 +18,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
+use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -37,6 +38,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
     protected $listen = [
         UserCreated::class => [
             IntercomSyncEventListener::class . '@handleUserCreated',
+            CustomerIoSyncEventListener::class . '@handleUserCreated',
         ],
         UserUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserUpdated',
