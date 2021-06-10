@@ -98,7 +98,7 @@ class CustomerIoSyncService
 
     /**
      * Attribute list:
-     * BRAND_membership_access_expiration_date (null if BRAND_membership_is_lifetime is true)
+     * rumeo_membership_access-expiration-date (null if BRAND_membership_is_lifetime is true)
      * BRAND_membership_is_lifetime
      * BRAND_membership_latest-start-date
      * BRAND_membership_first-start-date
@@ -156,7 +156,8 @@ class CustomerIoSyncService
 
                 // if this product expiration date is further in the past than whatever is currently set, skip it
                 if (!empty($latestMembershipUserProductToSync) &&
-                    ($latestMembershipUserProductToSync->getExpirationDate() < $eligibleUserProduct->getExpirationDate())) {
+                    ($latestMembershipUserProductToSync->getExpirationDate() < $eligibleUserProduct->getExpirationDate(
+                        ))) {
                     $latestMembershipUserProductToSync = $eligibleUserProduct;
                 }
             }
@@ -182,22 +183,21 @@ class CustomerIoSyncService
                 $membershipAccessExpirationDate = $latestMembershipUserProductToSync->getExpirationDate();
                 $membershipLatestAccessStartDate = $latestMembershipUserProductToSync->getCreatedAt();
                 $membershipFirstAccessStartDate = $firstMembershipUserProductToSync->getCreatedAt();
-                $isLifetime = empty($latestMembershipUserProductToSync->getExpirationDate());
             } else {
                 $membershipAccessExpirationDate = null;
                 $membershipLatestAccessStartDate = null;
                 $membershipFirstAccessStartDate = null;
-                $isLifetime = null;
             }
 
             $productAttributes += [
-                $brand.'_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
+                $brand.'_membership_access-expiration-date' => !empty($membershipAccessExpirationDate) ?
                     $membershipAccessExpirationDate->timestamp : null,
                 $brand.'_membership_latest-start-date' => !empty($membershipLatestAccessStartDate) ?
                     $membershipLatestAccessStartDate->timestamp : null,
                 $brand.'_membership_first-start-date' => !empty($membershipFirstAccessStartDate) ?
                     $membershipFirstAccessStartDate->timestamp : null,
-                $brand.'_membership_is_lifetime' => $isLifetime,
+                $brand.'_membership_is_lifetime' => !empty($latestMembershipUserProductToSync) ?
+                    empty($latestMembershipUserProductToSync->getExpirationDate()) : null,
             ];
         }
 
