@@ -71,7 +71,10 @@ class CustomerIoSyncService
      */
     public function getUsersCustomeAttributes(User $user)
     {
-        return array_merge($this->getUsersMusoraProfileAttributes($user), $this->getUsersMembershipAccessAttributes($user));
+        return array_merge(
+            $this->getUsersMusoraProfileAttributes($user),
+            $this->getUsersMembershipAccessAttributes($user)
+        );
     }
 
     /**
@@ -94,6 +97,12 @@ class CustomerIoSyncService
     }
 
     /**
+     * Attribute list:
+     * BRAND_membership_access_expiration_date (null if BRAND_membership_is_lifetime is true)
+     * BRAND_membership_is_lifetime
+     * BRAND_membership_latest-start-date
+     * BRAND_membership_first-start-date
+     *
      * @param  User  $user
      * @param  array  $brands
      * @return array
@@ -109,59 +118,85 @@ class CustomerIoSyncService
         $productAttributes = [];
 
         foreach ($brands as $brand) {
-            // sync membership expiration date
-            $membershipUserProductToSync = null;
+            // get all the eligible user products for this brand
+            $eligibleUserProducts = [];
 
-            foreach ($userProducts as $userProduct) {
-                if ($userProduct->getProduct()
-                        ->getBrand() !== $brand) {
+            foreach ($userProducts as $userProductIndex => $userProduct) {
+                if ($userProduct->getProduct()->getBrand() !== $brand) {
                     continue;
                 }
 
                 // make sure the subscriptions product is in this brands pre-configured products that represent a membership
                 if (!in_array(
-                    $userProduct->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.'.$brand.'_membership_product_skus',
-                        []
-                    )
+                    $userProduct->getProduct()->getSku(),
+                    config('event-data-synchronizer.'.$brand.'_membership_product_skus', [])
                 )) {
                     continue;
                 }
 
-                if (empty($membershipUserProductToSync)) {
-                    $membershipUserProductToSync = $userProduct;
+                $eligibleUserProducts[] = $userProduct;
+            }
+
+            // get attributes related to the latest user membership product
+            $latestMembershipUserProductToSync = null;
+
+            foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
+                if (empty($latestMembershipUserProductToSync)) {
+                    $latestMembershipUserProductToSync = $eligibleUserProduct;
 
                     continue;
                 }
 
                 // if its lifetime, use it
-                if (!empty($membershipUserProductToSync) && empty($userProduct->getExpirationDate())) {
-                    $membershipUserProductToSync = $userProduct;
+                if (!empty($latestMembershipUserProductToSync) && empty($eligibleUserProduct->getExpirationDate())) {
+                    $latestMembershipUserProductToSync = $eligibleUserProduct;
 
                     break;
                 }
 
-                // if this subscription paid_until is further in the past than whatever is currently set, skip it
-                // unless the set subscription is not-active and this one is, then use the active one
-                if (!empty($membershipUserProductToSync) &&
-                    ($membershipUserProductToSync->getExpirationDate() < $userProduct->getExpirationDate())) {
-                    $membershipUserProductToSync = $userProduct;
+                // if this product expiration date is further in the past than whatever is currently set, skip it
+                if (!empty($latestMembershipUserProductToSync) &&
+                    ($latestMembershipUserProductToSync->getExpirationDate() < $eligibleUserProduct->getExpirationDate())) {
+                    $latestMembershipUserProductToSync = $eligibleUserProduct;
                 }
             }
 
-            if (!empty($membershipUserProductToSync)) {
-                $membershipAccessExpirationDate = $membershipUserProductToSync->getExpirationDate();
-                $isLifetime = empty($membershipUserProductToSync->getExpirationDate());
+            // get attributes related to the first created user membership product
+            $firstMembershipUserProductToSync = null;
+
+            foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
+                if (empty($firstMembershipUserProductToSync)) {
+                    $firstMembershipUserProductToSync = $eligibleUserProduct;
+
+                    continue;
+                }
+
+                // if this product expiration date is further in the past than whatever is currently set, skip it
+                if (!empty($firstMembershipUserProductToSync) &&
+                    ($eligibleUserProduct->getCreatedAt() < $firstMembershipUserProductToSync->getCreatedAt())) {
+                    $firstMembershipUserProductToSync = $eligibleUserProduct;
+                }
+            }
+
+            if (!empty($latestMembershipUserProductToSync) && !empty($firstMembershipUserProductToSync)) {
+                $membershipAccessExpirationDate = $latestMembershipUserProductToSync->getExpirationDate();
+                $membershipLatestAccessStartDate = $latestMembershipUserProductToSync->getCreatedAt();
+                $membershipFirstAccessStartDate = $firstMembershipUserProductToSync->getCreatedAt();
+                $isLifetime = empty($latestMembershipUserProductToSync->getExpirationDate());
             } else {
                 $membershipAccessExpirationDate = null;
+                $membershipLatestAccessStartDate = null;
+                $membershipFirstAccessStartDate = null;
                 $isLifetime = null;
             }
 
             $productAttributes += [
                 $brand.'_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
                     $membershipAccessExpirationDate->timestamp : null,
+                $brand.'_membership_latest-start-date' => !empty($membershipLatestAccessStartDate) ?
+                    $membershipLatestAccessStartDate->timestamp : null,
+                $brand.'_membership_first-start-date' => !empty($membershipFirstAccessStartDate) ?
+                    $membershipFirstAccessStartDate->timestamp : null,
                 $brand.'_membership_is_lifetime' => $isLifetime,
             ];
         }
