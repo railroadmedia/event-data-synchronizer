@@ -46,20 +46,17 @@ class CustomerIoSyncService
     public static $userIdPrefix;
 
     /**
-     * @param SubscriptionRepository $subscriptionRepository
-     * @param UserProductRepository $userProductRepository
-     * @param ProductRepository $productRepository
-     * @param IntercomeoService $intercomeoService
+     * @param  SubscriptionRepository  $subscriptionRepository
+     * @param  UserProductRepository  $userProductRepository
+     * @param  ProductRepository  $productRepository
+     * @param  IntercomeoService  $intercomeoService
      */
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
         ProductRepository $productRepository,
         IntercomeoService $intercomeoService
-    )
-    {
-        parent::__construct();
-
+    ) {
         self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
 
         $this->subscriptionRepository = $subscriptionRepository;
@@ -69,24 +66,130 @@ class CustomerIoSyncService
     }
 
     /**
+     * @param  User  $user
+     * @return array
+     */
+    public function getUsersCustomeAttributes(User $user)
+    {
+        return array_merge($this->getUsersMusoraProfileAttributes($user), $this->getUsersMembershipAccessAttributes($user));
+    }
+
+    /**
+     * @param  User  $user
+     * @return array
+     */
+    public function getUsersMusoraProfileAttributes(User $user)
+    {
+        return [
+            'musora_profile_display-name' => $user->getDisplayName(),
+            'musora_profile_gender' => $user->getGender(),
+            'musora_profile_country' => $user->getCountry(),
+            'musora_profile_region' => $user->getRegion(),
+            'musora_profile_city' => $user->getCity(),
+            'musora_profile_birthday' => !empty($user->getBirthday()) ? $user->getBirthday()->timestamp : null,
+            'musora_phone-number' => $user->getPhoneNumber(),
+            'musora_timezone' => $user->getTimezone(),
+            'musora_notify_of_weekly_updates' => $user->getNotifyWeeklyUpdate(),
+        ];
+    }
+
+    /**
+     * @param  User  $user
+     * @param  array  $brands
+     * @return array
+     */
+    public function getUsersMembershipAccessAttributes(User $user, $brands = [])
+    {
+        if (empty($brands)) {
+            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
+        }
+
+        $userProducts = $this->userProductRepository->getAllUsersProducts($user->getId());
+
+        $productAttributes = [];
+
+        foreach ($brands as $brand) {
+            // sync membership expiration date
+            $membershipUserProductToSync = null;
+
+            foreach ($userProducts as $userProduct) {
+                if ($userProduct->getProduct()
+                        ->getBrand() !== $brand) {
+                    continue;
+                }
+
+                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
+                if (!in_array(
+                    $userProduct->getProduct()
+                        ->getSku(),
+                    config(
+                        'event-data-synchronizer.'.$brand.'_membership_product_skus',
+                        []
+                    )
+                )) {
+                    continue;
+                }
+
+                if (empty($membershipUserProductToSync)) {
+                    $membershipUserProductToSync = $userProduct;
+
+                    continue;
+                }
+
+                // if its lifetime, use it
+                if (!empty($membershipUserProductToSync) && empty($userProduct->getExpirationDate())) {
+                    $membershipUserProductToSync = $userProduct;
+
+                    break;
+                }
+
+                // if this subscription paid_until is further in the past than whatever is currently set, skip it
+                // unless the set subscription is not-active and this one is, then use the active one
+                if (!empty($membershipUserProductToSync) &&
+                    ($membershipUserProductToSync->getExpirationDate() < $userProduct->getExpirationDate())) {
+                    $membershipUserProductToSync = $userProduct;
+                }
+            }
+
+            if (!empty($membershipUserProductToSync)) {
+                $membershipAccessExpirationDate = $membershipUserProductToSync->getExpirationDate();
+                $isLifetime = empty($membershipUserProductToSync->getExpirationDate());
+            } else {
+                $membershipAccessExpirationDate = null;
+                $isLifetime = null;
+            }
+
+            $productAttributes += [
+                $brand.'_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
+                    $membershipAccessExpirationDate->timestamp : null,
+                $brand.'_membership_is_lifetime' => $isLifetime,
+            ];
+        }
+
+        return $productAttributes;
+    }
+
+    // ---------------
+
+    /**
      * If no brands are passed in this will get attributes for all brands in the config.
      *
-     * @param User $user
-     * @param array $brands
+     * @param  User  $user
+     * @param  array  $brands
      */
     public function syncUsersAttributes(User $user, $brands = [])
     {
         dispatch(
             new IntercomSyncUser(
-                self::$userIdPrefix . $user->getId(), array_merge(
-                    $this->getUsersBuiltInAttributes($user),
-                    [
-                        'custom_attributes' => $this->getUsersCustomAttributes(
-                            $user,
-                            $brands
-                        ),
-                    ]
-                )
+                self::$userIdPrefix.$user->getId(), array_merge(
+                                                      $this->getUsersBuiltInAttributes($user),
+                                                      [
+                                                          'custom_attributes' => $this->getUsersCustomAttributes(
+                                                              $user,
+                                                              $brands
+                                                          ),
+                                                      ]
+                                                  )
             )
         );
     }
@@ -99,8 +202,8 @@ class CustomerIoSyncService
      * When tagging in bulk we should not use this function rather use the intercomeo tag multiple users with 1 tag
      * functionality.
      *
-     * @param User $user
-     * @param array $brands
+     * @param  User  $user
+     * @param  array  $brands
      */
     public function syncUsersProductOwnershipTags(User $user, $brands = [])
     {
@@ -109,7 +212,7 @@ class CustomerIoSyncService
         $intercomUser = null;
 
         try {
-            $intercomUser = $this->intercomeoService->getUser(self::$userIdPrefix . $user->getId());
+            $intercomUser = $this->intercomeoService->getUser(self::$userIdPrefix.$user->getId());
         } catch (Throwable $throwable) {
         }
 
@@ -131,7 +234,7 @@ class CustomerIoSyncService
         foreach ($productOwnershipTagsVO->tagsToAdd as $tagToAdd) {
             dispatch(
                 new IntercomTagUsers(
-                    [self::$userIdPrefix . $user->getId()], $tagToAdd
+                    [self::$userIdPrefix.$user->getId()], $tagToAdd
                 )
             );
         }
@@ -140,15 +243,15 @@ class CustomerIoSyncService
         foreach ($productOwnershipTagsVO->tagsToRemove as $tagsToRemove) {
             dispatch(
                 new IntercomUnTagUsers(
-                    [self::$userIdPrefix . $user->getId()], $tagsToRemove
+                    [self::$userIdPrefix.$user->getId()], $tagsToRemove
                 )
             );
         }
     }
 
     /**
-     * @param User $user
-     * @param array $brands
+     * @param  User  $user
+     * @param  array  $brands
      * @return IntercomAddRemoveTagsVO
      */
     public function getUsersProductOwnershipTags(User $user, $brands = [])
@@ -212,7 +315,7 @@ class CustomerIoSyncService
     }
 
     /**
-     * @param User $user
+     * @param  User  $user
      * @return array
      */
     public function getUsersBuiltInAttributes(User $user)
@@ -220,14 +323,14 @@ class CustomerIoSyncService
         return [
             'email' => $user->getEmail(),
             'created_at' => Carbon::parse($user->getCreatedAt(), 'UTC')->timestamp,
-            'name' => $user->getFirstName() . (!empty($user->getLastName()) ? ' ' . $user->getLastName() : ''),
+            'name' => $user->getFirstName().(!empty($user->getLastName()) ? ' '.$user->getLastName() : ''),
             'avatar' => ['type' => 'avatar', 'image_url' => $user->getProfilePictureUrl()],
         ];
     }
 
     /**
-     * @param User $user
-     * @param array $brands
+     * @param  User  $user
+     * @param  array  $brands
      * @return array
      */
     public function getUsersCustomAttributes(User $user, $brands = [])
@@ -246,7 +349,7 @@ class CustomerIoSyncService
     }
 
     /**
-     * @param User $user
+     * @param  User  $user
      * @return array
      */
     public function getUsersCustomProfileAttributes(User $user)
@@ -265,88 +368,12 @@ class CustomerIoSyncService
     }
 
     /**
-     * @param User $user
-     * @param array $brands
-     * @return array
-     */
-    public function getUsersMembershipAttributes(User $user, $brands = [])
-    {
-        if (empty($brands)) {
-            $brands = config('event-data-synchronizer.intercom_brands_to_sync');
-        }
-
-        $userProducts = $this->userProductRepository->getAllUsersProducts($user->getId());
-
-        $productAttributes = [];
-
-        foreach ($brands as $brand) {
-            // sync membership expiration date
-            $membershipUserProductToSync = null;
-
-            foreach ($userProducts as $userProduct) {
-                if ($userProduct->getProduct()
-                        ->getBrand() !== $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userProduct->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.' . $brand . '_membership_product_skus',
-                        []
-                    )
-                )) {
-                    continue;
-                }
-
-                if (empty($membershipUserProductToSync)) {
-                    $membershipUserProductToSync = $userProduct;
-
-                    continue;
-                }
-
-                // if its lifetime, use it
-                if (!empty($membershipUserProductToSync) && empty($userProduct->getExpirationDate())) {
-                    $membershipUserProductToSync = $userProduct;
-
-                    break;
-                }
-
-                // if this subscription paid_until is further in the past than whatever is currently set, skip it
-                // unless the set subscription is not-active and this one is, then use the active one
-                if (!empty($membershipUserProductToSync) &&
-                    ($membershipUserProductToSync->getExpirationDate() < $userProduct->getExpirationDate())) {
-                    $membershipUserProductToSync = $userProduct;
-                }
-            }
-
-            if (!empty($membershipUserProductToSync)) {
-                $membershipAccessExpirationDate = $membershipUserProductToSync->getExpirationDate();
-                $isLifetime = empty($membershipUserProductToSync->getExpirationDate());
-            } else {
-                $membershipAccessExpirationDate = null;
-                $isLifetime = null;
-            }
-
-            $productAttributes += [
-                $brand . '_membership_access_expiration_date' => !empty($membershipAccessExpirationDate) ?
-                    $membershipAccessExpirationDate->timestamp : null,
-                $brand . '_membership_is_lifetime' => $isLifetime,
-            ];
-        }
-
-        return $productAttributes;
-    }
-
-    /**
      * If no brands are passed in this will get attributes for all brands in the config.
      * We need the $userProductAttributes since if the user is lifetime all the attributes should be null.
      *
-     * @param User $user
-     * @param array $userProductAttributes
-     * @param array $brands
+     * @param  User  $user
+     * @param  array  $userProductAttributes
+     * @param  array  $brands
      * @return array
      */
     public function getUsersSubscriptionAttributes(User $user, array $userProductAttributes, $brands = [])
@@ -397,9 +424,9 @@ class CustomerIoSyncService
                     $userSubscription->getProduct()
                         ->getSku(),
                     config(
-                        'event-data-synchronizer.' .
+                        'event-data-synchronizer.'.
                         $userSubscription->getProduct()
-                            ->getBrand() .
+                            ->getBrand().
                         '_membership_product_skus',
                         []
                     )
@@ -436,9 +463,9 @@ class CustomerIoSyncService
                     $userSubscription->getProduct()
                         ->getSku(),
                     config(
-                        'event-data-synchronizer.' .
+                        'event-data-synchronizer.'.
                         $userSubscription->getProduct()
-                            ->getBrand() .
+                            ->getBrand().
                         '_membership_product_skus',
                         []
                     )
@@ -487,7 +514,7 @@ class CustomerIoSyncService
                     $latestSubscriptionToSync->getType(),
                     [
                         Subscription::TYPE_APPLE_SUBSCRIPTION,
-                        Subscription::TYPE_GOOGLE_SUBSCRIPTION
+                        Subscription::TYPE_GOOGLE_SUBSCRIPTION,
                     ]
                 )) {
                     $isAppSignup = true;
@@ -524,7 +551,7 @@ class CustomerIoSyncService
 
             if (!empty($latestSubscriptionToSync)) {
                 $subscriptionProductTag =
-                    $latestSubscriptionToSync->getIntervalCount() . '_' . $latestSubscriptionToSync->getIntervalType();
+                    $latestSubscriptionToSync->getIntervalCount().'_'.$latestSubscriptionToSync->getIntervalType();
 
                 // trial type
                 $intercomTrialProductSkuToType =
@@ -541,7 +568,7 @@ class CustomerIoSyncService
             }
 
             // if the user is a lifetime make sure all subscription related info is set to null
-            if (($userProductAttributes[$brand . '_membership_is_lifetime'] ?? false) == true) {
+            if (($userProductAttributes[$brand.'_membership_is_lifetime'] ?? false) == true) {
                 $membershipRenewalDate = null;
                 $membershipRenewalAttempts = null;
                 $membershipCancellationDate = null;
@@ -555,21 +582,21 @@ class CustomerIoSyncService
 
 
             $subscriptionAttributes += [
-                $brand . '_membership_status' => $subscriptionStatus,
-                $brand . '_membership_type' => $subscriptionProductTag,
-                $brand . '_membership_renewal_date' => $membershipRenewalDate,
-                $brand . '_membership_renewal_attempt' => $membershipRenewalAttempts,
-                $brand . '_membership_cancellation_date' => $membershipCancellationDate,
-                $brand . '_membership_cancellation_reason' => $membershipCancellationReason,
-                $brand . '_membership_latest_start_date' => $latestSubscriptionStartedDate,
-                $brand . '_membership_first_start_date' => $firstSubscriptionStartedDate,
-                $brand . '_membership_trial_type' => $trialType,
-                $brand . '_primary_payment_method_expiration_date' => $expirationDate,
-                $brand . '_app_membership' => $isAppSignup,
+                $brand.'_membership_status' => $subscriptionStatus,
+                $brand.'_membership_type' => $subscriptionProductTag,
+                $brand.'_membership_renewal_date' => $membershipRenewalDate,
+                $brand.'_membership_renewal_attempt' => $membershipRenewalAttempts,
+                $brand.'_membership_cancellation_date' => $membershipCancellationDate,
+                $brand.'_membership_cancellation_reason' => $membershipCancellationReason,
+                $brand.'_membership_latest_start_date' => $latestSubscriptionStartedDate,
+                $brand.'_membership_first_start_date' => $firstSubscriptionStartedDate,
+                $brand.'_membership_trial_type' => $trialType,
+                $brand.'_primary_payment_method_expiration_date' => $expirationDate,
+                $brand.'_app_membership' => $isAppSignup,
             ];
 
             if ($isAppSignup) {
-                $subscriptionAttributes[$brand . '_membership_trial_type'] = '7_days_free';
+                $subscriptionAttributes[$brand.'_membership_trial_type'] = '7_days_free';
             }
         }
 

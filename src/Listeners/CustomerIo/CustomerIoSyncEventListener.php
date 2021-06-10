@@ -3,7 +3,6 @@
 namespace Railroad\EventDataSynchronizer\Listeners\CustomerIo;
 
 use Carbon\Carbon;
-use Railroad\CustomerIo\Jobs\CustomerIoSyncUserByEmail;
 use Railroad\Ecommerce\Entities\User as EcommerceUser;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
@@ -16,6 +15,7 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
 use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
@@ -39,6 +39,9 @@ class CustomerIoSyncEventListener
      */
     private $userRepository;
 
+    private $queueConnectionName = 'database';
+    private $queueName = 'customer_io';
+
     /**
      * @var bool
      */
@@ -47,37 +50,46 @@ class CustomerIoSyncEventListener
     /**
      * CustomerIoSyncEventListener constructor.
      *
-     * @param IntercomSyncServiceBase $intercomSyncService
-     * @param UserRepository $userRepository
+     * @param  IntercomSyncServiceBase  $intercomSyncService
+     * @param  UserRepository  $userRepository
      */
     public function __construct(IntercomSyncServiceBase $intercomSyncService, UserRepository $userRepository)
     {
         $this->intercomSyncService = $intercomSyncService;
         $this->userRepository = $userRepository;
+
+        $this->queueConnectionName = config('event-data-synchronizer.customer_io_queue_connection_name', 'database');
+        $this->queueName = config('event-data-synchronizer.customer_io_queue_name', 'customer_io');
     }
 
     /**
-     * @param UserCreated $userCreated
+     * @param  UserCreated  $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
-            $job = new CustomerIoSyncUserByEmail($userCreated->getUser()->getEmail(), 'musora', ['test1' => 2], $userCreated->getUser()->getId());
-
-            dispatch($job);
+            dispatch(
+                (new CustomerIoSyncNewUserByEmail($userCreated->getUser()))
+                    ->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+            );
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
     }
 
     /**
-     * @param UserUpdated $userUpdated
+     * @param  UserUpdated  $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             $user = $userUpdated->getNewUser();
@@ -91,11 +103,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PaymentMethodCreated $paymentMethodCreated
+     * @param  PaymentMethodCreated  $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             if ($paymentMethodCreated->getUser() instanceof User) {
@@ -113,11 +127,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PaymentMethodUpdated $paymentMethodUpdated
+     * @param  PaymentMethodUpdated  $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             if (!empty(
@@ -133,12 +149,12 @@ class CustomerIoSyncEventListener
 
                 dispatch(
                     new IntercomTriggerEventForUser(
-                        IntercomSyncServiceBase::$userIdPrefix .
+                        IntercomSyncServiceBase::$userIdPrefix.
                         $paymentMethodUpdated->getUser()
                             ->getId(),
                         $paymentMethodUpdated->getNewPaymentMethod()
                             ->getMethod()
-                            ->getPaymentGatewayName() . '_payment_method_updated',
+                            ->getPaymentGatewayName().'_payment_method_updated',
                         Carbon::now()
                             ->toDateTimeString()
                     )
@@ -150,11 +166,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             $user = $this->userRepository->find(
@@ -171,11 +189,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             $user = $this->userRepository->find(
@@ -192,11 +212,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             $user = $this->userRepository->find(
@@ -213,11 +235,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionCreated $subscriptionCreated
+     * @param  SubscriptionCreated  $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             if (!empty(
@@ -240,11 +264,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionUpdated $subscriptionUpdated
+     * @param  SubscriptionUpdated  $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         $newSubscription = $subscriptionUpdated->getNewSubscription();
         try {
@@ -263,11 +289,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param AppSignupStartedEvent $appSignupStarted
+     * @param  AppSignupStartedEvent  $appSignupStarted
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
@@ -283,11 +311,13 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param AppSignupFinishedEvent $appSignupFinished
+     * @param  AppSignupFinishedEvent  $appSignupFinished
      */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             dispatch(
@@ -299,7 +329,7 @@ class CustomerIoSyncEventListener
             dispatch(
                 new IntercomSyncUserByAttributes(
                     [
-                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
+                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').
                             $appSignupFinished->getAttributes()['user_id'],
                         'email' => $appSignupFinished->getAttributes()['email'],
                     ]
@@ -311,21 +341,22 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionRenewed $subscriptionRenewed
+     * @param  SubscriptionRenewed  $subscriptionRenewed
      */
     public function handleSubscriptionRenewed(SubscriptionRenewed $subscriptionRenewed)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         try {
             if (!empty($subscriptionRenewed->getSubscription()) &&
                 !empty($subscriptionRenewed->getSubscription()->getUser())) {
-
                 dispatch(
                     new IntercomTriggerEventForUser(
-                        IntercomSyncServiceBase::$userIdPrefix .
+                        IntercomSyncServiceBase::$userIdPrefix.
                         $subscriptionRenewed->getSubscription()->getUser()->getId(),
-                        $subscriptionRenewed->getSubscription()->getBrand() . '_membership_renewed',
+                        $subscriptionRenewed->getSubscription()->getBrand().'_membership_renewed',
                         Carbon::now()
                             ->toDateTimeString()
                     )
@@ -337,25 +368,26 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionRenewFailed $subscriptionRenewFailed
+     * @param  SubscriptionRenewFailed  $subscriptionRenewFailed
      */
     public function handleSubscriptionRenewalAttemptFailed(SubscriptionRenewFailed $subscriptionRenewFailed)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
         if ($subscriptionRenewFailed->getSubscription()->getIsActive() == false &&
             $subscriptionRenewFailed->getSubscription()->getCanceledOn() == null &&
             $subscriptionRenewFailed->getSubscription()->getStopped() == false &&
             $subscriptionRenewFailed->getSubscription()->getPaidUntil() < Carbon::now()) {
-
             dispatch(
                 new IntercomSyncUserByAttributes(
                     [
-                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_') .
+                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').
                             $subscriptionRenewFailed->getSubscription()->getUser()->getId(),
                         'custom_attributes' => [
-                            $subscriptionRenewFailed->getSubscription()->getBrand() . '_membership_renewal_attempt' =>
-                            $subscriptionRenewFailed->getSubscription()->getRenewalAttempt()
+                            $subscriptionRenewFailed->getSubscription()->getBrand().'_membership_renewal_attempt' =>
+                                $subscriptionRenewFailed->getSubscription()->getRenewalAttempt(),
                         ],
                     ]
                 )

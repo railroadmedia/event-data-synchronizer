@@ -11,6 +11,13 @@ return [
         'SKU-2' => 'My Permission 2',
     ],
 
+    // customer.io
+    // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
+    'customer_io_queue_connection_name' => 'database',
+    'customer_io_queue_name' => 'customer-io',
+
+    'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
+
     // intercom
     'intercom_tag_name_to_product_skus' => [
         'tag_name' => ['PRODUCT-SKU1', 'PRODUCT-SKU2'],
