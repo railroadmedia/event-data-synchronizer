@@ -17,6 +17,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
+use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProducts;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
@@ -42,49 +43,66 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UserUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserUpdated',
+            CustomerIoSyncEventListener::class . '@handleUserUpdated',
         ],
         PaymentMethodCreated::class => [
             IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
+            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodCreated',
         ],
         PaymentMethodUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
+            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
         UserProductCreated::class => [
             IntercomSyncEventListener::class . '@handleUserProductCreated',
+            CustomerIoSyncEventListener::class . '@handleUserProductCreated',
+
             UserProductToUserContentPermissionListener::class . '@handleCreated',
             MaropostEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserProductUpdated',
+            CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
+
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
             MaropostEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
             IntercomSyncEventListener::class . '@handleUserProductDeleted',
+            CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
+
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
             MaropostEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
+            CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
+
             MaropostEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
+            CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
+
             MaropostEventListener::class . '@handleSubscriptionUpdated',
         ],
+        SubscriptionRenewed::class => [
+            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
+            IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
+        ],
         SubscriptionRenewFailed::class => [
+            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
         ],
         OrderEvent::class => [],
         AppSignupStartedEvent::class => [
+            CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
             IntercomSyncEventListener::class . '@handleAppSignupStarted',
         ],
         AppSignupFinishedEvent::class => [
+            CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
             IntercomSyncEventListener::class . '@handleAppSignupFinished',
         ],
-        SubscriptionRenewed::class => [
-            IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
-        ]
     ];
 
     /**
@@ -98,6 +116,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
         $this->commands(
             [
+                SyncCustomerIoForUpdatedUserProducts::class,
                 SetMaropostTagsForExpiredUserProducts::class,
                 IntercomReSyncTool::class,
                 UserContentPermissionsResyncTool::class,

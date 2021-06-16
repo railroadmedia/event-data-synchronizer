@@ -16,11 +16,6 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
-use Railroad\Intercomeo\Jobs\IntercomSyncUserByAttributes;
-use Railroad\Intercomeo\Jobs\IntercomTagUserByAttributes;
-use Railroad\Intercomeo\Jobs\IntercomTriggerEventForUser;
-use Railroad\Intercomeo\Jobs\IntercomUnTagUserByAttributes;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -29,11 +24,6 @@ use Throwable;
 
 class CustomerIoSyncEventListener
 {
-    /**
-     * @var IntercomSyncServiceBase
-     */
-    private $intercomSyncService;
-
     /**
      * @var UserRepository
      */
@@ -48,14 +38,17 @@ class CustomerIoSyncEventListener
     public static $disable = false;
 
     /**
+     * @var array
+     */
+    public static $alreadyQueuedUserIds = [];
+
+    /**
      * CustomerIoSyncEventListener constructor.
      *
-     * @param  IntercomSyncServiceBase  $intercomSyncService
      * @param  UserRepository  $userRepository
      */
-    public function __construct(IntercomSyncServiceBase $intercomSyncService, UserRepository $userRepository)
+    public function __construct(UserRepository $userRepository)
     {
-        $this->intercomSyncService = $intercomSyncService;
         $this->userRepository = $userRepository;
 
         $this->queueConnectionName = config('event-data-synchronizer.customer_io_queue_connection_name', 'database');
@@ -72,11 +65,15 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            dispatch(
-                (new CustomerIoSyncNewUserByEmail($userCreated->getUser()))
-                    ->onConnection($this->queueConnectionName)
-                    ->onQueue($this->queueName)
-            );
+            if (!in_array($userCreated->getUser()->getId(), self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncNewUserByEmail($userCreated->getUser()))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                );
+
+                self::$alreadyQueuedUserIds[] = $userCreated->getUser()->getId();
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -94,8 +91,14 @@ class CustomerIoSyncEventListener
         try {
             $user = $userUpdated->getNewUser();
 
-            if (!empty($user)) {
-                $this->intercomSyncService->syncUsersAttributes($user);
+            if (!empty($user) && !in_array($userUpdated->getNewUser()->getId(), self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncNewUserByEmail($user))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -139,26 +142,20 @@ class CustomerIoSyncEventListener
             if (!empty(
                 $paymentMethodUpdated->getUser()
                     ->getId()
-                ) && $paymentMethodUpdated->getUser() instanceof User) {
+                ) && $paymentMethodUpdated->getUser() instanceof User &&
+                !in_array($paymentMethodUpdated->getUser()->getId(), self::$alreadyQueuedUserIds)) {
                 $user = $this->userRepository->find(
                     $paymentMethodUpdated->getUser()
                         ->getId()
                 );
 
-                $this->intercomSyncService->syncUsersAttributes($user);
-
                 dispatch(
-                    new IntercomTriggerEventForUser(
-                        IntercomSyncServiceBase::$userIdPrefix.
-                        $paymentMethodUpdated->getUser()
-                            ->getId(),
-                        $paymentMethodUpdated->getNewPaymentMethod()
-                            ->getMethod()
-                            ->getPaymentGatewayName().'_payment_method_updated',
-                        Carbon::now()
-                            ->toDateTimeString()
-                    )
+                    (new CustomerIoSyncNewUserByEmail($user))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
                 );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -181,8 +178,15 @@ class CustomerIoSyncEventListener
                     ->getId()
             );
 
-            $this->intercomSyncService->syncUsersAttributes($user);
-            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncNewUserByEmail($user))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -204,8 +208,15 @@ class CustomerIoSyncEventListener
                     ->getId()
             );
 
-            $this->intercomSyncService->syncUsersAttributes($user);
-            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncNewUserByEmail($user))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -227,8 +238,15 @@ class CustomerIoSyncEventListener
                     ->getId()
             );
 
-            $this->intercomSyncService->syncUsersAttributes($user);
-            $this->intercomSyncService->syncUsersProductOwnershipTags($user);
+            if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncNewUserByEmail($user))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -256,7 +274,15 @@ class CustomerIoSyncEventListener
                         ->getId()
                 );
 
-                $this->intercomSyncService->syncUsersAttributes($user);
+                if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
+                    dispatch(
+                        (new CustomerIoSyncNewUserByEmail($user))
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                    );
+
+                    self::$alreadyQueuedUserIds[] = $user->getId();
+                }
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -281,7 +307,15 @@ class CustomerIoSyncEventListener
             }
 
             if ($user instanceof User) {
-                $this->intercomSyncService->syncUsersAttributes($user);
+                if (!in_array($user->getId(), self::$alreadyQueuedUserIds)) {
+                    dispatch(
+                        (new CustomerIoSyncNewUserByEmail($user))
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                    );
+
+                    self::$alreadyQueuedUserIds[] = $user->getId();
+                }
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -298,13 +332,7 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            dispatch(new IntercomSyncUserByAttributes($appSignupStarted->getAttributes()));
-
-            dispatch(
-                new IntercomTagUserByAttributes(
-                    'drumeo_started_app_signup_flow', $appSignupStarted->getAttributes()
-                )
-            );
+            // todo: sync event for this: brand_onboarding_app_sign-up-flow-started
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -320,21 +348,7 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            dispatch(
-                new IntercomUnTagUserByAttributes(
-                    'drumeo_started_app_signup_flow', ['email' => $appSignupFinished->getAttributes()['email']]
-                )
-            );
-
-            dispatch(
-                new IntercomSyncUserByAttributes(
-                    [
-                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').
-                            $appSignupFinished->getAttributes()['user_id'],
-                        'email' => $appSignupFinished->getAttributes()['email'],
-                    ]
-                )
-            );
+            // todo: sync event for this: brand_onboarding_app_sign-up-flow-finished
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -352,15 +366,8 @@ class CustomerIoSyncEventListener
         try {
             if (!empty($subscriptionRenewed->getSubscription()) &&
                 !empty($subscriptionRenewed->getSubscription()->getUser())) {
-                dispatch(
-                    new IntercomTriggerEventForUser(
-                        IntercomSyncServiceBase::$userIdPrefix.
-                        $subscriptionRenewed->getSubscription()->getUser()->getId(),
-                        $subscriptionRenewed->getSubscription()->getBrand().'_membership_renewed',
-                        Carbon::now()
-                            ->toDateTimeString()
-                    )
-                );
+                // todo: sync event for this: brand_membership_renewed
+
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -380,18 +387,7 @@ class CustomerIoSyncEventListener
             $subscriptionRenewFailed->getSubscription()->getCanceledOn() == null &&
             $subscriptionRenewFailed->getSubscription()->getStopped() == false &&
             $subscriptionRenewFailed->getSubscription()->getPaidUntil() < Carbon::now()) {
-            dispatch(
-                new IntercomSyncUserByAttributes(
-                    [
-                        'user_id' => config('event-data-synchronizer.intercom_user_id_prefix', 'musora_').
-                            $subscriptionRenewFailed->getSubscription()->getUser()->getId(),
-                        'custom_attributes' => [
-                            $subscriptionRenewFailed->getSubscription()->getBrand().'_membership_renewal_attempt' =>
-                                $subscriptionRenewFailed->getSubscription()->getRenewalAttempt(),
-                        ],
-                    ]
-                )
-            );
+            // todo
         }
     }
 }
