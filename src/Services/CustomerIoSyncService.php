@@ -71,9 +71,12 @@ class CustomerIoSyncService
      */
     public function getUsersCustomeAttributes(User $user)
     {
+        $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user);
+
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
-            $this->getUsersMembershipAccessAttributes($user)
+            $membershipAccessAttributes,
+            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes),
         );
     }
 
@@ -192,9 +195,9 @@ class CustomerIoSyncService
             $productAttributes += [
                 $brand.'_membership_access-expiration-date' => !empty($membershipAccessExpirationDate) ?
                     $membershipAccessExpirationDate->timestamp : null,
-                $brand.'_membership_latest-start-date' => !empty($membershipLatestAccessStartDate) ?
+                $brand.'_membership_latest-access-start-date' => !empty($membershipLatestAccessStartDate) ?
                     $membershipLatestAccessStartDate->timestamp : null,
-                $brand.'_membership_first-start-date' => !empty($membershipFirstAccessStartDate) ?
+                $brand.'_membership_first-access-start-date' => !empty($membershipFirstAccessStartDate) ?
                     $membershipFirstAccessStartDate->timestamp : null,
                 $brand.'_membership_is_lifetime' => !empty($latestMembershipUserProductToSync) ?
                     empty($latestMembershipUserProductToSync->getExpirationDate()) : null,
@@ -202,6 +205,256 @@ class CustomerIoSyncService
         }
 
         return $productAttributes;
+    }
+
+    /**
+     * If no brands are passed in this will get attributes for all brands in the config.
+     * We need the $userProductAttributes since if the user is lifetime all the attributes should be null.
+     *
+     * @param  User  $user
+     * @param  array  $userMembershipAccessAttributes
+     * @param  array  $brands
+     * @return array
+     */
+    public function getUsersSubscriptionAttributes(User $user, array $userMembershipAccessAttributes, $brands = [])
+    {
+        if (empty($brands)) {
+            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
+        }
+
+        $subscriptionAttributes = [];
+
+        $userSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($user->getId());
+
+        foreach ($brands as $brand) {
+            $membershipRenewalDate = null;
+            $membershipCancellationDate = null;
+            $membershipCancellationReason = null;
+            $membershipRenewalAttempts = 0;
+            $subscriptionStatus = null;
+            $subscriptionPriceCents = null;
+            $subscriptionCurrency = null;
+            $latestSubscriptionStartedDate = null;
+            $firstSubscriptionStartedDate = null;
+            $trialType = null;
+            $expirationDate = null;
+            $isAppSignup = false;
+
+            /**
+             * @var $latestSubscriptionToSync Subscription|null
+             */
+            $latestSubscriptionToSync = null;
+
+            /**
+             * @var $latestSubscriptionToSync Subscription|null
+             */
+            $firstSubscriptionToSync = null;
+
+            // We only want to sync attributes to subscriptions for membership products.
+            // If there are multiple active membership subs we will always sync the one with the further paid_until
+            // in the future.
+            foreach ($userSubscriptions as $userSubscription) {
+                // make sure this subscription is for a single membership product and its the right brand
+                if (empty($userSubscription->getProduct()) ||
+                    $userSubscription->getProduct()
+                        ->getBrand() != $brand) {
+                    continue;
+                }
+
+                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
+                if (!in_array(
+                    $userSubscription->getProduct()
+                        ->getSku(),
+                    config(
+                        'event-data-synchronizer.'.
+                        $userSubscription->getProduct()
+                            ->getBrand().
+                        '_membership_product_skus',
+                        []
+                    )
+                )) {
+                    continue;
+                }
+
+                if (empty($latestSubscriptionToSync)) {
+                    $latestSubscriptionToSync = $userSubscription;
+
+                    continue;
+                }
+
+                // if this subscription paid_until is further in the past than whatever is currently set, skip it
+                // unless the set subscription is not-active and this one is, then use the active one
+                if (!empty($latestSubscriptionToSync) &&
+                    ($latestSubscriptionToSync->getPaidUntil() < $userSubscription->getPaidUntil() ||
+                        !$latestSubscriptionToSync->getIsActive() &&
+                        $userSubscription->getIsActive())) {
+                    $latestSubscriptionToSync = $userSubscription;
+                }
+            }
+
+            foreach ($userSubscriptions as $userSubscription) {
+                // make sure this subscription is for a single membership product and its the right brand
+                if (empty($userSubscription->getProduct()) ||
+                    $userSubscription->getProduct()
+                        ->getBrand() != $brand) {
+                    continue;
+                }
+
+                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
+                if (!in_array(
+                    $userSubscription->getProduct()
+                        ->getSku(),
+                    config(
+                        'event-data-synchronizer.'.
+                        $userSubscription->getProduct()
+                            ->getBrand().
+                        '_membership_product_skus',
+                        []
+                    )
+                )) {
+                    continue;
+                }
+
+                if (empty($firstSubscriptionToSync)) {
+                    $firstSubscriptionToSync = $userSubscription;
+
+                    continue;
+                }
+
+                // get the earliest started subscription
+                if (!empty($firstSubscriptionToSync) &&
+                    $firstSubscriptionToSync->getStartDate() > $userSubscription->getStartDate()) {
+                    $firstSubscriptionToSync = $userSubscription;
+                }
+            }
+
+            if (!empty($firstSubscriptionToSync)) {
+                $firstSubscriptionStartedDate = $firstSubscriptionToSync->getStartDate()->timestamp;
+            }
+
+            // Get expiration date
+            if (!empty($latestSubscriptionToSync)) {
+                $totalPaymentsOnActiveSubscription = 0;
+
+                foreach ($latestSubscriptionToSync->getPayments() as $_payment) {
+                    if ($_payment->getTotalPaid() == $_payment->getTotalDue()) {
+                        $totalPaymentsOnActiveSubscription++;
+                    }
+                }
+
+                $membershipRenewalDate = $latestSubscriptionToSync->getPaidUntil()->timestamp;
+                $subscriptionPriceCents = $latestSubscriptionToSync->getTotalPrice() * 100;
+                $subscriptionCurrency = $latestSubscriptionToSync->getCurrency();
+                $membershipRenewalAttempts = $latestSubscriptionToSync->getRenewalAttempt();
+                $membershipCancellationDate =
+                    !empty($latestSubscriptionToSync->getCanceledOn()) ?
+                        $latestSubscriptionToSync->getCanceledOn()->timestamp :
+                        null;
+                $membershipCancellationReason = $latestSubscriptionToSync->getCancellationReason();
+                $subscriptionStatus = $latestSubscriptionToSync->getState();
+                $latestSubscriptionStartedDate = $latestSubscriptionToSync->getCreatedAt()->timestamp;
+
+                if (in_array(
+                    $latestSubscriptionToSync->getType(),
+                    [
+                        Subscription::TYPE_APPLE_SUBSCRIPTION,
+                        Subscription::TYPE_GOOGLE_SUBSCRIPTION,
+                    ]
+                )) {
+                    $isAppSignup = true;
+                }
+                // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
+                try {
+                    if (!empty($latestSubscriptionToSync->getPaymentMethod())) {
+                        if ($latestSubscriptionToSync->getPaymentMethod()
+                                ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
+                            $expirationDate = Carbon::parse(
+                                $latestSubscriptionToSync->getPaymentMethod()
+                                    ->getMethod()
+                                    ->getExpirationDate()
+                            )->timestamp;
+                        } elseif ($latestSubscriptionToSync->getPaymentMethod()
+                                ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
+                            $expirationDate = null;
+                        }
+                    }
+                } catch (Exception $exception) {
+                    $expirationDate = null;
+                }
+            }
+
+            // if the cancelled_on date is changed to null, then set the cancellation_reason to null as well
+            if (!empty($latestSubscriptionToSync)) {
+                $cancelledOnIsNull = is_null($latestSubscriptionToSync->getCanceledOn());
+                if ($cancelledOnIsNull) {
+                    $latestSubscriptionToSync->setCancellationReason(null);
+                }
+            }
+
+            $subscriptionProductTag = null;
+
+            if (!empty($latestSubscriptionToSync)) {
+                $subscriptionProductTag =
+                    $latestSubscriptionToSync->getIntervalCount().'_'.$latestSubscriptionToSync->getIntervalType();
+
+                // trial type
+                $intercomTrialProductSkuToType =
+                    config('event-data-synchronizer.customer_io_trial_product_sku_to_type', []);
+
+                if (!empty($intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]) &&
+                    !empty(
+                    $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand(
+                    )][$latestSubscriptionToSync->getProduct()->getSku()]
+                    )) {
+                    $trialType = $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
+                        [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
+                }
+            }
+
+            // if the user is a lifetime make sure all subscription related info is set to null
+            if (($userMembershipAccessAttributes[$brand.'_membership_is_lifetime'] ?? false) == true) {
+                $subscriptionPriceCents = null;
+                $subscriptionCurrency = null;
+                $membershipRenewalDate = null;
+                $membershipRenewalAttempts = null;
+                $membershipCancellationDate = null;
+                $membershipCancellationReason = null;
+                $subscriptionStatus = null;
+                $latestSubscriptionStartedDate = null;
+                $firstSubscriptionStartedDate = null;
+                $subscriptionProductTag = null;
+                $trialType = null;
+                $expirationDate = null;
+                $isAppSignup = null;
+            }
+
+
+            $subscriptionAttributes += [
+                $brand.'_membership_status' => $subscriptionStatus,
+                $brand.'_membership_subscription_type' => $subscriptionProductTag,
+                $brand.'_membership_subscription-rate-cents' => $subscriptionPriceCents,
+                $brand.'_membership_subscription-currency' => $subscriptionCurrency,
+                $brand.'_membership_subscription_renewal-date' => $membershipRenewalDate,
+                $brand.'_retention_failed-billing_membership_subscription-renewal-attempts' => $membershipRenewalAttempts,
+                $brand.'_membership_subscription_cancellation-date' => $membershipCancellationDate,
+                $brand.'_membership_subscription_cancellation-reason' => $membershipCancellationReason,
+                $brand.'_membership_subscription_latest-start-date' => $latestSubscriptionStartedDate,
+                $brand.'_membership_subscription_first-start-date' => $firstSubscriptionStartedDate,
+                $brand.'_membership_subscription_trial-type' => $trialType,
+                $brand.'_user_payment_primary-method-expiration-date' => $expirationDate,
+                $brand.'_membership_subscription_source_app-store' => $isAppSignup,
+            ];
+
+            if ($isAppSignup) {
+                $subscriptionAttributes[$brand.'_membership_trial_type'] = '7_days_free';
+            }
+
+            // if the subscription due date is passed by more than a day, or its cancelled or suspended, but the user
+            // still has access to the membership, they are considered in 'escrow'
+            // todo: build, it should change the _membership_status attribute if they are in escrow
+        }
+
+        return $subscriptionAttributes;
     }
 
     // ---------------
@@ -400,242 +653,6 @@ class CustomerIoSyncService
             'musora_timezone' => $user->getTimezone(),
             'musora_notify_of_weekly_updates' => $user->getNotifyWeeklyUpdate(),
         ];
-    }
-
-    /**
-     * If no brands are passed in this will get attributes for all brands in the config.
-     * We need the $userProductAttributes since if the user is lifetime all the attributes should be null.
-     *
-     * @param  User  $user
-     * @param  array  $userProductAttributes
-     * @param  array  $brands
-     * @return array
-     */
-    public function getUsersSubscriptionAttributes(User $user, array $userProductAttributes, $brands = [])
-    {
-        if (empty($brands)) {
-            $brands = config('event-data-synchronizer.intercom_brands_to_sync');
-        }
-
-        $subscriptionAttributes = [];
-
-        $userSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($user->getId());
-
-        foreach ($brands as $brand) {
-            $membershipRenewalDate = null;
-            $membershipCancellationDate = null;
-            $membershipCancellationReason = null;
-            $membershipRenewalAttempts = 0;
-            $subscriptionStatus = null;
-            $latestSubscriptionStartedDate = null;
-            $firstSubscriptionStartedDate = null;
-            $trialType = null;
-            $expirationDate = null;
-            $isAppSignup = false;
-
-            /**
-             * @var $latestSubscriptionToSync Subscription|null
-             */
-            $latestSubscriptionToSync = null;
-
-            /**
-             * @var $latestSubscriptionToSync Subscription|null
-             */
-            $firstSubscriptionToSync = null;
-
-            // We only want to sync attributes to subscriptions for membership products.
-            // If there are multiple active membership subs we will always sync the one with the further paid_until
-            // in the future.
-            foreach ($userSubscriptions as $userSubscription) {
-                // make sure this subscription is for a single membership product and its the right brand
-                if (empty($userSubscription->getProduct()) ||
-                    $userSubscription->getProduct()
-                        ->getBrand() != $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userSubscription->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.'.
-                        $userSubscription->getProduct()
-                            ->getBrand().
-                        '_membership_product_skus',
-                        []
-                    )
-                )) {
-                    continue;
-                }
-
-                if (empty($latestSubscriptionToSync)) {
-                    $latestSubscriptionToSync = $userSubscription;
-
-                    continue;
-                }
-
-                // if this subscription paid_until is further in the past than whatever is currently set, skip it
-                // unless the set subscription is not-active and this one is, then use the active one
-                if (!empty($latestSubscriptionToSync) &&
-                    ($latestSubscriptionToSync->getPaidUntil() < $userSubscription->getPaidUntil() ||
-                        !$latestSubscriptionToSync->getIsActive() &&
-                        $userSubscription->getIsActive())) {
-                    $latestSubscriptionToSync = $userSubscription;
-                }
-            }
-
-            foreach ($userSubscriptions as $userSubscription) {
-                // make sure this subscription is for a single membership product and its the right brand
-                if (empty($userSubscription->getProduct()) ||
-                    $userSubscription->getProduct()
-                        ->getBrand() != $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userSubscription->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.'.
-                        $userSubscription->getProduct()
-                            ->getBrand().
-                        '_membership_product_skus',
-                        []
-                    )
-                )) {
-                    continue;
-                }
-
-                if (empty($firstSubscriptionToSync)) {
-                    $firstSubscriptionToSync = $userSubscription;
-
-                    continue;
-                }
-
-                // get the earliest started subscription
-                if (!empty($firstSubscriptionToSync) &&
-                    $firstSubscriptionToSync->getStartDate() > $userSubscription->getStartDate()) {
-                    $firstSubscriptionToSync = $userSubscription;
-                }
-            }
-
-            if (!empty($firstSubscriptionToSync)) {
-                $firstSubscriptionStartedDate = $firstSubscriptionToSync->getStartDate()->timestamp;
-            }
-
-            // Get expiration date
-            if (!empty($latestSubscriptionToSync)) {
-                $totalPaymentsOnActiveSubscription = 0;
-
-                foreach ($latestSubscriptionToSync->getPayments() as $_payment) {
-                    if ($_payment->getTotalPaid() == $_payment->getTotalDue()) {
-                        $totalPaymentsOnActiveSubscription++;
-                    }
-                }
-
-                $membershipRenewalDate = $latestSubscriptionToSync->getPaidUntil()->timestamp;
-                $membershipRenewalAttempts = $latestSubscriptionToSync->getRenewalAttempt();
-                $membershipCancellationDate =
-                    !empty($latestSubscriptionToSync->getCanceledOn()) ?
-                        $latestSubscriptionToSync->getCanceledOn()->timestamp :
-                        null;
-                $membershipCancellationReason = $latestSubscriptionToSync->getCancellationReason();
-                $subscriptionStatus = $latestSubscriptionToSync->getState();
-                $latestSubscriptionStartedDate = $latestSubscriptionToSync->getCreatedAt()->timestamp;
-
-                if (in_array(
-                    $latestSubscriptionToSync->getType(),
-                    [
-                        Subscription::TYPE_APPLE_SUBSCRIPTION,
-                        Subscription::TYPE_GOOGLE_SUBSCRIPTION,
-                    ]
-                )) {
-                    $isAppSignup = true;
-                }
-                // i could not figure out how else to catch the doctrine exception when no payment method exists - caleb sept 2019
-                try {
-                    if (!empty($latestSubscriptionToSync->getPaymentMethod())) {
-                        if ($latestSubscriptionToSync->getPaymentMethod()
-                                ->getMethodType() == PaymentMethod::TYPE_CREDIT_CARD) {
-                            $expirationDate = Carbon::parse(
-                                $latestSubscriptionToSync->getPaymentMethod()
-                                    ->getMethod()
-                                    ->getExpirationDate()
-                            )->timestamp;
-                        } elseif ($latestSubscriptionToSync->getPaymentMethod()
-                                ->getMethodType() == PaymentMethod::TYPE_PAYPAL) {
-                            $expirationDate = null;
-                        }
-                    }
-                } catch (Exception $exception) {
-                    $expirationDate = null;
-                }
-            }
-
-            // if the cancelled_on date is changed to null, then set the cancellation_reason to null as well
-            if (!empty($latestSubscriptionToSync)) {
-                $cancelledOnIsNull = is_null($latestSubscriptionToSync->getCanceledOn());
-                if ($cancelledOnIsNull) {
-                    $latestSubscriptionToSync->setCancellationReason(null);
-                }
-            }
-
-            $subscriptionProductTag = null;
-
-            if (!empty($latestSubscriptionToSync)) {
-                $subscriptionProductTag =
-                    $latestSubscriptionToSync->getIntervalCount().'_'.$latestSubscriptionToSync->getIntervalType();
-
-                // trial type
-                $intercomTrialProductSkuToType =
-                    config('event-data-synchronizer.intercom_trial_product_sku_to_type', []);
-
-                if (!empty($intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]) &&
-                    !empty(
-                    $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand(
-                    )][$latestSubscriptionToSync->getProduct()->getSku()]
-                    )) {
-                    $trialType = $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
-                        [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
-                }
-            }
-
-            // if the user is a lifetime make sure all subscription related info is set to null
-            if (($userProductAttributes[$brand.'_membership_is_lifetime'] ?? false) == true) {
-                $membershipRenewalDate = null;
-                $membershipRenewalAttempts = null;
-                $membershipCancellationDate = null;
-                $membershipCancellationReason = null;
-                $subscriptionStatus = null;
-                $latestSubscriptionStartedDate = null;
-                $subscriptionProductTag = null;
-                $trialType = null;
-                $expirationDate = null;
-            }
-
-
-            $subscriptionAttributes += [
-                $brand.'_membership_status' => $subscriptionStatus,
-                $brand.'_membership_type' => $subscriptionProductTag,
-                $brand.'_membership_renewal_date' => $membershipRenewalDate,
-                $brand.'_membership_renewal_attempt' => $membershipRenewalAttempts,
-                $brand.'_membership_cancellation_date' => $membershipCancellationDate,
-                $brand.'_membership_cancellation_reason' => $membershipCancellationReason,
-                $brand.'_membership_latest_start_date' => $latestSubscriptionStartedDate,
-                $brand.'_membership_first_start_date' => $firstSubscriptionStartedDate,
-                $brand.'_membership_trial_type' => $trialType,
-                $brand.'_primary_payment_method_expiration_date' => $expirationDate,
-                $brand.'_app_membership' => $isAppSignup,
-            ];
-
-            if ($isAppSignup) {
-                $subscriptionAttributes[$brand.'_membership_trial_type'] = '7_days_free';
-            }
-        }
-
-        return $subscriptionAttributes;
     }
 
 }
