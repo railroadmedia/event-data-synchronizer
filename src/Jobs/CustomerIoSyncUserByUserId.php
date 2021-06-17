@@ -36,7 +36,7 @@ class CustomerIoSyncUserByUserId extends CustomerIoBaseJob
             foreach (config('event-data-synchronizer.customer_io_brands_to_sync', []) as $brand) {
                 $customerIoService->createOrUpdateCustomerByUserId(
                     $this->user->getId(),
-                    'musora',
+                    $brand,
                     $this->user->getEmail(),
                     $customerAttributes,
                     $this->user->getCreatedAt()->timestamp
