@@ -16,6 +16,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -30,13 +31,13 @@ class CustomerIoSyncEventListener
     private $userRepository;
 
     private $queueConnectionName = 'database';
+
     private $queueName = 'customer_io';
 
     /**
      * @var bool
      */
     public static $disable = false;
-
     /**
      * @var array
      */
@@ -65,11 +66,14 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            if (!in_array($userCreated->getUser()->getId(), self::$alreadyQueuedUserIds)) {
+            $user = $this->userRepository->find($userCreated->getUser()->getId());
+
+            if (!empty($user) && !in_array($userCreated->getUser()->getId(), self::$alreadyQueuedUserIds)) {
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($userCreated->getUser()))
+                    (new CustomerIoSyncNewUserByEmail($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $userCreated->getUser()->getId();
@@ -89,13 +93,14 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            $user = $userUpdated->getNewUser();
+            $user = $this->userRepository->find($userUpdated->getNewUser()->getId());
 
             if (!empty($user) && !in_array($userUpdated->getNewUser()->getId(), self::$alreadyQueuedUserIds)) {
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($user))
+                    (new CustomerIoSyncUserByUserId($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $user->getId();
@@ -150,9 +155,10 @@ class CustomerIoSyncEventListener
                 );
 
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($user))
+                    (new CustomerIoSyncUserByUserId($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $user->getId();
@@ -180,9 +186,10 @@ class CustomerIoSyncEventListener
 
             if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($user))
+                    (new CustomerIoSyncUserByUserId($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $user->getId();
@@ -210,9 +217,10 @@ class CustomerIoSyncEventListener
 
             if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($user))
+                    (new CustomerIoSyncUserByUserId($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $user->getId();
@@ -240,9 +248,10 @@ class CustomerIoSyncEventListener
 
             if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
                 dispatch(
-                    (new CustomerIoSyncNewUserByEmail($user))
+                    (new CustomerIoSyncUserByUserId($user))
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
 
                 self::$alreadyQueuedUserIds[] = $user->getId();
@@ -276,9 +285,10 @@ class CustomerIoSyncEventListener
 
                 if (!empty($user) && !in_array($user->getId(), self::$alreadyQueuedUserIds)) {
                     dispatch(
-                        (new CustomerIoSyncNewUserByEmail($user))
+                        (new CustomerIoSyncUserByUserId($user))
                             ->onConnection($this->queueConnectionName)
                             ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
                     );
 
                     self::$alreadyQueuedUserIds[] = $user->getId();
@@ -299,6 +309,7 @@ class CustomerIoSyncEventListener
         }
 
         $newSubscription = $subscriptionUpdated->getNewSubscription();
+
         try {
             $user = $newSubscription->getUser();
 
@@ -309,9 +320,10 @@ class CustomerIoSyncEventListener
             if ($user instanceof User) {
                 if (!in_array($user->getId(), self::$alreadyQueuedUserIds)) {
                     dispatch(
-                        (new CustomerIoSyncNewUserByEmail($user))
+                        (new CustomerIoSyncUserByUserId($user))
                             ->onConnection($this->queueConnectionName)
                             ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
                     );
 
                     self::$alreadyQueuedUserIds[] = $user->getId();

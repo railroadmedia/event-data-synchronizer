@@ -7,7 +7,7 @@ use Railroad\CustomerIo\Services\CustomerIoService;
 use Railroad\EventDataSynchronizer\Services\CustomerIoSyncService;
 use Railroad\Usora\Entities\User;
 
-class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
+class CustomerIoSyncUserByUserId extends CustomerIoBaseJob
 {
     /**
      * @var User
@@ -27,11 +27,11 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
     {
         try {
             // todo: handle multiple accounts?
-            $customerIoService->createOrUpdateCustomerByEmail(
-                $this->user->getEmail(),
-                'musora',
-                $customerIoSyncService->getUsersCustomeAttributes($this->user),
+            $customerIoService->createOrUpdateCustomerByUserId(
                 $this->user->getId(),
+                'musora',
+                $this->user->getEmail(),
+                $customerIoSyncService->getUsersCustomeAttributes($this->user),
                 $this->user->getCreatedAt()->timestamp
             );
         } catch (Exception $exception) {
@@ -47,7 +47,7 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
     public function failed(Exception $exception)
     {
         error_log(
-            'Error on CustomerIoSyncNewUserByEmail job trying to sync user to customer.io. User ID: '.
+            'Error on CustomerIoSyncUserById job trying to sync user to customer.io. User ID: '.
             $this->user->getId().' - lookupEmail: '.$this->user->getEmail()
         );
 
