@@ -4,7 +4,6 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
-use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\CustomerIoSyncService;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Repositories\UserRepository;
@@ -32,15 +31,17 @@ class CustomerIoSyncUserByUserId extends CustomerIoBaseJob
     ) {
         try {
             $this->user = $userRepository->find($this->user->getId());
+            $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user);
 
-            // todo: handle multiple accounts?
-            $customerIoService->createOrUpdateCustomerByUserId(
-                $this->user->getId(),
-                'musora',
-                $this->user->getEmail(),
-                $customerIoSyncService->getUsersCustomeAttributes($this->user),
-                $this->user->getCreatedAt()->timestamp
-            );
+            foreach (config('event-data-synchronizer.customer_io_brands_to_sync', []) as $brand) {
+                $customerIoService->createOrUpdateCustomerByUserId(
+                    $this->user->getId(),
+                    'musora',
+                    $this->user->getEmail(),
+                    $customerAttributes,
+                    $this->user->getCreatedAt()->timestamp
+                );
+            }
         } catch (Exception $exception) {
             $this->failed($exception);
         }

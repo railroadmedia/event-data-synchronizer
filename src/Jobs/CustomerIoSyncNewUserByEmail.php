@@ -32,16 +32,17 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
     ) {
         try {
             $this->user = $userRepository->find($this->user->getId());
+            $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user);
 
-            // todo: handle multiple accounts?
-
-            $customerIoService->createOrUpdateCustomerByEmail(
-                $this->user->getEmail(),
-                'musora',
-                $customerIoSyncService->getUsersCustomeAttributes($this->user),
-                $this->user->getId(),
-                $this->user->getCreatedAt()->timestamp
-            );
+            foreach (config('event-data-synchronizer.customer_io_brands_to_sync', []) as $brand) {
+                $customerIoService->createOrUpdateCustomerByEmail(
+                    $this->user->getEmail(),
+                    $brand,
+                    $customerAttributes,
+                    $this->user->getId(),
+                    $this->user->getCreatedAt()->timestamp
+                );
+            }
         } catch (Exception $exception) {
             $this->failed($exception);
         }

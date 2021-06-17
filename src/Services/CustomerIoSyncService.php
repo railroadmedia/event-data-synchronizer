@@ -69,14 +69,14 @@ class CustomerIoSyncService
      * @param  User  $user
      * @return array
      */
-    public function getUsersCustomeAttributes(User $user)
+    public function getUsersCustomAttributes(User $user)
     {
         $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user);
 
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
             $membershipAccessAttributes,
-            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes),
+            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes)
         );
     }
 
@@ -460,29 +460,6 @@ class CustomerIoSyncService
     // ---------------
 
     /**
-     * If no brands are passed in this will get attributes for all brands in the config.
-     *
-     * @param  User  $user
-     * @param  array  $brands
-     */
-    public function syncUsersAttributes(User $user, $brands = [])
-    {
-        dispatch(
-            new IntercomSyncUser(
-                self::$userIdPrefix.$user->getId(), array_merge(
-                                                      $this->getUsersBuiltInAttributes($user),
-                                                      [
-                                                          'custom_attributes' => $this->getUsersCustomAttributes(
-                                                              $user,
-                                                              $brands
-                                                          ),
-                                                      ]
-                                                  )
-            )
-        );
-    }
-
-    /**
      * Because the intercom API is dump, we can only apply 1 tag to a user per request. In order to use the
      * minimum amount of requests possible, we must pull the intercom user first and see which tags are already applied.
      * We can use this info to only add or remove the tags that are necessary.
@@ -601,58 +578,4 @@ class CustomerIoSyncService
 
         return new IntercomAddRemoveTagsVO(array_unique($tagsToAdd), array_unique($tagsToRemove));
     }
-
-    /**
-     * @param  User  $user
-     * @return array
-     */
-    public function getUsersBuiltInAttributes(User $user)
-    {
-        return [
-            'email' => $user->getEmail(),
-            'created_at' => Carbon::parse($user->getCreatedAt(), 'UTC')->timestamp,
-            'name' => $user->getFirstName().(!empty($user->getLastName()) ? ' '.$user->getLastName() : ''),
-            'avatar' => ['type' => 'avatar', 'image_url' => $user->getProfilePictureUrl()],
-        ];
-    }
-
-    /**
-     * @param  User  $user
-     * @param  array  $brands
-     * @return array
-     */
-    public function getUsersCustomAttributes(User $user, $brands = [])
-    {
-        if (empty($brands)) {
-            $brands = config('event-data-synchronizer.intercom_brands_to_sync');
-        }
-
-        $userProfileAttributes = $this->getUsersCustomProfileAttributes($user);
-
-        $userProductAttributes = $this->getUsersMembershipAttributes($user, $brands);
-
-        $userSubscriptionAttributes = $this->getUsersSubscriptionAttributes($user, $userProductAttributes, $brands);
-
-        return $userProfileAttributes + $userProductAttributes + $userSubscriptionAttributes;
-    }
-
-    /**
-     * @param  User  $user
-     * @return array
-     */
-    public function getUsersCustomProfileAttributes(User $user)
-    {
-        return [
-            'musora_profile_display_name' => $user->getDisplayName(),
-            'musora_profile_gender' => $user->getGender(),
-            'musora_profile_country' => $user->getCountry(),
-            'musora_profile_region' => $user->getRegion(),
-            'musora_profile_city' => $user->getCity(),
-            'musora_profile_birthday' => !empty($user->getBirthday()) ? $user->getBirthday()->timestamp : null,
-            'musora_phone_number' => $user->getPhoneNumber(),
-            'musora_timezone' => $user->getTimezone(),
-            'musora_notify_of_weekly_updates' => $user->getNotifyWeeklyUpdate(),
-        ];
-    }
-
 }
