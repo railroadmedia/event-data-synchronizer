@@ -4,8 +4,10 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
+use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\CustomerIoSyncService;
 use Railroad\Usora\Entities\User;
+use Railroad\Usora\Repositories\UserRepository;
 
 class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
 {
@@ -23,10 +25,16 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
      * @param  CustomerIoService  $customerIoService
      * @throws \Throwable
      */
-    public function handle(CustomerIoService $customerIoService, CustomerIoSyncService $customerIoSyncService)
-    {
+    public function handle(
+        CustomerIoService $customerIoService,
+        CustomerIoSyncService $customerIoSyncService,
+        UserRepository $userRepository
+    ) {
         try {
+            $this->user = $userRepository->find($this->user->getId());
+
             // todo: handle multiple accounts?
+
             $customerIoService->createOrUpdateCustomerByEmail(
                 $this->user->getEmail(),
                 'musora',
