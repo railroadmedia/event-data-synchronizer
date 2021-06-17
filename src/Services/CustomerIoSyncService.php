@@ -10,13 +10,7 @@ use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
-use Railroad\EventDataSynchronizer\ValueObjects\IntercomAddRemoveTagsVO;
-use Railroad\Intercomeo\Jobs\IntercomSyncUser;
-use Railroad\Intercomeo\Jobs\IntercomTagUsers;
-use Railroad\Intercomeo\Jobs\IntercomUnTagUsers;
-use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Entities\User;
-use Throwable;
 
 class CustomerIoSyncService
 {
@@ -36,33 +30,18 @@ class CustomerIoSyncService
     protected $productRepository;
 
     /**
-     * @var IntercomeoService
-     */
-    protected $intercomeoService;
-
-    /**
-     * @var string
-     */
-    public static $userIdPrefix;
-
-    /**
      * @param  SubscriptionRepository  $subscriptionRepository
      * @param  UserProductRepository  $userProductRepository
      * @param  ProductRepository  $productRepository
-     * @param  IntercomeoService  $intercomeoService
      */
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
-        ProductRepository $productRepository,
-        IntercomeoService $intercomeoService
+        ProductRepository $productRepository
     ) {
-        self::$userIdPrefix = config('event-data-synchronizer.intercom_user_id_prefix', 'musora_');
-
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
-        $this->intercomeoService = $intercomeoService;
     }
 
     /**
@@ -76,7 +55,8 @@ class CustomerIoSyncService
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
             $membershipAccessAttributes,
-            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes)
+            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes),
+            $this->getUsersProductOwnershipStrings($user)
         );
     }
 
@@ -398,15 +378,15 @@ class CustomerIoSyncService
                     $latestSubscriptionToSync->getIntervalCount().'_'.$latestSubscriptionToSync->getIntervalType();
 
                 // trial type
-                $intercomTrialProductSkuToType =
+                $customerIoTrialProductSkuToType =
                     config('event-data-synchronizer.customer_io_trial_product_sku_to_type', []);
 
-                if (!empty($intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]) &&
+                if (!empty($customerIoTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]) &&
                     !empty(
-                    $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand(
+                    $customerIoTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand(
                     )][$latestSubscriptionToSync->getProduct()->getSku()]
                     )) {
-                    $trialType = $intercomTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
+                    $trialType = $customerIoTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
                         [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
                 }
             }
@@ -457,125 +437,60 @@ class CustomerIoSyncService
         return $subscriptionAttributes;
     }
 
-    // ---------------
-
     /**
-     * Because the intercom API is dump, we can only apply 1 tag to a user per request. In order to use the
-     * minimum amount of requests possible, we must pull the intercom user first and see which tags are already applied.
-     * We can use this info to only add or remove the tags that are necessary.
+     * This returns an array of 2 strings:
+     * ['BRAND_owned_pack_product_skus' => 'string', 'BRAND_owned_pack_product_ids' => 'string']
      *
-     * When tagging in bulk we should not use this function rather use the intercomeo tag multiple users with 1 tag
-     * functionality.
+     * The first string is a list of all the users owned pack skus separated by ', '
+     * The first string is a list of all the users owned pack ids separated by ', '
+     * each entry is also surrounded by underscores
+     *
+     * Ex: _electrify-your-drumming_, _rock-drumming-masterclass-pack_, _LDS-DIGI_
+     * Ex: _523_, _9_, _3774_
      *
      * @param  User  $user
      * @param  array  $brands
+     * @return array
      */
-    public function syncUsersProductOwnershipTags(User $user, $brands = [])
-    {
-        $productOwnershipTagsVO = $this->getUsersProductOwnershipTags($user, $brands);
-
-        $intercomUser = null;
-
-        try {
-            $intercomUser = $this->intercomeoService->getUser(self::$userIdPrefix.$user->getId());
-        } catch (Throwable $throwable) {
-        }
-
-        $existingIntercomUserTagNames = [];
-
-        if (!empty($intercomUser) && !empty($intercomUser->tags->tags)) {
-            foreach ($intercomUser->tags->tags as $tagObject) {
-                $existingIntercomUserTagNames[] = $tagObject->name;
-            }
-        }
-
-        $productOwnershipTagsVO->tagsToAdd =
-            array_diff($productOwnershipTagsVO->tagsToAdd, $existingIntercomUserTagNames);
-
-        $productOwnershipTagsVO->tagsToRemove =
-            array_intersect($existingIntercomUserTagNames, $productOwnershipTagsVO->tagsToRemove);
-
-        // add tags, only add ones that don't already exist on the intercom user
-        foreach ($productOwnershipTagsVO->tagsToAdd as $tagToAdd) {
-            dispatch(
-                new IntercomTagUsers(
-                    [self::$userIdPrefix.$user->getId()], $tagToAdd
-                )
-            );
-        }
-
-        // remove tags, only add ones that do already exist on the intercom user
-        foreach ($productOwnershipTagsVO->tagsToRemove as $tagsToRemove) {
-            dispatch(
-                new IntercomUnTagUsers(
-                    [self::$userIdPrefix.$user->getId()], $tagsToRemove
-                )
-            );
-        }
-    }
-
-    /**
-     * @param  User  $user
-     * @param  array  $brands
-     * @return IntercomAddRemoveTagsVO
-     */
-    public function getUsersProductOwnershipTags(User $user, $brands = [])
+    public function getUsersProductOwnershipStrings(User $user, $brands = [])
     {
         if (empty($brands)) {
-            $brands = config('event-data-synchronizer.intercom_brands_to_sync');
+            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
         }
 
-        $intercomTagNamesToProductSkus = config('event-data-synchronizer.intercom_tag_name_to_product_skus');
+        $packSkusToSync = config('event-data-synchronizer.customer_io_pack_skus_to_sync_ownership');
 
         /**
          * @var $userProducts UserProduct[]
          */
         $userProducts = $this->userProductRepository->getAllUsersProducts($user->getId());
 
-        $allProductsKeyedBySku = key_array_of_entities_by(
-            $this->productRepository->bySkus(array_values($intercomTagNamesToProductSkus)),
-            'getSku'
-        );
-
-        $tagsToAdd = [];
-        $tagsToRemove = [];
+        $finalArray = [];
 
         foreach ($brands as $brand) {
-            // tags to add
+            $productSkuArray = [];
+            $idArray = [];
+
             foreach ($userProducts as $userProduct) {
-                if ($userProduct->getProduct()
-                        ->getBrand() !== $brand) {
+                if ($userProduct->getProduct()->getBrand() !== $brand) {
                     continue;
                 }
 
-                foreach ($intercomTagNamesToProductSkus as $tagName => $productSkus) {
-                    if (in_array(
-                            $userProduct->getProduct()
-                                ->getSku(),
-                            $productSkus
-                        ) && $userProduct->isValid()) {
-                        $tagsToAdd[] = $tagName;
-                    }
+                if (in_array($userProduct->getProduct()->getSku(), $packSkusToSync) && $userProduct->isValid()) {
+                    $productSkuArray[] = "_".$userProduct->getProduct()->getSku()."_";
+                    $idArray[] = "_".$userProduct->getProduct()->getId()."_";
                 }
             }
 
-            // tags to remove
-            // we only want to remove tags for the brands passed in to the func
-            foreach ($intercomTagNamesToProductSkus as $tagName => $productSkus) {
-                foreach ($productSkus as $productSku) {
-                    $product = $allProductsKeyedBySku[$productSku] ?? null;
+            if (!empty($productSkuArray)) {
+                $finalArray[$brand.'_owned_pack_product_skus'] = implode(', ', $productSkuArray);
+            }
 
-                    if (empty($product) || $product->getBrand() !== $brand) {
-                        continue;
-                    }
-
-                    if (!in_array($tagName, $tagsToAdd)) {
-                        $tagsToRemove[] = $tagName;
-                    }
-                }
+            if (!empty($idArray)) {
+                $finalArray[$brand.'_owned_pack_product_ids'] = implode(', ', $idArray);
             }
         }
 
-        return new IntercomAddRemoveTagsVO(array_unique($tagsToAdd), array_unique($tagsToRemove));
+        return $finalArray;
     }
 }

@@ -18,6 +18,8 @@ return [
 
     'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
 
+    'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
+
     // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
     'customer_io_trial_product_sku_to_type' => [
         'brand' => [
