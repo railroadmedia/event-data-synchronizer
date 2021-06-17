@@ -18,6 +18,9 @@ return [
 
     'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
 
+    // all brands will always be synced to this workspace regardless of their products or interaction
+    'customer_io_account_to_sync_all_brands' => 'musora',
+
     // only the brands set for a given customer.io account will have their info synced
     // see customer-io.php accounts config value
     'customer_io_account_name_brands_to_sync' => [
