@@ -4,7 +4,6 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
-use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\CustomerIoSyncService;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Repositories\UserRepository;
@@ -32,12 +31,14 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
     ) {
         try {
             $this->user = $userRepository->find($this->user->getId());
-            $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user);
 
-            foreach (config('event-data-synchronizer.customer_io_brands_to_sync', []) as $brand) {
+            foreach (config('event-data-synchronizer.customer_io_account_name_brands_to_sync', []) as $accountName => $brands) {
+
+                $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user, $brands);
+
                 $customerIoService->createOrUpdateCustomerByEmail(
                     $this->user->getEmail(),
-                    $brand,
+                    $accountName,
                     $customerAttributes,
                     $this->user->getId(),
                     $this->user->getCreatedAt()->timestamp

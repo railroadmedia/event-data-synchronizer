@@ -31,16 +31,19 @@ class CustomerIoSyncUserByUserId extends CustomerIoBaseJob
     ) {
         try {
             $this->user = $userRepository->find($this->user->getId());
-            $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user);
 
-            foreach (config('event-data-synchronizer.customer_io_brands_to_sync', []) as $brand) {
+            foreach (config('event-data-synchronizer.customer_io_account_name_brands_to_sync', []) as $accountName => $brands) {
+
+                $customerAttributes = $customerIoSyncService->getUsersCustomAttributes($this->user, $brands);
+
                 $customerIoService->createOrUpdateCustomerByUserId(
                     $this->user->getId(),
-                    $brand,
+                    $accountName,
                     $this->user->getEmail(),
                     $customerAttributes,
                     $this->user->getCreatedAt()->timestamp
                 );
+
             }
         } catch (Exception $exception) {
             $this->failed($exception);

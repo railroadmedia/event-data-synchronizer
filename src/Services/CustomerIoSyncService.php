@@ -46,17 +46,18 @@ class CustomerIoSyncService
 
     /**
      * @param  User  $user
+     * @param  array|null  $brands
      * @return array
      */
-    public function getUsersCustomAttributes(User $user)
+    public function getUsersCustomAttributes(User $user, array $brands = null)
     {
-        $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user);
+        $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user, $brands);
 
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
             $membershipAccessAttributes,
-            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes),
-            $this->getUsersProductOwnershipStrings($user)
+            $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes, $brands),
+            $this->getUsersProductOwnershipStrings($user, $brands)
         );
     }
 

@@ -18,6 +18,14 @@ return [
 
     'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
 
+    // only the brands set for a given customer.io account will have their info synced
+    // see customer-io.php accounts config value
+    'customer_io_account_name_brands_to_sync' => [
+        'account_1' => ['drumeo', 'pianote'],
+        'account_2' => ['musora'],
+        'account_3' => ['another_brand'],
+    ],
+
     'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
 
     // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
@@ -28,7 +36,7 @@ return [
 
             // confusing name, we changed this product to 7 days free but did not update the sku
             'DLM-Trial-1-month' => '7_days_free',
-        ]
+        ],
     ],
 
     // intercom
@@ -47,7 +55,7 @@ return [
 
             // confusing name, we changed this product to 7 days free but did not update the sku
             'DLM-Trial-1-month' => '7_days_free',
-        ]
+        ],
     ],
 
     // maropost
@@ -207,7 +215,7 @@ return [
             'BDS2-DIGI' => 'Drumeo - Customer - Pack - BDS',
             'BDS2-DIGIPHYS' => 'Drumeo - Customer - Pack - BDS',
             'PASS-1' => 'Drumeo - Customer - Accessory - Misc - 1 Month Edge Card',
-            'PASS-6' => 'Drumeo - Customer - Accessory - Misc - 6 Month'
+            'PASS-6' => 'Drumeo - Customer - Accessory - Misc - 6 Month',
         ],
 
     ],
