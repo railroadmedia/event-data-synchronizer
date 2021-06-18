@@ -67,7 +67,18 @@ class CustomerIoSyncService
      */
     public function getUsersMusoraProfileAttributes(User $user)
     {
+        $fullNameArray = [];
+
+        if (!empty($user->getFirstName())) {
+            $fullNameArray[] = $user->getFirstName();
+        }
+
+        if (!empty($user->getLastName())) {
+            $fullNameArray[] = $user->getLastName();
+        }
+
         return [
+            'musora_profile_preffered-name' => !empty($fullNameArray) ? implode(' ', $fullNameArray) : null,
             'musora_profile_display-name' => $user->getDisplayName(),
             'musora_profile_gender' => $user->getGender(),
             'musora_profile_country' => $user->getCountry(),
