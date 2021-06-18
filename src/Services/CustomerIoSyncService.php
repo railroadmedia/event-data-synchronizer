@@ -211,7 +211,7 @@ class CustomerIoSyncService
             $membershipRenewalDate = null;
             $membershipCancellationDate = null;
             $membershipCancellationReason = null;
-            $membershipRenewalAttempts = 0;
+            $membershipRenewalAttempts = null;
             $subscriptionStatus = null;
             $subscriptionPriceCents = null;
             $subscriptionCurrency = null;
@@ -219,7 +219,7 @@ class CustomerIoSyncService
             $firstSubscriptionStartedDate = null;
             $trialType = null;
             $expirationDate = null;
-            $isAppSignup = false;
+            $isAppSignup = null;
 
             /**
              * @var $latestSubscriptionToSync Subscription|null

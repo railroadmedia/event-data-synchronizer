@@ -29,6 +29,7 @@ return [
         'account_3' => ['another_brand'],
     ],
 
+    // pack ownership syncing, all packs should be listed here that will go in the pack ownership attribute
     'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
 
     // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
