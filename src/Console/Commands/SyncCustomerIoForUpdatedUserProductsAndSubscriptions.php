@@ -20,7 +20,7 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
      *
      * @var string
      */
-    protected $name = 'SyncCustomerIoForUpdatedUserProducts';
+    protected $name = 'SyncCustomerIoForUpdatedUserProductsAndSubscriptions';
 
     /**
      * The console command description.
@@ -82,8 +82,8 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
 
         $qb = $this->userProductRepository->createQueryBuilder('up');
 
-        $qb->where($qb->expr()->gte('up.updatedAt', ':lastDay'))
-            ->andWhere($qb->expr()->lt('up.updatedAt', ':now'))
+        $qb->orWhere('up.updatedAt > :lastDay AND up.updatedAt < :now')
+            ->orWhere('up.expirationDate > :lastDay AND up.expirationDate < :now')
             ->setParameter('lastDay', $lastTime->toDateTimeString())
             ->setParameter('now', Carbon::now()->toDateTimeString());
 
@@ -91,6 +91,8 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
          * @var $userProducts UserProduct[]
          */
         $userProducts = $qb->getQuery()->getResult();
+
+        $this->info('Found ' . count($userProducts) . ' user products.');
 
         $qb = $this->subscriptionRepository->createQueryBuilder('s');
 
@@ -104,6 +106,8 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
          * @var $subscriptions Subscription[]
          */
         $subscriptions = $qb->getQuery()->getResult();
+
+        $this->info('Found ' . count($subscriptions) . ' subscriptions.');
 
         $allUserIds = [];
 
@@ -119,7 +123,7 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
 
         foreach ($allUserIds as $allUserId) {
             $user = $this->userRepository->find($allUserId);
-            $this->info('Handling ' . $user->getEmail());
+            $this->info('Handling '.$user->getEmail());
             $this->customerIoSyncEventListener->handleUserUpdated(new UserUpdated($user, $user));
         }
 
