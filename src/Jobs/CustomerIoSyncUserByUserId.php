@@ -80,6 +80,8 @@ class CustomerIoSyncUserByUserId extends CustomerIoBaseJob
             $this->user->getId().' - lookupEmail: '.$this->user->getEmail()
         );
 
+        error_log($exception);
+
         parent::failed($exception);
     }
 }
