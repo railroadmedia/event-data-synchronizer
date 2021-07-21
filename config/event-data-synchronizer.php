@@ -11,6 +11,8 @@ return [
         'SKU-2' => 'My Permission 2',
     ],
 
+    'help_scout_sync_brands' => ['drumeo', 'pianote', 'singeo', 'guitareo'],
+
     // customer.io
     // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
     'customer_io_queue_connection_name' => 'database',
