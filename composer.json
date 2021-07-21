@@ -22,6 +22,10 @@
     {
       "type": "vcs",
       "url": "https://github.com/railroadmedia/maropost"
+    },
+    {
+      "type": "git",
+      "url": "https://github.com/railroadmedia/railhelpscout"
     }
   ],
   "require": {
@@ -32,7 +36,8 @@
     "railroad/usora": "2.0.*",
     "railroad/intercomeo": "2.0.*",
     "railroad/maropost": "1.0.*",
-    "railroad/customer-io": "^2.0.6"
+    "railroad/customer-io": "^2.0.6",
+    "railroad/railhelpscout": "dev-master as v1.0.0"
   },
   "require-dev": {
     "phpunit/phpunit": "~7.0",
