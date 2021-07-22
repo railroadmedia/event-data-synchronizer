@@ -4,12 +4,18 @@ namespace Railroad\EventDataSynchronizer\Services;
 
 use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\Subscription;
+use Railroad\Ecommerce\Repositories\OrderRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
 use Railroad\Usora\Entities\User;
 
 class HelpScoutSyncService
 {
+    /**
+     * @var OrderRepository
+     */
+    protected $orderRepository;
+
     /**
      * @var SubscriptionRepository
      */
@@ -21,13 +27,16 @@ class HelpScoutSyncService
     protected $userProductRepository;
 
     /**
+     * @param  OrderRepository $orderRepository
      * @param  SubscriptionRepository  $subscriptionRepository
      * @param  UserProductRepository  $userProductRepository
      */
     public function __construct(
+        OrderRepository $orderRepository,
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository
     ) {
+        $this->orderRepository = $orderRepository;
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
     }
@@ -202,6 +211,38 @@ class HelpScoutSyncService
                     }
                 } else if (empty($latestMembershipUserProduct->getExpirationDate())) {
                     $membershipDetails = 'lifetime';
+                } else {
+                    $latestMembershipProduct = $latestMembershipUserProduct->getProduct();
+                    $membershipType = $latestMembershipProduct->getSubscriptionIntervalCount() . $latestMembershipProduct->getSubscriptionIntervalType();
+
+                    $userOrders = $this->orderRepository->getUserOrdersForProduct(
+                            $user->getId(),
+                            $latestMembershipUserProduct->getProduct()
+                        );
+
+                    $membershipRate = 'unknown';
+
+                    $latestMembershipOrder = null;
+
+                    if (count($userOrders) == 1) {
+                        $latestMembershipOrder = $userOrders[0];
+                    } else if (count($userOrders) > 1) {
+                        foreach ($userOrders as $order) {
+                            if ($order->getCreatedAt()->format('Ym') == $latestMembershipUserProduct->getCreatedAt()->format('Ym')) {
+                                $latestMembershipOrder = $order;
+                            }
+                        }
+                    }
+
+                    if ($latestMembershipOrder) {
+                        foreach ($latestMembershipOrder->getOrderItems() as $orderItem) {
+                            if ($orderItem->getProduct()->getSku() == $latestMembershipProduct->getSku()) {
+                                $membershipRate = $orderItem->getFinalPrice();
+                            }
+                        }
+                    }
+
+                    $membershipDetails = $membershipType . '|' . $latestMembershipProduct->getType() . '|'. $membershipRate;
                 }
             }
 
