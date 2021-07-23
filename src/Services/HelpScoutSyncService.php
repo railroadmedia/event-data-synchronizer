@@ -193,7 +193,7 @@ class HelpScoutSyncService
                     if ($latestSubscription->getState() == Subscription::STATE_CANCELED) {
                         $membershipCancellationDate =
                             !empty($latestSubscription->getCanceledOn()) ?
-                                $latestSubscription->getCanceledOn()->timestamp :
+                                $latestSubscription->getCanceledOn()->format('Y-m-d H:i:s') :
                                 null;
                         $membershipCancellationReason = $latestSubscription->getCancellationReason();
                     }
@@ -249,14 +249,14 @@ class HelpScoutSyncService
             $attributes += [
                 $brand . '_membership_details' => $membershipDetails,
                 $brand . '_membership_renewal-date' => !empty($membershipRenewalDate) ?
-                    $membershipRenewalDate->timestamp : null,
+                    $membershipRenewalDate->format('Y-m-d H:i:s') : null,
                 $brand . '_retention_failed-billing_membership-renewal-attempts' => $membershipFailedRenewalAttempts,
                 $brand . '_membership_cancellation-date' => $membershipCancellationDate,
                 $brand . '_membership_cancellation-reason' => $membershipCancellationReason,
                 $brand . '_membership_latest-start-date' => !empty($membershipLatestAccessStartDate) ?
-                    $membershipLatestAccessStartDate->timestamp : null,
+                    $membershipLatestAccessStartDate->format('Y-m-d H:i:s') : null,
                 $brand . '_membership_first-start-date' => !empty($membershipFirstAccessStartDate) ?
-                    $membershipFirstAccessStartDate->timestamp : null,
+                    $membershipFirstAccessStartDate->format('Y-m-d H:i:s') : null,
                 $brand . '_membership_source_app-store' => $membershipSourceAppStore,
             ];
         }
