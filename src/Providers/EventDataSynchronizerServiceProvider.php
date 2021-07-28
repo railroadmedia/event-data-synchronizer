@@ -62,6 +62,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
             UserProductToUserContentPermissionListener::class . '@handleCreated',
             MaropostEventListener::class . '@handleUserProductCreated',
+            HelpScoutEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
             IntercomSyncEventListener::class . '@handleUserProductUpdated',
@@ -69,6 +70,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
             MaropostEventListener::class . '@handleUserProductUpdated',
+            HelpScoutEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
             IntercomSyncEventListener::class . '@handleUserProductDeleted',
@@ -76,26 +78,31 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
             MaropostEventListener::class . '@handleUserProductDeleted',
+            HelpScoutEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
 
             MaropostEventListener::class . '@handleSubscriptionCreated',
+            HelpScoutEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
 
             MaropostEventListener::class . '@handleSubscriptionUpdated',
+            HelpScoutEventListener::class . '@handleSubscriptionUpdated',
         ],
         SubscriptionRenewed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
+            HelpScoutEventListener::class . '@handleSubscriptionRenewed',
         ],
         SubscriptionRenewFailed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
+            HelpScoutEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
         ],
         OrderEvent::class => [],
         AppSignupStartedEvent::class => [

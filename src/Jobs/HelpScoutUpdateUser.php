@@ -42,13 +42,13 @@ class HelpScoutUpdateUser implements ShouldQueue
         try {
             $this->user = $userRepository->find($this->user->getId());
 
-            $userAttributes = $helpScoutSyncService->getUsersAttributes($user);
+            $userAttributes = $helpScoutSyncService->getUsersAttributes($this->user);
 
-            $railHelpScoutService->updateCustomer(
-                $user->getId(),
-                $user->getFirstName(),
-                $user->getLastName(),
-                $user->getEmail(),
+            $railHelpScoutService->createOrUpdateCustomer(
+                $this->user->getId(),
+                $this->user->getFirstName(),
+                $this->user->getLastName(),
+                $this->user->getEmail(),
                 $userAttributes
             );
         } catch (Exception $exception) {
