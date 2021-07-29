@@ -41,11 +41,51 @@ class HelpScoutSyncService
         $this->userProductRepository = $userProductRepository;
     }
 
+    /**
+     * @param  User  $user
+     *
+     * @return array
+     */
     public function getUsersAttributes(User $user): array
     {
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
-            $this->getUsersMembershipAttributes($user)
+            $this->getUsersMembershipAttributes($user->getId())
+        );
+    }
+
+    /**
+     * @param  int  $userId
+     * @param  string|null  $firstName
+     * @param  string|null  $displayName
+     * @param  string|null  $country
+     * @param  string|null  $city
+     * @param  string|null  $phoneNumber
+     * @param  string|null  $timezone
+     *
+     * @return array
+     */
+    public function getUsersAttributesById(
+        $userId,
+        $firstName,
+        $displayName,
+        $country,
+        $city,
+        $phoneNumber,
+        $timezone
+    ): array {
+
+        $musoraProfileAttributes = [
+            'musora_profile_preferred-name' => !empty($firstName) ? $firstName : $displayName,
+            'musora_profile_country' => $country,
+            'musora_profile_city' => $city,
+            'musora_profile_phone-number' => $phoneNumber,
+            'musora_profile_timezone' => $timezone,
+        ];
+
+        return array_merge(
+            $musoraProfileAttributes,
+            $this->getUsersMembershipAttributes($userId)
         );
     }
 
@@ -70,13 +110,13 @@ class HelpScoutSyncService
      *
      * @return array
      */
-    public function getUsersMembershipAttributes(User $user): array
+    public function getUsersMembershipAttributes(int $userId): array
     {
         $brands = config('event-data-synchronizer.help_scout_sync_brands', []);
 
-        $userProducts = $this->userProductRepository->getAllUsersProducts($user->getId());
+        $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
 
-        $userSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($user->getId());
+        $userSubscriptions = $this->subscriptionRepository->getAllUsersSubscriptions($userId);
 
         $attributes = [];
 
@@ -216,7 +256,7 @@ class HelpScoutSyncService
                     $membershipType = $latestMembershipProduct->getSubscriptionIntervalCount() . $latestMembershipProduct->getSubscriptionIntervalType();
 
                     $userOrders = $this->orderRepository->getUserOrdersForProduct(
-                            $user->getId(),
+                            $userId,
                             $latestMembershipUserProduct->getProduct()
                         );
 
