@@ -25,7 +25,7 @@ class SyncHelpScout extends Command
      *
      * @var string
      */
-    protected $description = 'Synch all database users with helpscout';
+    protected $description = 'Sync all database users with helpscout';
 
     /**
      * @var DatabaseManager
@@ -118,6 +118,8 @@ class SyncHelpScout extends Command
                                 . $userData->id . ', exception message: ' . $ex->getMessage()
                             );
                         }
+
+                        $done++;
                     }
 
                     $this->info('Done ' . $done . ' out of ' . $total);

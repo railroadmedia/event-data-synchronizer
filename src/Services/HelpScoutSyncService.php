@@ -201,7 +201,11 @@ class HelpScoutSyncService
                 $latestSubscription = null;
 
                 foreach ($userSubscriptions as $userSubscription) {
-                    if ($userSubscription->getProduct()->getSku() == $latestMembershipUserProduct->getProduct()->getSku()) {
+                    if (
+                        $userSubscription->getProduct()
+                        && $latestMembershipUserProduct->getProduct()
+                        && $userSubscription->getProduct()->getSku() == $latestMembershipUserProduct->getProduct()->getSku()
+                    ) {
                         if (empty($latestSubscription)) {
                             $latestSubscription = $userSubscription;
 
