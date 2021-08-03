@@ -161,9 +161,10 @@ class SyncExistingHelpScout extends Command
 
         $attempt = 1;
 
+        $userAttributes = $this->helpScoutSyncService->getUsersAttributes($user);
+
         while ($attempt <= self::RETRY_ATTEMPTS) {
             try {
-                $userAttributes = $this->helpScoutSyncService->getUsersAttributes($user);
 
                 $this->railHelpScoutService->syncExistingCustomer(
                     $user->getId(),
