@@ -15,6 +15,7 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
@@ -134,6 +135,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 UserContentPermissionsResyncTool::class,
                 SyncHelpScout::class,
                 SyncExistingHelpScout::class,
+                HelpScoutIndex::class,
             ]
         );
 

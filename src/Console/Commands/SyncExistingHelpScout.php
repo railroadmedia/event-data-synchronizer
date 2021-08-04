@@ -51,7 +51,9 @@ class SyncExistingHelpScout extends Command
     /**
      * SyncExistingHelpScout constructor.
      *
+     * @param HelpScoutSyncService $helpScoutSyncService
      * @param RailHelpScoutService $railHelpScoutService
+     * @param UserRepository $userRepository
      *
      */
     public function __construct(

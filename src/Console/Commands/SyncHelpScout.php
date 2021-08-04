@@ -6,6 +6,8 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
+use HelpScout\Api\Exception\ConflictException;
+use HelpScout\Api\Exception\RateLimitExceededException;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\HelpScoutSyncService;
 use Railroad\RailHelpScout\Services\RailHelpScoutService;
@@ -26,6 +28,9 @@ class SyncHelpScout extends Command
      * @var string
      */
     protected $description = 'Sync all database users with helpscout';
+
+    const RETRY_ATTEMPTS = 3;
+    const SLEEP_DELAY = 600;
 
     /**
      * @var DatabaseManager
@@ -80,6 +85,7 @@ class SyncHelpScout extends Command
         $this->info('Starting SyncHelpScout.');
 
         $usoraConnection = $this->databaseManager->connection(config('usora.database_connection_name'));
+        $railhelpscoutConnection = $this->databaseManager->connection(config('railhelpscout.database_connection_name'));
 
         $done = 0;
         $total =
@@ -88,34 +94,37 @@ class SyncHelpScout extends Command
 
         $usoraConnection->table('usora_users')
             ->orderBy('id', 'asc')
-            // ->where('email', 'bogdan.damian@artsoft-consult.ro') // todo: remove
             ->chunk(
                 25,
-                function (Collection $userRows) use (&$done, $total) {
+                function (Collection $userRows) use (&$done, $total, $railhelpscoutConnection) {
+
+                    $existingCustomersMap =
+                        $railhelpscoutConnection->table('helpscout_customers')
+                            ->whereIn(
+                                'internal_id',
+                                $userRows->pluck('id')
+                                    ->toArray()
+                            )
+                            ->get()
+                            ->pluck('internal_id')
+                            ->mapWithKeys(function ($item) {
+                                return [$item => true];
+                            })
+                            ->toArray();
 
                     foreach ($userRows as $userData) {
-                        $userAttributes = $this->helpScoutSyncService->getUsersAttributesById(
-                            $userData->id,
-                            $userData->first_name,
-                            $userData->display_name,
-                            $userData->country,
-                            $userData->city,
-                            $userData->phone_number,
-                            $userData->timezone
-                        );
 
-                        try {
-                            $this->railHelpScoutService->createCustomer(
+                        if (!isset($existingCustomersMap[$userData->id])) {
+                            $this->syncUser(
                                 $userData->id,
                                 $userData->first_name,
                                 $userData->last_name,
+                                $userData->display_name,
                                 $userData->email,
-                                $userAttributes
-                            );
-                        } catch (Exception $ex) {
-                            $this->error(
-                                'Exception while processing user with id: '
-                                . $userData->id . ', exception message: ' . $ex->getMessage()
+                                $userData->country,
+                                $userData->city,
+                                $userData->phone_number,
+                                $userData->timezone
                             );
                         }
 
@@ -130,5 +139,71 @@ class SyncHelpScout extends Command
                     $this->ecommerceEntityManager->getConnection()->ping();
                 }
             );
+    }
+
+    /**
+     * @throws Throwable
+     */
+    protected function syncUser(
+        $usoraId,
+        $firstName,
+        $lastName,
+        $displayName,
+        $email,
+        $country,
+        $city,
+        $phoneNumber,
+        $timezone
+    ) {
+
+        $attempt = 1;
+
+        $userAttributes =
+            $this->helpScoutSyncService->getUsersAttributesById(
+                $usoraId,
+                $firstName,
+                $displayName,
+                $country,
+                $city,
+                $phoneNumber,
+                $timezone
+            );
+
+        while ($attempt <= self::RETRY_ATTEMPTS) {
+            try {
+
+                $this->railHelpScoutService->createCustomer(
+                    $usoraId,
+                    $firstName,
+                    $lastName,
+                    $email,
+                    $userAttributes
+                );
+
+                $this->info('Sync successful for user id ' . $usoraId . ', email: ' . $email);
+
+                return;
+
+            } catch (RateLimitExceededException $rateException) {
+
+                $this->error(
+                    'RateLimitExceededException raised when syncing user ' . $email
+                    . ', sleeping for ' . self::SLEEP_DELAY . ' seconds'
+                );
+
+                sleep(self::SLEEP_DELAY);
+                $attempt++;
+
+            } catch (ConflictException $conflictException) {
+                $this->error(
+                    'ConflictException raised, user with usora id: ' . $usoraId . ' and email: ' . $email
+                    . ' already has a helpscout customer entry'
+                );
+
+                return;
+            } catch (Exception $ex) {
+                throw $ex;
+            }
+        }
     }
 }
