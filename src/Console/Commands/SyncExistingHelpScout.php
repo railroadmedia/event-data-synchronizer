@@ -4,6 +4,7 @@ namespace Railroad\EventDataSynchronizer\Console\Commands;
 
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Database\DatabaseManager;
 use HelpScout\Api\Customers\Customer;
 use HelpScout\Api\Customers\CustomerFilters;
 use HelpScout\Api\Entity\PagedCollection;
@@ -34,6 +35,11 @@ class SyncExistingHelpScout extends Command
     const SLEEP_DELAY = 600;
 
     /**
+     * @var DatabaseManager
+     */
+    private $databaseManager;
+
+    /**
      * @var HelpScoutSyncService
      */
     protected $helpScoutSyncService;
@@ -51,18 +57,21 @@ class SyncExistingHelpScout extends Command
     /**
      * SyncExistingHelpScout constructor.
      *
+     * @param DatabaseManager $databaseManager
      * @param HelpScoutSyncService $helpScoutSyncService
      * @param RailHelpScoutService $railHelpScoutService
      * @param UserRepository $userRepository
      *
      */
     public function __construct(
+        DatabaseManager $databaseManager,
         HelpScoutSyncService $helpScoutSyncService,
         RailHelpScoutService $railHelpScoutService,
         UserRepository $userRepository
     ) {
         parent::__construct();
 
+        $this->databaseManager = $databaseManager;
         $this->helpScoutSyncService = $helpScoutSyncService;
         $this->railHelpScoutService = $railHelpScoutService;
         $this->userRepository = $userRepository;
@@ -77,12 +86,15 @@ class SyncExistingHelpScout extends Command
     {
         $currentPage = null;
 
+        $railhelpscoutConnection = $this->databaseManager->connection(config('railhelpscout.database_connection_name'));
+
         while ($currentPage = $this->getNextPage($currentPage)) {
 
             $this->info('Started pocessing customers page #' . $currentPage->getPageNumber());
 
             $emailsMap = [];
             $customersMap = [];
+            $customersSynced = [];
 
             foreach ($currentPage->toArray() as $customer) {
 
@@ -97,18 +109,35 @@ class SyncExistingHelpScout extends Command
 
             $users = $this->userRepository->findByEmails(array_keys($emailsMap));
 
+            $existingCustomersMap =
+                $railhelpscoutConnection->table('helpscout_customers')
+                    ->whereIn(
+                        'external_id',
+                        array_keys($customersMap)
+                    )
+                    ->get()
+                    ->pluck('internal_id')
+                    ->mapWithKeys(function ($item) {
+                        return [$item => true];
+                    })
+                    ->toArray();
+
             foreach ($users as $user) {
 
-                $customerId = $emailsMap[$user->getEmail()];
-                $customer = $customersMap[$customerId];
+                if (!isset($existingCustomersMap[$user->getId()]) && isset($emailsMap[$user->getEmail()])) {
+                    $customerId = $emailsMap[$user->getEmail()];
+                    $customer = $customersMap[$customerId];
 
-                $this->info(
-                    'Syncing user ' . $user->getEmail()
-                    . ', usora id: ' . $user->getId()
-                    . ', helpscout id: ' . $customer->getId()
-                );
+                    $this->info(
+                        'Syncing user ' . $user->getEmail()
+                        . ', usora id: ' . $user->getId()
+                        . ', helpscout id: ' . $customer->getId()
+                    );
 
-                $this->syncExistingCustomer($user, $customer);
+                    $this->syncExistingCustomer($user, $customer);
+
+                    $existingCustomersMap[$user->getId()] = true;
+                }
             }
 
             $this->info('Finished pocessing customers page #' . $currentPage->getPageNumber());
