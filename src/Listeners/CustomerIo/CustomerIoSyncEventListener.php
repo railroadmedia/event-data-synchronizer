@@ -15,8 +15,13 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
+use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Repositories\CommentRepository;
+use Railroad\Railcontent\Repositories\ContentRepository;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -30,8 +35,17 @@ class CustomerIoSyncEventListener
      */
     private $userRepository;
 
-    private $queueConnectionName = 'database';
+    /**
+     * @var CommentRepository
+     */
+    private $commentRepository;
 
+    /**
+     * @var ContentRepository
+     */
+    private $contentRepository;
+
+    private $queueConnectionName = 'database';
     private $queueName = 'customer_io';
 
     /**
@@ -48,12 +62,17 @@ class CustomerIoSyncEventListener
      *
      * @param  UserRepository  $userRepository
      */
-    public function __construct(UserRepository $userRepository)
-    {
+    public function __construct(
+        UserRepository $userRepository,
+        CommentRepository $commentRepository,
+        ContentRepository $contentRepository
+    ) {
         $this->userRepository = $userRepository;
 
         $this->queueConnectionName = config('event-data-synchronizer.customer_io_queue_connection_name', 'database');
         $this->queueName = config('event-data-synchronizer.customer_io_queue_name', 'customer_io');
+        $this->commentRepository = $commentRepository;
+        $this->contentRepository = $contentRepository;
     }
 
     /**
@@ -378,8 +397,20 @@ class CustomerIoSyncEventListener
         try {
             if (!empty($subscriptionRenewed->getSubscription()) &&
                 !empty($subscriptionRenewed->getSubscription()->getUser())) {
-                // todo: sync event for this: brand_membership_renewed
-
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $subscriptionRenewed->getSubscription()->getUser()->getId(),
+                        $subscriptionRenewed->getSubscription()->getBrand(),
+                        $subscriptionRenewed->getSubscription()->getBrand().'_membership_renewed',
+                        [
+                            'membership_rate' => $subscriptionRenewed->getSubscription()->getTotalPrice(),
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection('sync')
+                        ->onQueue('customer_io')
+                );
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -401,5 +432,53 @@ class CustomerIoSyncEventListener
             $subscriptionRenewFailed->getSubscription()->getPaidUntil() < Carbon::now()) {
             // todo
         }
+    }
+
+    /**
+     * @param  CommentLiked  $commentLiked
+     */
+    public function handleCommentLiked(CommentLiked $commentLiked)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $comment = $this->commentRepository->getById($commentLiked->commentId);
+            $content = $this->contentRepository->getById($commentLiked->commentId);
+            $user = $this->userRepository->getById($commentLiked->userId);
+
+            dd($content);
+
+            if (!empty($comment) &&
+                !empty($content) &&
+                !empty($user)) {
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_lesson_comment',
+                        [
+                            'membership_rate' => $subscriptionRenewed->getSubscription()->getTotalPrice(),
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection('sync')
+                        ->onQueue('customer_io')
+                );
+
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  CommentCreated  $commentCreated
+     */
+    public function handleCommentCreated(CommentCreated $commentCreated)
+    {
     }
 }
