@@ -25,7 +25,6 @@ use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResync
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
-use Railroad\EventDataSynchronizer\Listeners\Maropost\MaropostEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
@@ -64,7 +63,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleUserProductCreated',
 
             UserProductToUserContentPermissionListener::class . '@handleCreated',
-            MaropostEventListener::class . '@handleUserProductCreated',
             HelpScoutEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
@@ -72,7 +70,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
 
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
-            MaropostEventListener::class . '@handleUserProductUpdated',
             HelpScoutEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
@@ -80,21 +77,18 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
 
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
-            MaropostEventListener::class . '@handleUserProductDeleted',
             HelpScoutEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionCreated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
 
-            MaropostEventListener::class . '@handleSubscriptionCreated',
             HelpScoutEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
 
-            MaropostEventListener::class . '@handleSubscriptionUpdated',
             HelpScoutEventListener::class . '@handleSubscriptionUpdated',
         ],
         SubscriptionRenewed::class => [
