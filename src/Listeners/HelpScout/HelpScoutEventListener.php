@@ -84,9 +84,9 @@ class HelpScoutEventListener
         }
 
         try {
-            $user = $this->userRepository->find($userUpdated->getUser()->getId());
+            $user = $this->userRepository->find($userUpdated->getNewUser()->getId());
 
-            if (!empty($user) && !in_array($userUpdated->getUser()->getId(), self::$alreadyQueuedUserIds)) {
+            if (!empty($user) && !in_array($userUpdated->getNewUser()->getId(), self::$alreadyQueuedUserIds)) {
 
                 dispatch(
                     (new HelpScoutUpdateUser($user))
@@ -95,7 +95,7 @@ class HelpScoutEventListener
                         ->delay(Carbon::now()->addSeconds(3))
                 );
 
-                self::$alreadyQueuedUserIds[] = $userUpdated->getUser()->getId();
+                self::$alreadyQueuedUserIds[] = $userUpdated->getNewUser()->getId();
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
