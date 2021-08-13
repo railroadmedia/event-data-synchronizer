@@ -43,13 +43,15 @@ class HelpScoutUpdateUser implements ShouldQueue
             $this->user = $userRepository->find($this->user->getId());
 
             $userAttributes = $helpScoutSyncService->getUsersAttributes($this->user);
+            $brandsAttributesKeys = $helpScoutSyncService->getBrandsMembershipAttributesKeys();
 
             $railHelpScoutService->createOrUpdateCustomer(
                 $this->user->getId(),
                 $this->user->getFirstName(),
                 $this->user->getLastName(),
                 $this->user->getEmail(),
-                $userAttributes
+                $userAttributes,
+                $brandsAttributesKeys
             );
         } catch (Exception $exception) {
             $this->failed($exception);

@@ -193,6 +193,7 @@ class SyncExistingHelpScout extends Command
         $attempt = 1;
 
         $userAttributes = $this->helpScoutSyncService->getUsersAttributes($user);
+        $brandsAttributesKeys = $this->helpScoutSyncService->getBrandsMembershipAttributesKeys();
 
         while ($attempt <= self::RETRY_ATTEMPTS) {
             try {
@@ -203,6 +204,7 @@ class SyncExistingHelpScout extends Command
                     $user->getLastName(),
                     $user->getEmail(),
                     $userAttributes,
+                    $brandsAttributesKeys,
                     $customer
                 );
 

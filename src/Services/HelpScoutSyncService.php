@@ -307,4 +307,29 @@ class HelpScoutSyncService
 
         return $attributes;
     }
+
+    /**
+     * @return array
+     */
+    public function getBrandsMembershipAttributesKeys(): array
+    {
+        $brands = config('event-data-synchronizer.help_scout_sync_brands', []);
+
+        $attributesKeys = [];
+
+        foreach ($brands as $brand) {
+            $attributesKeys += [
+                $brand . '_membership_details' => true,
+                $brand . '_membership_renewal-date' => true,
+                $brand . '_retention_failed-billing_membership-renewal-attempts' => true,
+                $brand . '_membership_cancellation-date' => true,
+                $brand . '_membership_cancellation-reason' => true,
+                $brand . '_membership_latest-start-date' => true,
+                $brand . '_membership_first-start-date' => true,
+                $brand . '_membership_source_app-store' => true,
+            ];
+        }
+
+        return $attributesKeys;
+    }
 }
