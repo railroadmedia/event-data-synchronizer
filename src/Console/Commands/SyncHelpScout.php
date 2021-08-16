@@ -202,7 +202,9 @@ class SyncHelpScout extends Command
 
                 return;
             } catch (Exception $ex) {
-                throw $ex;
+
+                error_log($ex);
+                return;
             }
         }
     }
