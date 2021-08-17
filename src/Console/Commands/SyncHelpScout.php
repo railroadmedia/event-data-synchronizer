@@ -96,7 +96,7 @@ class SyncHelpScout extends Command
             ->orderBy('id', 'asc')
             ->chunk(
                 25,
-                function (Collection $userRows) use (&$done, $total, $railhelpscoutConnection) {
+                function (Collection $userRows) use (&$done, $total, $railhelpscoutConnection, $usoraConnection) {
 
                     $existingCustomersMap =
                         $railhelpscoutConnection->table('helpscout_customers')
@@ -124,7 +124,8 @@ class SyncHelpScout extends Command
                                 $userData->country,
                                 $userData->city,
                                 $userData->phone_number,
-                                $userData->timezone
+                                $userData->timezone,
+                                [$railhelpscoutConnection, $usoraConnection]
                             );
                         }
 
@@ -153,7 +154,8 @@ class SyncHelpScout extends Command
         $country,
         $city,
         $phoneNumber,
-        $timezone
+        $timezone,
+        $databaseConnections
     ) {
 
         $attempt = 1;
@@ -193,6 +195,13 @@ class SyncHelpScout extends Command
 
                 sleep(self::SLEEP_DELAY);
                 $attempt++;
+
+                foreach($databaseConnections as $connection) {
+                    if (is_null($connection->getPdo())) {
+                        $connection->reconnect();
+                        $this->info('reconnecting db connection');
+                    }
+                }
 
             } catch (ConflictException $conflictException) {
                 $this->error(
