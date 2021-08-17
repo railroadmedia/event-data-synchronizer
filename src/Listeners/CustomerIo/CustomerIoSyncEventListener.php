@@ -445,10 +445,8 @@ class CustomerIoSyncEventListener
 
         try {
             $comment = $this->commentRepository->getById($commentLiked->commentId);
-            $content = $this->contentRepository->getById($commentLiked->commentId);
-            $user = $this->userRepository->getById($commentLiked->userId);
-
-            dd($content);
+            $content = $this->contentRepository->getById($comment['content_id']);
+            $user = $this->userRepository->find($commentLiked->userId);
 
             if (!empty($comment) &&
                 !empty($content) &&
@@ -458,9 +456,11 @@ class CustomerIoSyncEventListener
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
                         $content['brand'],
-                        $content['brand'].'_action_lesson_comment',
+                        $content['brand'].'_action_lesson_comment-like',
                         [
-                            'membership_rate' => $subscriptionRenewed->getSubscription()->getTotalPrice(),
+                            'content_id' => $content['id'],
+                            'content_slug' => $content['slug'],
+                            'content_type' => $content['type'],
                         ],
                         null,
                         Carbon::now()->timestamp
@@ -476,9 +476,43 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param  CommentCreated  $commentCreated
+     * @param  CommentCreated $commentCreated
      */
     public function handleCommentCreated(CommentCreated $commentCreated)
     {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $comment = $this->commentRepository->getById($commentCreated->commentId);
+            $content = $this->contentRepository->getById($comment['content_id']);
+            $user = $this->userRepository->find($commentCreated->userId);
+
+            if (!empty($comment) &&
+                !empty($content) &&
+                !empty($user)) {
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_lesson_comment',
+                        [
+                            'content_id' => $content['id'],
+                            'content_slug' => $content['slug'],
+                            'content_type' => $content['type'],
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection('sync')
+                        ->onQueue('customer_io')
+                );
+
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 }
