@@ -20,8 +20,16 @@ use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Repositories\CommentRepository;
 use Railroad\Railcontent\Repositories\ContentRepository;
+use Railroad\Railcontent\Services\ContentService;
+use Railroad\Railforums\Events\PostCreated;
+use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Railforums\Repositories\CategoryRepository;
+use Railroad\Railforums\Repositories\PostRepository;
+use Railroad\Railforums\Repositories\ThreadRepository;
+use Railroad\Railforums\Services\ConfigService;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -41,11 +49,27 @@ class CustomerIoSyncEventListener
     private $commentRepository;
 
     /**
-     * @var ContentRepository
+     * @var ThreadRepository
      */
-    private $contentRepository;
+    private $threadRepository;
+
+    /**
+     * @var PostRepository
+     */
+    private $postRepository;
+
+    /**
+     * @var CategoryRepository
+     */
+    private $categoryRepository;
+
+    /**
+     * @var ContentService
+     */
+    private $contentService;
 
     private $queueConnectionName = 'database';
+
     private $queueName = 'customer_io';
 
     /**
@@ -61,18 +85,28 @@ class CustomerIoSyncEventListener
      * CustomerIoSyncEventListener constructor.
      *
      * @param  UserRepository  $userRepository
+     * @param  CommentRepository  $commentRepository
+     * @param  CategoryRepository  $categoryRepository
+     * @param  ThreadRepository  $threadRepository
+     * @param  PostRepository  $postRepository
      */
     public function __construct(
         UserRepository $userRepository,
         CommentRepository $commentRepository,
-        ContentRepository $contentRepository
+        CategoryRepository $categoryRepository,
+        ThreadRepository $threadRepository,
+        PostRepository $postRepository,
+        ContentService $contentService
     ) {
         $this->userRepository = $userRepository;
 
         $this->queueConnectionName = config('event-data-synchronizer.customer_io_queue_connection_name', 'database');
         $this->queueName = config('event-data-synchronizer.customer_io_queue_name', 'customer_io');
         $this->commentRepository = $commentRepository;
-        $this->contentRepository = $contentRepository;
+        $this->categoryRepository = $categoryRepository;
+        $this->threadRepository = $threadRepository;
+        $this->postRepository = $postRepository;
+        $this->contentService = $contentService;
     }
 
     /**
@@ -445,13 +479,12 @@ class CustomerIoSyncEventListener
 
         try {
             $comment = $this->commentRepository->getById($commentLiked->commentId);
-            $content = $this->contentRepository->getById($comment['content_id']);
+            $content = $this->contentService->getById($comment['content_id']);
             $user = $this->userRepository->find($commentLiked->userId);
 
             if (!empty($comment) &&
                 !empty($content) &&
                 !empty($user)) {
-
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
@@ -459,7 +492,7 @@ class CustomerIoSyncEventListener
                         $content['brand'].'_action_lesson_comment-like',
                         [
                             'content_id' => $content['id'],
-                            'content_slug' => $content['slug'],
+                            'content_name' => $content->fetch('fields.title'),
                             'content_type' => $content['type'],
                         ],
                         null,
@@ -468,7 +501,6 @@ class CustomerIoSyncEventListener
                         ->onConnection('sync')
                         ->onQueue('customer_io')
                 );
-
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -476,7 +508,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param  CommentCreated $commentCreated
+     * @param  CommentCreated  $commentCreated
      */
     public function handleCommentCreated(CommentCreated $commentCreated)
     {
@@ -486,13 +518,12 @@ class CustomerIoSyncEventListener
 
         try {
             $comment = $this->commentRepository->getById($commentCreated->commentId);
-            $content = $this->contentRepository->getById($comment['content_id']);
+            $content = $this->contentService->getById($comment['content_id']);
             $user = $this->userRepository->find($commentCreated->userId);
 
             if (!empty($comment) &&
                 !empty($content) &&
                 !empty($user)) {
-
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
@@ -500,7 +531,7 @@ class CustomerIoSyncEventListener
                         $content['brand'].'_action_lesson_comment',
                         [
                             'content_id' => $content['id'],
-                            'content_slug' => $content['slug'],
+                            'content_name' => $content->fetch('fields.title'),
                             'content_type' => $content['type'],
                         ],
                         null,
@@ -509,10 +540,100 @@ class CustomerIoSyncEventListener
                         ->onConnection('sync')
                         ->onQueue('customer_io')
                 );
-
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
+    }
+
+    /**
+     * @param  ThreadCreated  $threadCreated
+     */
+    public function handleForumsThreadCreated(ThreadCreated $threadCreated)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $thread = $this->threadRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableThreads.'.id', $threadCreated->getThreadId())
+                ->first();
+            $category = $this->categoryRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
+                ->first();
+            $user = $this->userRepository->find($threadCreated->getUserId());
+
+            if (!empty($thread) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $category['brand'],
+                        $category['brand'].'_action_forum_create-thread',
+                        [],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection('sync')
+                        ->onQueue('customer_io')
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  PostCreated  $postCreated
+     */
+    public function handleForumsPostCreated(PostCreated $postCreated)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $post = $this->postRepository->getDecoratedQuery()
+                ->where(ConfigService::$tablePosts.'.id', $postCreated->getPostId())
+                ->first();
+            $thread = $this->threadRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableThreads.'.id', $post['thread_id'])
+                ->first();
+            $category = $this->categoryRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
+                ->first();
+            $user = $this->userRepository->find($post['author_id']);
+
+            if (!empty($thread) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $category['brand'],
+                        $category['brand'].'_action_forum_comment',
+                        [],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection('sync')
+                        ->onQueue('customer_io')
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+
+    /**
+     * @param  UserContentProgressSaved  $userContentProgressSaved
+     */
+    public function handleUserContentProgressSaved(UserContentProgressSaved $userContentProgressSaved)
+    {
+        if (self::$disable) return;
+
+        $content = $this->contentService->getById($userContentProgressSaved->contentId);
+
     }
 }
