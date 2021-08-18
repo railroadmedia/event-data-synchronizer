@@ -21,6 +21,7 @@ use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUse
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScout;
+use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScoutAsync;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
@@ -130,6 +131,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncHelpScout::class,
                 SyncExistingHelpScout::class,
                 HelpScoutIndex::class,
+                SyncHelpScoutAsync::class,
             ]
         );
 

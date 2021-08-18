@@ -125,7 +125,8 @@ class SyncHelpScout extends Command
                                 $userData->city,
                                 $userData->phone_number,
                                 $userData->timezone,
-                                [$railhelpscoutConnection, $usoraConnection]
+                                $railhelpscoutConnection,
+                                $usoraConnection
                             );
                         }
 
@@ -155,7 +156,8 @@ class SyncHelpScout extends Command
         $city,
         $phoneNumber,
         $timezone,
-        $databaseConnections
+        $railhelpscoutConnection,
+        $usoraConnection
     ) {
 
         $attempt = 1;
@@ -193,15 +195,9 @@ class SyncHelpScout extends Command
                     . ', sleeping for ' . self::SLEEP_DELAY . ' seconds'
                 );
 
-                sleep(self::SLEEP_DELAY);
-                $attempt++;
+                $this->pause($railhelpscoutConnection, $usoraConnection);
 
-                foreach($databaseConnections as $connection) {
-                    if (is_null($connection->getPdo())) {
-                        $connection->reconnect();
-                        $this->info('reconnecting db connection');
-                    }
-                }
+                $attempt++;
 
             } catch (ConflictException $conflictException) {
                 $this->error(
@@ -215,6 +211,42 @@ class SyncHelpScout extends Command
                 error_log($ex);
                 return;
             }
+        }
+    }
+
+    protected function pause(
+        $railhelpscoutConnection,
+        $usoraConnection
+    ) {
+        $sleepDelayPerCycle = 10;
+        $cycles = 60;
+
+        while ($cycles >= 0) {
+
+            sleep($sleepDelayPerCycle);
+
+            if ($this->ecommerceEntityManager->getConnection()->ping() === false) {
+                $this->ecommerceEntityManager->getConnection()->close();
+                $this->ecommerceEntityManager->getConnection()->connect();
+            }
+
+            if (is_null($railhelpscoutConnection->getPdo())) {
+                $railhelpscoutConnection->reconnect();
+                $this->info('reconnecting railhelpscoutConnection db connection');
+            }
+
+            $railhelpscoutConnection->table('helpscout_customers')
+                ->first();
+
+            if (is_null($usoraConnection->getPdo())) {
+                $usoraConnection->reconnect();
+                $this->info('reconnecting usoraConnection db connection');
+            }
+
+            $usoraConnection->table('usora_users')
+                ->first();
+
+            $cycles--;
         }
     }
 }
