@@ -22,7 +22,6 @@ use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Repositories\CommentRepository;
-use Railroad\Railcontent\Repositories\ContentRepository;
 use Railroad\Railcontent\Services\ContentService;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
@@ -631,9 +630,63 @@ class CustomerIoSyncEventListener
      */
     public function handleUserContentProgressSaved(UserContentProgressSaved $userContentProgressSaved)
     {
-        if (self::$disable) return;
+        if (self::$disable) {
+            return;
+        }
 
-        $content = $this->contentService->getById($userContentProgressSaved->contentId);
+        try {
+            $content = $this->contentService->getById($userContentProgressSaved->contentId);
+            $user = $this->userRepository->find($userContentProgressSaved->userId);
 
+            if (!empty($content) &&
+                !empty($user)) {
+                // map the content type to the event string
+                $contentTypeToEventStringMap =
+                    config('event-data-synchronizer.helpscout_content_type_to_event_string_map', []);
+
+                if (!empty($contentTypeToEventStringMap[$content['type']])) {
+                    dispatch(
+                        (new CustomerIoCreateEventByUserId(
+                            $user->getId(),
+                            $content['brand'],
+                            $content['brand'].'_action_'.$contentTypeToEventStringMap[$content['type']].
+                            '_'.$userContentProgressSaved->progressStatus,
+                            [
+                                'content_id' => $content['id'],
+                                'content_name' => $content->fetch('fields.title'),
+                                'content_type' => $content['type'],
+                            ],
+                            null,
+                            Carbon::now()->timestamp
+                        ))
+                            ->onConnection('sync')
+                            ->onQueue('customer_io')
+                    );
+                }
+
+                // if has a video attached, also trigger the generic lesson event
+                if (!empty($content->fetch('*fields.video'))) {
+                    dispatch(
+                        (new CustomerIoCreateEventByUserId(
+                            $user->getId(),
+                            $content['brand'],
+                            $content['brand'].'_action_lesson'.'_'.$userContentProgressSaved->progressStatus,
+                            [
+                                'content_id' => $content['id'],
+                                'content_name' => $content->fetch('fields.title'),
+                                'content_type' => $content['type'],
+                            ],
+                            null,
+                            Carbon::now()->timestamp
+                        ))
+                            ->onConnection('sync')
+                            ->onQueue('customer_io')
+                    );
+                }
+
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 }
