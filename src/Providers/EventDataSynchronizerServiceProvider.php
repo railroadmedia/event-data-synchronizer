@@ -6,6 +6,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\OrderEvent;
+use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -30,6 +31,11 @@ use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionL
 use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
 use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
+use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\UserContentProgressSaved;
+use Railroad\Railforums\Events\PostCreated;
+use Railroad\Railforums\Events\ThreadCreated;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 
@@ -102,7 +108,12 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             IntercomSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
         ],
-        OrderEvent::class => [],
+        OrderEvent::class => [
+            CustomerIoSyncEventListener::class . '@handleOrderPlaced',
+        ],
+        PaymentEvent::class => [
+            CustomerIoSyncEventListener::class . '@handlePaymentPaid',
+        ],
         AppSignupStartedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
             IntercomSyncEventListener::class . '@handleAppSignupStarted',
@@ -110,6 +121,21 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         AppSignupFinishedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
             IntercomSyncEventListener::class . '@handleAppSignupFinished',
+        ],
+        CommentLiked::class => [
+            CustomerIoSyncEventListener::class . '@handleCommentLiked',
+        ],
+        CommentCreated::class => [
+            CustomerIoSyncEventListener::class . '@handleCommentCreated',
+        ],
+        ThreadCreated::class => [
+            CustomerIoSyncEventListener::class . '@handleForumsThreadCreated',
+        ],
+        PostCreated::class => [
+            CustomerIoSyncEventListener::class . '@handleForumsPostCreated',
+        ],
+        UserContentProgressSaved::class => [
+            CustomerIoSyncEventListener::class . '@handleUserContentProgressSaved',
         ],
         LiveStreamEventAttended::class => [
             CustomerIoSyncEventListener::class . '@handleLiveLessonAttended',

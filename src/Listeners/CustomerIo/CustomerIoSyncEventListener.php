@@ -3,9 +3,12 @@
 namespace Railroad\EventDataSynchronizer\Listeners\CustomerIo;
 
 use Carbon\Carbon;
+use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\User as EcommerceUser;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
+use Railroad\Ecommerce\Events\OrderEvent;
+use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -697,6 +700,10 @@ class CustomerIoSyncEventListener
                             ->delay(Carbon::now()->addSeconds(3))
                     );
                 }
+
+                // if its method content, also trigger the relevant method event
+                if (in_array($content['type'], ['learning-path', 'learning-path-level', 'learning-path-lesson'])) {
+                }
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -736,6 +743,110 @@ class CustomerIoSyncEventListener
                         ->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
                         ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  OrderEvent  $orderEvent
+     */
+    public function handleOrderPlaced(OrderEvent $orderEvent)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            if (!empty($orderEvent->getOrder()) &&
+                !empty($orderEvent->getPayment()) &&
+                !empty($orderEvent->getOrder()->getUser())) {
+                $productIds = [];
+
+                foreach ($orderEvent->getOrder()->getOrderItems() as $orderItem) {
+                    $productIds[] = $orderItem->getProduct()->getId();
+                }
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $orderEvent->getPayment()->getTotalPaid(),
+                    'amount_due' => $orderEvent->getOrder()->getTotalDue(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $orderEvent->getOrder()->getUser()->getId(),
+                        $orderEvent->getOrder()->getBrand(),
+                        $orderEvent->getOrder()->getBrand().'_user_order',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(30))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  PaymentEvent  $paymentEvent
+     */
+    public function handlePaymentPaid(PaymentEvent $paymentEvent)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            if (!empty($paymentEvent->getPayment()) &&
+                !empty($paymentEvent->getUser()) &&
+                $paymentEvent->getPayment()->getTotalPaid() == $paymentEvent->getPayment()->getTotalDue() &&
+                $paymentEvent->getPayment()->getTotalRefunded() == 0) {
+
+                $order = $paymentEvent->getPayment()->getOrder();
+                $subscription = $paymentEvent->getPayment()->getSubscription();
+
+                $productIds = [];
+
+                if (!empty($order)) { // order inital payment
+                    foreach ($order->getOrderItems() as $orderItem) {
+                        $productIds[] = $orderItem->getProduct()->getId();
+                    }
+                } elseif (!empty($subscription) && !empty($subscription->getProduct())) { // membership renewal payment
+                    $productIds[] = $subscription->getProduct()->getId();
+                } elseif (!empty($subscription) && // payment plan renewal payment
+                    empty($subscription->getProduct()) &&
+                    !empty($subscription->getOrder()) &&
+                    $subscription->getType() == Subscription::TYPE_PAYMENT_PLAN) {
+                    foreach ($subscription->getOrder()->getOrderItems() as $orderItem) {
+                        $productIds[] = $orderItem->getProduct()->getId();
+                    }
+                }
+
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $paymentEvent->getPayment()->getTotalPaid(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $paymentEvent->getUser()->getId(),
+                        $paymentEvent->getPayment()->getGatewayName(),
+                        $paymentEvent->getPayment()->getGatewayName().'_user_payment',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(30))
                 );
             }
         } catch (Throwable $throwable) {
