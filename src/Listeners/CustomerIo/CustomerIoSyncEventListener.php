@@ -15,6 +15,7 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
@@ -441,8 +442,9 @@ class CustomerIoSyncEventListener
                         null,
                         Carbon::now()->timestamp
                     ))
-                        ->onConnection('sync')
-                        ->onQueue('customer_io')
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
             }
         } catch (Throwable $throwable) {
@@ -497,8 +499,9 @@ class CustomerIoSyncEventListener
                         null,
                         Carbon::now()->timestamp
                     ))
-                        ->onConnection('sync')
-                        ->onQueue('customer_io')
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
             }
         } catch (Throwable $throwable) {
@@ -536,8 +539,9 @@ class CustomerIoSyncEventListener
                         null,
                         Carbon::now()->timestamp
                     ))
-                        ->onConnection('sync')
-                        ->onQueue('customer_io')
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
             }
         } catch (Throwable $throwable) {
@@ -574,8 +578,9 @@ class CustomerIoSyncEventListener
                         null,
                         Carbon::now()->timestamp
                     ))
-                        ->onConnection('sync')
-                        ->onQueue('customer_io')
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
             }
         } catch (Throwable $throwable) {
@@ -615,8 +620,9 @@ class CustomerIoSyncEventListener
                         null,
                         Carbon::now()->timestamp
                     ))
-                        ->onConnection('sync')
-                        ->onQueue('customer_io')
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
                 );
             }
         } catch (Throwable $throwable) {
@@ -645,22 +651,33 @@ class CustomerIoSyncEventListener
                     config('event-data-synchronizer.helpscout_content_type_to_event_string_map', []);
 
                 if (!empty($contentTypeToEventStringMap[$content['type']])) {
+                    $data = [
+                        'content_id' => $content['id'],
+                        'content_name' => $content->fetch('fields.title'),
+                        'content_type' => $content['type'],
+                    ];
+
+                    // if its a song, attach extra data
+                    if ($content['type'] == 'song') {
+                        $data['song_name'] = $content->fetch('fields.title');
+                        $data['song_artist'] = $content->fetch('fields.artist');
+                        $data['song_album'] = $content->fetch('fields.album');
+                        $data['song_difficulty'] = $content->fetch('fields.difficulty');
+                    }
+
                     dispatch(
                         (new CustomerIoCreateEventByUserId(
                             $user->getId(),
                             $content['brand'],
                             $content['brand'].'_action_'.$contentTypeToEventStringMap[$content['type']].
                             '_'.$userContentProgressSaved->progressStatus,
-                            [
-                                'content_id' => $content['id'],
-                                'content_name' => $content->fetch('fields.title'),
-                                'content_type' => $content['type'],
-                            ],
+                            $data,
                             null,
                             Carbon::now()->timestamp
                         ))
-                            ->onConnection('sync')
-                            ->onQueue('customer_io')
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
                     );
                 }
 
@@ -671,19 +688,55 @@ class CustomerIoSyncEventListener
                             $user->getId(),
                             $content['brand'],
                             $content['brand'].'_action_lesson'.'_'.$userContentProgressSaved->progressStatus,
-                            [
-                                'content_id' => $content['id'],
-                                'content_name' => $content->fetch('fields.title'),
-                                'content_type' => $content['type'],
-                            ],
+                            $data,
                             null,
                             Carbon::now()->timestamp
                         ))
-                            ->onConnection('sync')
-                            ->onQueue('customer_io')
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
                     );
                 }
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
 
+    /**
+     * @param  LiveStreamEventAttended  $liveStreamEventAttended
+     */
+    public function handleLiveLessonAttended(LiveStreamEventAttended $liveStreamEventAttended)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $content = $this->contentService->getById($liveStreamEventAttended->getContentId());
+            $user = $this->userRepository->find($liveStreamEventAttended->getUserId());
+
+            if (!empty($content) &&
+                !empty($user)) {
+                $data = [
+                    'content_id' => $content['id'],
+                    'content_name' => $content->fetch('fields.title'),
+                    'content_type' => $content['type'],
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_live-stream-event-attended',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
             }
         } catch (Throwable $throwable) {
             error_log($throwable);

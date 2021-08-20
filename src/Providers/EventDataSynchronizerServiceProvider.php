@@ -22,6 +22,7 @@ use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUser
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
+use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
@@ -109,6 +110,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         AppSignupFinishedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
             IntercomSyncEventListener::class . '@handleAppSignupFinished',
+        ],
+        LiveStreamEventAttended::class => [
+            CustomerIoSyncEventListener::class . '@handleLiveLessonAttended',
         ],
     ];
 
