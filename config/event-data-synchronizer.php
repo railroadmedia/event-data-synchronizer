@@ -93,6 +93,10 @@ return [
         ],
     ],
 
+    'customer_io_pack_sku_to_purchase_event_name' => [
+        'pack-sku' => 'event_name'
+    ],
+
     // intercom
     'intercom_tag_name_to_product_skus' => [
         'tag_name' => ['PRODUCT-SKU1', 'PRODUCT-SKU2'],

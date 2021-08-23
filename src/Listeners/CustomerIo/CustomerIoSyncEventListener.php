@@ -788,6 +788,34 @@ class CustomerIoSyncEventListener
                         ->onQueue($this->queueName)
                         ->delay(Carbon::now()->addSeconds(30))
                 );
+
+                // trigger pack specific events
+                $skuToEventNameMap = config('event-data-synchronizer.customer_io_pack_sku_to_purchase_event_name', []);
+
+
+                foreach ($orderEvent->getOrder()->getOrderItems() as $orderItem) {
+                    if (array_key_exists(
+                        $orderItem->getProduct()->getSku(),
+                        $skuToEventNameMap
+                    )) {
+                        dispatch(
+                            (new CustomerIoCreateEventByUserId(
+                                $orderEvent->getOrder()->getUser()->getId(),
+                                $orderEvent->getOrder()->getBrand(),
+                                $orderEvent->getOrder()->getBrand().'_pack_'.
+                                $skuToEventNameMap[$orderItem->getProduct()->getSku()],
+                                [
+                                    'amount_paid' => $orderItem->getFinalPrice(),
+                                ],
+                                null,
+                                Carbon::now()->timestamp
+                            ))
+                                ->onConnection($this->queueConnectionName)
+                                ->onQueue($this->queueName)
+                                ->delay(Carbon::now()->addSeconds(30))
+                        );
+                    }
+                }
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -808,7 +836,6 @@ class CustomerIoSyncEventListener
                 !empty($paymentEvent->getUser()) &&
                 $paymentEvent->getPayment()->getTotalPaid() == $paymentEvent->getPayment()->getTotalDue() &&
                 $paymentEvent->getPayment()->getTotalRefunded() == 0) {
-
                 $order = $paymentEvent->getPayment()->getOrder();
                 $subscription = $paymentEvent->getPayment()->getSubscription();
 

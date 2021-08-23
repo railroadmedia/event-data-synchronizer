@@ -115,6 +115,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         PaymentEvent::class => [
             CustomerIoSyncEventListener::class . '@handlePaymentPaid',
         ],
+
         AppSignupStartedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
             IntercomSyncEventListener::class . '@handleAppSignupStarted',
