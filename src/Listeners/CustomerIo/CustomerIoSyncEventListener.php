@@ -651,7 +651,7 @@ class CustomerIoSyncEventListener
                 !empty($user)) {
                 // map the content type to the event string
                 $contentTypeToEventStringMap =
-                    config('event-data-synchronizer.helpscout_content_type_to_event_string_map', []);
+                    config('event-data-synchronizer.customer_io_content_type_to_event_string_map', []);
 
                 if (!empty($contentTypeToEventStringMap[$content['type']])) {
                     $data = [

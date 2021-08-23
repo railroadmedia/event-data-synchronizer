@@ -16,7 +16,43 @@ return [
     'helpscout_queue_connection_name' => 'database',
     'helpscout_queue_name' => 'helpscout',
 
-    'helpscout_content_type_to_event_string_map' => [
+    // customer.io
+    // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
+    'customer_io_queue_connection_name' => 'database',
+    'customer_io_queue_name' => 'customer-io',
+
+    'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
+
+    // all brands will always be synced to this workspace regardless of their products or interaction
+    'customer_io_account_to_sync_all_brands' => 'musora',
+
+    // only the brands set for a given customer.io account will have their info synced
+    // see customer-io.php accounts config value
+    'customer_io_account_name_brands_to_sync' => [
+        'account_1' => ['drumeo', 'pianote'],
+        'account_2' => ['musora'],
+        'account_3' => ['another_brand'],
+    ],
+
+    // pack ownership syncing, all packs should be listed here that will go in the pack ownership attribute
+    'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
+
+    // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
+    'customer_io_trial_product_sku_to_type' => [
+        'brand' => [
+            'sku' => 'intercom_trial_type',
+            'DLM-Trial-30-Day' => '1_month_free',
+
+            // confusing name, we changed this product to 7 days free but did not update the sku
+            'DLM-Trial-1-month' => '7_days_free',
+        ],
+    ],
+
+    'customer_io_pack_sku_to_purchase_event_name' => [
+        'pack-sku' => 'event_name'
+    ],
+
+    'customer_io_content_type_to_event_string_map' => [
         'course' => 'course',
         'learning-path' => 'learning-path',
         'learning-path-course' => 'learning-path_course',
@@ -59,42 +95,6 @@ return [
         'student-review' => 'show',
         'study-the-greats' => 'show',
         'tama-drums' => 'show',
-    ],
-
-    // customer.io
-    // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
-    'customer_io_queue_connection_name' => 'database',
-    'customer_io_queue_name' => 'customer-io',
-
-    'customer_io_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
-
-    // all brands will always be synced to this workspace regardless of their products or interaction
-    'customer_io_account_to_sync_all_brands' => 'musora',
-
-    // only the brands set for a given customer.io account will have their info synced
-    // see customer-io.php accounts config value
-    'customer_io_account_name_brands_to_sync' => [
-        'account_1' => ['drumeo', 'pianote'],
-        'account_2' => ['musora'],
-        'account_3' => ['another_brand'],
-    ],
-
-    // pack ownership syncing, all packs should be listed here that will go in the pack ownership attribute
-    'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
-
-    // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
-    'customer_io_trial_product_sku_to_type' => [
-        'brand' => [
-            'sku' => 'intercom_trial_type',
-            'DLM-Trial-30-Day' => '1_month_free',
-
-            // confusing name, we changed this product to 7 days free but did not update the sku
-            'DLM-Trial-1-month' => '7_days_free',
-        ],
-    ],
-
-    'customer_io_pack_sku_to_purchase_event_name' => [
-        'pack-sku' => 'event_name'
     ],
 
     // intercom
