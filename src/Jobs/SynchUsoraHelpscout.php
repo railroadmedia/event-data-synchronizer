@@ -2,12 +2,14 @@
 
 namespace Railroad\EventDataSynchronizer\Jobs;
 
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Collection;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\HelpScoutSyncService;
 use Railroad\RailHelpScout\Services\RailHelpScoutService;
@@ -51,6 +53,10 @@ class SynchUsoraHelpscout implements ShouldQueue
         $usoraConnection = $databaseManager->connection(config('usora.database_connection_name'));
         $railhelpscoutConnection = $databaseManager->connection(config('railhelpscout.database_connection_name'));
 
+        $processed = 0;
+
+        echo 'starting processing users, starting id >= ' . $this->userId . "\n";
+
         $usoraConnection->table('usora_users')
             ->orderBy('id', 'asc')
             ->where('id', '>=', $this->userId)
@@ -77,6 +83,8 @@ class SynchUsoraHelpscout implements ShouldQueue
                             })
                             ->toArray();
 
+                    $result = null;
+
                     foreach ($userRows as $userData) {
 
                         if (!isset($existingCustomersMap[$userData->id])) {
@@ -100,6 +108,9 @@ class SynchUsoraHelpscout implements ShouldQueue
                                     $userData->email,
                                     $userAttributes
                                 );
+
+                                echo 'Sync successful for user id ' . $userData->id . ', email ' . $userData->email . "\n";
+
                             } catch (RateLimitExceededException $rateException) {
 
                                 dispatch(
@@ -109,10 +120,20 @@ class SynchUsoraHelpscout implements ShouldQueue
                                         ->delay(Carbon::now()->addSeconds(self::DELAY_SECONDS))
                                 );
 
+                                echo 'Dispatched delayed sync to start with user id ' . $userData->id . ', email ' . $userData->email . "\n";
+
+                                $result = false; // stop processing further chunks
+                                break; // stop processing current chunk
+
                             } catch (ConflictException $conflictException) {
-                                // display exception data
+
+                                echo 'ConflictException raised, user with usora id: ' . $userData->id . ' and email: ' . $userData->email
+                                    . " already has a helpscout customer entry\n";
+
                             } catch (Exception $ex) {
-                                // display exception data
+
+                                echo 'Exception while trying to sync user id ' . $userData->id . ', email ' . $userData->email . "\n";
+                                print_r($ex);
                             }
                         }
                     }
@@ -120,6 +141,8 @@ class SynchUsoraHelpscout implements ShouldQueue
                     $ecommerceEntityManager->flush();
                     $ecommerceEntityManager->clear();
                     $ecommerceEntityManager->getConnection()->ping();
+
+                    return $result;
                 }
             );
     }
