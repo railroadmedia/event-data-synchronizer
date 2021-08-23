@@ -686,6 +686,12 @@ class CustomerIoSyncEventListener
 
                 // if has a video attached, also trigger the generic lesson event
                 if (!empty($content->fetch('*fields.video'))) {
+                    $data = [
+                        'content_id' => $content['id'],
+                        'content_name' => $content->fetch('fields.title'),
+                        'content_type' => $content['type'],
+                    ];
+
                     dispatch(
                         (new CustomerIoCreateEventByUserId(
                             $user->getId(),
