@@ -16,6 +16,51 @@ return [
     'helpscout_queue_connection_name' => 'database',
     'helpscout_queue_name' => 'helpscout',
 
+    'helpscout_content_type_to_event_string_map' => [
+        'course' => 'course',
+        'learning-path' => 'learning-path',
+        'learning-path-course' => 'learning-path_course',
+        'learning-path-lesson' => 'learning-path_lesson',
+        'unit' => 'learning-path',
+        'play-along' => 'play-along',
+        'song' => 'song',
+        'pack' => 'pack',
+        'semester-pack' => 'pack',
+        'semester-pack-lesson' => 'pack',
+        'pack-bundle-lesson' => 'pack-bundle-lesson',
+        'coach-stream' => 'coach_lesson',
+        'rudiment' => 'rudiment',
+        'show' => 'show',
+        '25-days-of-christmas' => 'show',
+        'behind-the-scenes' => 'show',
+        'boot-camps' => 'show',
+        'camp-drumeo-ah' => 'show',
+        'challenges' => 'show',
+        'diy-drum-experiments' => 'show',
+        'exploring-beats' => 'show',
+        'gear-guides' => 'show',
+        'ha-oemurd-pmac' => 'show',
+        'in-rhythm' => 'show',
+        'live' => 'show',
+        'namm-2019' => 'show',
+        'on-the-road' => 'show',
+        'paiste-cymbals' => 'show',
+        'performances' => 'show',
+        'podcasts' => 'show',
+        'question-and-answer' => 'show',
+        'quick-tips' => 'show',
+        'recording' => 'show',
+        'rhythmic-adventures-of-captain-carson' => 'show',
+        'rhythms-from-another-planet' => 'show',
+        'solos' => 'show',
+        'sonor-drums' => 'show',
+        'student-collaborations' => 'show',
+        'student-focus' => 'show',
+        'student-review' => 'show',
+        'study-the-greats' => 'show',
+        'tama-drums' => 'show',
+    ],
+
     // customer.io
     // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
     'customer_io_queue_connection_name' => 'database',
@@ -46,6 +91,10 @@ return [
             // confusing name, we changed this product to 7 days free but did not update the sku
             'DLM-Trial-1-month' => '7_days_free',
         ],
+    ],
+
+    'customer_io_pack_sku_to_purchase_event_name' => [
+        'pack-sku' => 'event_name'
     ],
 
     // intercom

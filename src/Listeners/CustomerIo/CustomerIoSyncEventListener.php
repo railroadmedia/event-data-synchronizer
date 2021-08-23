@@ -3,9 +3,12 @@
 namespace Railroad\EventDataSynchronizer\Listeners\CustomerIo;
 
 use Carbon\Carbon;
+use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\User as EcommerceUser;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
+use Railroad\Ecommerce\Events\OrderEvent;
+use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
@@ -15,8 +18,21 @@ use Railroad\Ecommerce\Events\Subscriptions\SubscriptionUpdated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
+use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
+use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\UserContentProgressSaved;
+use Railroad\Railcontent\Repositories\CommentRepository;
+use Railroad\Railcontent\Services\ContentService;
+use Railroad\Railforums\Events\PostCreated;
+use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Railforums\Repositories\CategoryRepository;
+use Railroad\Railforums\Repositories\PostRepository;
+use Railroad\Railforums\Repositories\ThreadRepository;
+use Railroad\Railforums\Services\ConfigService;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -29,6 +45,31 @@ class CustomerIoSyncEventListener
      * @var UserRepository
      */
     private $userRepository;
+
+    /**
+     * @var CommentRepository
+     */
+    private $commentRepository;
+
+    /**
+     * @var ThreadRepository
+     */
+    private $threadRepository;
+
+    /**
+     * @var PostRepository
+     */
+    private $postRepository;
+
+    /**
+     * @var CategoryRepository
+     */
+    private $categoryRepository;
+
+    /**
+     * @var ContentService
+     */
+    private $contentService;
 
     private $queueConnectionName = 'database';
 
@@ -47,13 +88,28 @@ class CustomerIoSyncEventListener
      * CustomerIoSyncEventListener constructor.
      *
      * @param  UserRepository  $userRepository
+     * @param  CommentRepository  $commentRepository
+     * @param  CategoryRepository  $categoryRepository
+     * @param  ThreadRepository  $threadRepository
+     * @param  PostRepository  $postRepository
      */
-    public function __construct(UserRepository $userRepository)
-    {
+    public function __construct(
+        UserRepository $userRepository,
+        CommentRepository $commentRepository,
+        CategoryRepository $categoryRepository,
+        ThreadRepository $threadRepository,
+        PostRepository $postRepository,
+        ContentService $contentService
+    ) {
         $this->userRepository = $userRepository;
 
         $this->queueConnectionName = config('event-data-synchronizer.customer_io_queue_connection_name', 'database');
         $this->queueName = config('event-data-synchronizer.customer_io_queue_name', 'customer_io');
+        $this->commentRepository = $commentRepository;
+        $this->categoryRepository = $categoryRepository;
+        $this->threadRepository = $threadRepository;
+        $this->postRepository = $postRepository;
+        $this->contentService = $contentService;
     }
 
     /**
@@ -378,8 +434,21 @@ class CustomerIoSyncEventListener
         try {
             if (!empty($subscriptionRenewed->getSubscription()) &&
                 !empty($subscriptionRenewed->getSubscription()->getUser())) {
-                // todo: sync event for this: brand_membership_renewed
-
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $subscriptionRenewed->getSubscription()->getUser()->getId(),
+                        $subscriptionRenewed->getSubscription()->getBrand(),
+                        $subscriptionRenewed->getSubscription()->getBrand().'_membership_renewed',
+                        [
+                            'membership_rate' => $subscriptionRenewed->getSubscription()->getTotalPrice(),
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
@@ -400,6 +469,415 @@ class CustomerIoSyncEventListener
             $subscriptionRenewFailed->getSubscription()->getStopped() == false &&
             $subscriptionRenewFailed->getSubscription()->getPaidUntil() < Carbon::now()) {
             // todo
+        }
+    }
+
+    /**
+     * @param  CommentLiked  $commentLiked
+     */
+    public function handleCommentLiked(CommentLiked $commentLiked)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $comment = $this->commentRepository->getById($commentLiked->commentId);
+            $content = $this->contentService->getById($comment['content_id']);
+            $user = $this->userRepository->find($commentLiked->userId);
+
+            if (!empty($comment) &&
+                !empty($content) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_lesson_comment-like',
+                        [
+                            'content_id' => $content['id'],
+                            'content_name' => $content->fetch('fields.title'),
+                            'content_type' => $content['type'],
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  CommentCreated  $commentCreated
+     */
+    public function handleCommentCreated(CommentCreated $commentCreated)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $comment = $this->commentRepository->getById($commentCreated->commentId);
+            $content = $this->contentService->getById($comment['content_id']);
+            $user = $this->userRepository->find($commentCreated->userId);
+
+            if (!empty($comment) &&
+                !empty($content) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_lesson_comment',
+                        [
+                            'content_id' => $content['id'],
+                            'content_name' => $content->fetch('fields.title'),
+                            'content_type' => $content['type'],
+                        ],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  ThreadCreated  $threadCreated
+     */
+    public function handleForumsThreadCreated(ThreadCreated $threadCreated)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $thread = $this->threadRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableThreads.'.id', $threadCreated->getThreadId())
+                ->first();
+            $category = $this->categoryRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
+                ->first();
+            $user = $this->userRepository->find($threadCreated->getUserId());
+
+            if (!empty($thread) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $category['brand'],
+                        $category['brand'].'_action_forum_create-thread',
+                        [],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  PostCreated  $postCreated
+     */
+    public function handleForumsPostCreated(PostCreated $postCreated)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $post = $this->postRepository->getDecoratedQuery()
+                ->where(ConfigService::$tablePosts.'.id', $postCreated->getPostId())
+                ->first();
+            $thread = $this->threadRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableThreads.'.id', $post['thread_id'])
+                ->first();
+            $category = $this->categoryRepository->getDecoratedQuery()
+                ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
+                ->first();
+            $user = $this->userRepository->find($post['author_id']);
+
+            if (!empty($thread) &&
+                !empty($user)) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $category['brand'],
+                        $category['brand'].'_action_forum_comment',
+                        [],
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+
+    /**
+     * @param  UserContentProgressSaved  $userContentProgressSaved
+     */
+    public function handleUserContentProgressSaved(UserContentProgressSaved $userContentProgressSaved)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $content = $this->contentService->getById($userContentProgressSaved->contentId);
+            $user = $this->userRepository->find($userContentProgressSaved->userId);
+
+            if (!empty($content) &&
+                !empty($user)) {
+                // map the content type to the event string
+                $contentTypeToEventStringMap =
+                    config('event-data-synchronizer.helpscout_content_type_to_event_string_map', []);
+
+                if (!empty($contentTypeToEventStringMap[$content['type']])) {
+                    $data = [
+                        'content_id' => $content['id'],
+                        'content_name' => $content->fetch('fields.title'),
+                        'content_type' => $content['type'],
+                    ];
+
+                    // if its a song, attach extra data
+                    if ($content['type'] == 'song') {
+                        $data['song_name'] = $content->fetch('fields.title');
+                        $data['song_artist'] = $content->fetch('fields.artist');
+                        $data['song_album'] = $content->fetch('fields.album');
+                        $data['song_difficulty'] = $content->fetch('fields.difficulty');
+                    }
+
+                    dispatch(
+                        (new CustomerIoCreateEventByUserId(
+                            $user->getId(),
+                            $content['brand'],
+                            $content['brand'].'_action_'.$contentTypeToEventStringMap[$content['type']].
+                            '_'.$userContentProgressSaved->progressStatus,
+                            $data,
+                            null,
+                            Carbon::now()->timestamp
+                        ))
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
+                    );
+                }
+
+                // if has a video attached, also trigger the generic lesson event
+                if (!empty($content->fetch('*fields.video'))) {
+                    dispatch(
+                        (new CustomerIoCreateEventByUserId(
+                            $user->getId(),
+                            $content['brand'],
+                            $content['brand'].'_action_lesson'.'_'.$userContentProgressSaved->progressStatus,
+                            $data,
+                            null,
+                            Carbon::now()->timestamp
+                        ))
+                            ->onConnection($this->queueConnectionName)
+                            ->onQueue($this->queueName)
+                            ->delay(Carbon::now()->addSeconds(3))
+                    );
+                }
+
+                // if its method content, also trigger the relevant method event
+                if (in_array($content['type'], ['learning-path', 'learning-path-level', 'learning-path-lesson'])) {
+                }
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  LiveStreamEventAttended  $liveStreamEventAttended
+     */
+    public function handleLiveLessonAttended(LiveStreamEventAttended $liveStreamEventAttended)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $content = $this->contentService->getById($liveStreamEventAttended->getContentId());
+            $user = $this->userRepository->find($liveStreamEventAttended->getUserId());
+
+            if (!empty($content) &&
+                !empty($user)) {
+                $data = [
+                    'content_id' => $content['id'],
+                    'content_name' => $content->fetch('fields.title'),
+                    'content_type' => $content['type'],
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $content['brand'],
+                        $content['brand'].'_action_live-stream-event-attended',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(3))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  OrderEvent  $orderEvent
+     */
+    public function handleOrderPlaced(OrderEvent $orderEvent)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            if (!empty($orderEvent->getOrder()) &&
+                !empty($orderEvent->getPayment()) &&
+                !empty($orderEvent->getOrder()->getUser())) {
+                $productIds = [];
+
+                foreach ($orderEvent->getOrder()->getOrderItems() as $orderItem) {
+                    $productIds[] = $orderItem->getProduct()->getId();
+                }
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $orderEvent->getPayment()->getTotalPaid(),
+                    'amount_due' => $orderEvent->getOrder()->getTotalDue(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $orderEvent->getOrder()->getUser()->getId(),
+                        $orderEvent->getOrder()->getBrand(),
+                        $orderEvent->getOrder()->getBrand().'_user_order',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(30))
+                );
+
+                // trigger pack specific events
+                $skuToEventNameMap = config('event-data-synchronizer.customer_io_pack_sku_to_purchase_event_name', []);
+
+
+                foreach ($orderEvent->getOrder()->getOrderItems() as $orderItem) {
+                    if (array_key_exists(
+                        $orderItem->getProduct()->getSku(),
+                        $skuToEventNameMap
+                    )) {
+                        dispatch(
+                            (new CustomerIoCreateEventByUserId(
+                                $orderEvent->getOrder()->getUser()->getId(),
+                                $orderEvent->getOrder()->getBrand(),
+                                $orderEvent->getOrder()->getBrand().'_pack_'.
+                                $skuToEventNameMap[$orderItem->getProduct()->getSku()],
+                                [
+                                    'amount_paid' => $orderItem->getFinalPrice(),
+                                ],
+                                null,
+                                Carbon::now()->timestamp
+                            ))
+                                ->onConnection($this->queueConnectionName)
+                                ->onQueue($this->queueName)
+                                ->delay(Carbon::now()->addSeconds(30))
+                        );
+                    }
+                }
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param  PaymentEvent  $paymentEvent
+     */
+    public function handlePaymentPaid(PaymentEvent $paymentEvent)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            if (!empty($paymentEvent->getPayment()) &&
+                !empty($paymentEvent->getUser()) &&
+                $paymentEvent->getPayment()->getTotalPaid() == $paymentEvent->getPayment()->getTotalDue() &&
+                $paymentEvent->getPayment()->getTotalRefunded() == 0) {
+                $order = $paymentEvent->getPayment()->getOrder();
+                $subscription = $paymentEvent->getPayment()->getSubscription();
+
+                $productIds = [];
+
+                if (!empty($order)) { // order inital payment
+                    foreach ($order->getOrderItems() as $orderItem) {
+                        $productIds[] = $orderItem->getProduct()->getId();
+                    }
+                } elseif (!empty($subscription) && !empty($subscription->getProduct())) { // membership renewal payment
+                    $productIds[] = $subscription->getProduct()->getId();
+                } elseif (!empty($subscription) && // payment plan renewal payment
+                    empty($subscription->getProduct()) &&
+                    !empty($subscription->getOrder()) &&
+                    $subscription->getType() == Subscription::TYPE_PAYMENT_PLAN) {
+                    foreach ($subscription->getOrder()->getOrderItems() as $orderItem) {
+                        $productIds[] = $orderItem->getProduct()->getId();
+                    }
+                }
+
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $paymentEvent->getPayment()->getTotalPaid(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $paymentEvent->getUser()->getId(),
+                        $paymentEvent->getPayment()->getGatewayName(),
+                        $paymentEvent->getPayment()->getGatewayName().'_user_payment',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))
+                        ->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(Carbon::now()->addSeconds(30))
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
         }
     }
 }
