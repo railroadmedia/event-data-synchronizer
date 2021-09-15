@@ -828,94 +828,7 @@ class CustomerIoSyncEventListener
             return;
         }
 
-        try {
-            if (!empty($orderEvent->getOrder()) &&
-                !empty($orderEvent->getPayment()) &&
-                !empty(
-                $orderEvent->getOrder()
-                    ->getUser()
-                )) {
-                $productIds = [];
-
-                foreach (
-                    $orderEvent->getOrder()
-                        ->getOrderItems() as $orderItem
-                ) {
-                    $productIds[] =
-                        $orderItem->getProduct()
-                            ->getId();
-                }
-
-                $data = [
-                    'product_id' => $productIds,
-                    'amount_paid' => $orderEvent->getPayment()
-                        ->getTotalPaid(),
-                    'amount_due' => $orderEvent->getOrder()
-                        ->getTotalDue(),
-                ];
-
-                dispatch(
-                    (new CustomerIoCreateEventByUserId(
-                        $orderEvent->getOrder()
-                            ->getUser()
-                            ->getId(),
-                        $orderEvent->getOrder()
-                            ->getBrand(),
-                        $orderEvent->getOrder()
-                            ->getBrand() . '_user_order',
-                        $data,
-                        null,
-                        Carbon::now()->timestamp
-                    ))->onConnection($this->queueConnectionName)
-                        ->onQueue($this->queueName)
-                        ->delay(
-                            Carbon::now()
-                                ->addSeconds(30)
-                        )
-                );
-
-                // trigger pack specific events
-                $skuToEventNameMap = config('event-data-synchronizer.customer_io_pack_sku_to_purchase_event_name', []);
-
-                foreach (
-                    $orderEvent->getOrder()
-                        ->getOrderItems() as $orderItem
-                ) {
-                    if (array_key_exists(
-                        $orderItem->getProduct()
-                            ->getSku(),
-                        $skuToEventNameMap
-                    )) {
-                        dispatch(
-                            (new CustomerIoCreateEventByUserId(
-                                $orderEvent->getOrder()
-                                    ->getUser()
-                                    ->getId(),
-                                $orderEvent->getOrder()
-                                    ->getBrand(),
-                                $orderEvent->getOrder()
-                                    ->getBrand() .
-                                '_pack_' .
-                                $skuToEventNameMap[$orderItem->getProduct()
-                                    ->getSku()],
-                                [
-                                    'amount_paid' => $orderItem->getFinalPrice(),
-                                ],
-                                null,
-                                Carbon::now()->timestamp
-                            ))->onConnection($this->queueConnectionName)
-                                ->onQueue($this->queueName)
-                                ->delay(
-                                    Carbon::now()
-                                        ->addSeconds(30)
-                                )
-                        );
-                    }
-                }
-            }
-        } catch (Throwable $throwable) {
-            error_log($throwable);
-        }
+        $this->syncOrder($orderEvent->getOrder(), $orderEvent->getPayment());
     }
 
     /**
@@ -1025,6 +938,96 @@ class CustomerIoSyncEventListener
                             ->addSeconds(3)
                     )
             );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+
+    public function syncOrder($order, $payment)
+    {
+        try {
+            if (!empty($order) && !empty($payment) && !empty(
+                $order
+                    ->getUser()
+                )) {
+                $productIds = [];
+
+                foreach (
+                    $order
+                        ->getOrderItems() as $orderItem
+                ) {
+                    $productIds[] =
+                        $orderItem->getProduct()
+                            ->getId();
+                }
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $payment->getTotalPaid(),
+                    'amount_due' => $order
+                        ->getTotalDue(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $order
+                            ->getUser()
+                            ->getId(),
+                        $order
+                            ->getBrand(),
+                        $order
+                            ->getBrand() . '_user_order',
+                        $data,
+                        null,
+                        $order->getCreatedAt()->timestamp
+                    ))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(30)
+                        )
+                );
+
+                // trigger pack specific events
+                $skuToEventNameMap = config('event-data-synchronizer.customer_io_pack_sku_to_purchase_event_name', []);
+
+                foreach (
+                    $order
+                        ->getOrderItems() as $orderItem
+                ) {
+                    if (array_key_exists(
+                        $orderItem->getProduct()
+                            ->getSku(),
+                        $skuToEventNameMap
+                    )) {
+                        dispatch(
+                            (new CustomerIoCreateEventByUserId(
+                                $order
+                                    ->getUser()
+                                    ->getId(),
+                                $order
+                                    ->getBrand(),
+                                $order
+                                    ->getBrand() .
+                                '_pack_' .
+                                $skuToEventNameMap[$orderItem->getProduct()
+                                    ->getSku()],
+                                [
+                                    'amount_paid' => $orderItem->getFinalPrice(),
+                                ],
+                                null,
+                                $order->getCreatedAt()->timestamp
+                            ))->onConnection($this->queueConnectionName)
+                                ->onQueue($this->queueName)
+                                ->delay(
+                                    Carbon::now()
+                                        ->addSeconds(30)
+                                )
+                        );
+                    }
+                }
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
