@@ -277,5 +277,5 @@ return [
         ],
 
     ],
-    'customer_io_brand_activity_event' => 'drumeo_members_area_activity'
+    'customer_io_brand_activity_event' => 'drumeo'
 ];
