@@ -839,75 +839,8 @@ class CustomerIoSyncEventListener
         if (self::$disable) {
             return;
         }
-
         try {
-            if (!empty($paymentEvent->getPayment()) &&
-                !empty($paymentEvent->getUser()) &&
-                $paymentEvent->getPayment()
-                    ->getTotalPaid() ==
-                $paymentEvent->getPayment()
-                    ->getTotalDue() &&
-                $paymentEvent->getPayment()
-                    ->getTotalRefunded() == 0) {
-                $order =
-                    $paymentEvent->getPayment()
-                        ->getOrder();
-                $subscription =
-                    $paymentEvent->getPayment()
-                        ->getSubscription();
-
-                $productIds = [];
-
-                if (!empty($order)) { // order inital payment
-                    foreach ($order->getOrderItems() as $orderItem) {
-                        $productIds[] =
-                            $orderItem->getProduct()
-                                ->getId();
-                    }
-                } elseif (!empty($subscription) && !empty($subscription->getProduct())) { // membership renewal payment
-                    $productIds[] =
-                        $subscription->getProduct()
-                            ->getId();
-                } elseif (!empty($subscription) &&
-                    // payment plan renewal payment
-                    empty($subscription->getProduct()) &&
-                    !empty($subscription->getOrder()) &&
-                    $subscription->getType() == Subscription::TYPE_PAYMENT_PLAN) {
-                    foreach (
-                        $subscription->getOrder()
-                            ->getOrderItems() as $orderItem
-                    ) {
-                        $productIds[] =
-                            $orderItem->getProduct()
-                                ->getId();
-                    }
-                }
-
-                $data = [
-                    'product_id' => $productIds,
-                    'amount_paid' => $paymentEvent->getPayment()
-                        ->getTotalPaid(),
-                ];
-
-                dispatch(
-                    (new CustomerIoCreateEventByUserId(
-                        $paymentEvent->getUser()
-                            ->getId(),
-                        $paymentEvent->getPayment()
-                            ->getGatewayName(),
-                        $paymentEvent->getPayment()
-                            ->getGatewayName() . '_user_payment',
-                        $data,
-                        null,
-                        Carbon::now()->timestamp
-                    ))->onConnection($this->queueConnectionName)
-                        ->onQueue($this->queueName)
-                        ->delay(
-                            Carbon::now()
-                                ->addSeconds(30)
-                        )
-                );
-            }
+        $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser());
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -1027,6 +960,82 @@ class CustomerIoSyncEventListener
                         );
                     }
                 }
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param PaymentEvent $paymentEvent
+     */
+    public function syncPayment($payment, $user)
+    {
+        try {
+            if (!empty($payment) &&
+                !empty($user) &&
+                $payment
+                    ->getTotalPaid() ==
+                $payment
+                    ->getTotalDue() &&
+                $payment
+                    ->getTotalRefunded() == 0) {
+                $order =
+                    $payment
+                        ->getOrder();
+                $subscription =
+                    $payment
+                        ->getSubscription();
+
+                $productIds = [];
+
+                if (!empty($order)) { // order inital payment
+                    foreach ($order->getOrderItems() as $orderItem) {
+                        $productIds[] =
+                            $orderItem->getProduct()
+                                ->getId();
+                    }
+                } elseif (!empty($subscription) && !empty($subscription->getProduct())) { // membership renewal payment
+                    $productIds[] =
+                        $subscription->getProduct()
+                            ->getId();
+                } elseif (!empty($subscription) &&
+                    // payment plan renewal payment
+                    empty($subscription->getProduct()) &&
+                    !empty($subscription->getOrder()) &&
+                    $subscription->getType() == Subscription::TYPE_PAYMENT_PLAN) {
+                    foreach (
+                        $subscription->getOrder()
+                            ->getOrderItems() as $orderItem
+                    ) {
+                        $productIds[] =
+                            $orderItem->getProduct()
+                                ->getId();
+                    }
+                }
+
+                $data = [
+                    'product_id' => $productIds,
+                    'amount_paid' => $payment
+                        ->getTotalPaid(),
+                ];
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $user->getId(),
+                        $payment
+                            ->getGatewayName(),
+                        $payment->getGatewayName() . '_user_payment',
+                        $data,
+                        null,
+                        Carbon::now()->timestamp
+                    ))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(30)
+                        )
+                );
             }
         } catch (Throwable $throwable) {
             error_log($throwable);
