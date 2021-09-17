@@ -23,6 +23,7 @@ use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
+use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
@@ -39,6 +40,7 @@ use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 use Throwable;
+use Exception;
 
 class CustomerIoSyncEventListener
 {
@@ -123,14 +125,12 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            $user =
-                $this->userRepository->find(
-                    $userCreated->getUser()
-                        ->getId()
-                );
+            $user = $this->userRepository->find(
+                $userCreated->getUser()
+                    ->getId()
+            );
 
-            if (!empty($user) &&
-                !in_array(
+            if (!empty($user) && !in_array(
                     $userCreated->getUser()
                         ->getId(),
                     self::$alreadyQueuedUserIds
@@ -163,14 +163,12 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            $user =
-                $this->userRepository->find(
-                    $userUpdated->getNewUser()
-                        ->getId()
-                );
+            $user = $this->userRepository->find(
+                $userUpdated->getNewUser()
+                    ->getId()
+            );
 
-            if (!empty($user) &&
-                !in_array(
+            if (!empty($user) && !in_array(
                     $userUpdated->getNewUser()
                         ->getId(),
                     self::$alreadyQueuedUserIds
@@ -228,9 +226,7 @@ class CustomerIoSyncEventListener
             if (!empty(
                 $paymentMethodUpdated->getUser()
                     ->getId()
-                ) &&
-                $paymentMethodUpdated->getUser() instanceof User &&
-                !in_array(
+                ) && $paymentMethodUpdated->getUser() instanceof User && !in_array(
                     $paymentMethodUpdated->getUser()
                         ->getId(),
                     self::$alreadyQueuedUserIds
@@ -410,11 +406,10 @@ class CustomerIoSyncEventListener
             $user = $newSubscription->getUser();
 
             if ($user instanceof EcommerceUser) {
-                $user =
-                    $this->userRepository->find(
-                        $newSubscription->getUser()
-                            ->getId()
-                    );
+                $user = $this->userRepository->find(
+                    $newSubscription->getUser()
+                        ->getId()
+                );
             }
 
             if ($user instanceof User) {
@@ -478,34 +473,7 @@ class CustomerIoSyncEventListener
         }
 
         try {
-            if (!empty($subscriptionRenewed->getSubscription()) &&
-                !empty(
-                $subscriptionRenewed->getSubscription()
-                    ->getUser()
-                )) {
-                dispatch(
-                    (new CustomerIoCreateEventByUserId(
-                        $subscriptionRenewed->getSubscription()
-                            ->getUser()
-                            ->getId(),
-                        $subscriptionRenewed->getSubscription()
-                            ->getBrand(),
-                        $subscriptionRenewed->getSubscription()
-                            ->getBrand() . '_membership_renewed',
-                        [
-                            'membership_rate' => $subscriptionRenewed->getSubscription()
-                                ->getTotalPrice(),
-                        ],
-                        null,
-                        Carbon::now()->timestamp
-                    ))->onConnection($this->queueConnectionName)
-                        ->onQueue($this->queueName)
-                        ->delay(
-                            Carbon::now()
-                                ->addSeconds(3)
-                        )
-                );
-            }
+            $this->syncSubscriptionRenew($subscriptionRenewed->getSubscription());
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -550,10 +518,10 @@ class CustomerIoSyncEventListener
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(), $content['brand'], $content['brand'] . '_action_lesson_comment-like', [
-                            'content_id' => $content['id'],
-                            'content_name' => $content->fetch('fields.title'),
-                            'content_type' => $content['type'],
-                        ], null, Carbon::now()->timestamp
+                        'content_id' => $content['id'],
+                        'content_name' => $content->fetch('fields.title'),
+                        'content_type' => $content['type'],
+                    ], null, Carbon::now()->timestamp
                     ))->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
                         ->delay(
@@ -585,10 +553,10 @@ class CustomerIoSyncEventListener
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(), $content['brand'], $content['brand'] . '_action_lesson_comment', [
-                            'content_id' => $content['id'],
-                            'content_name' => $content->fetch('fields.title'),
-                            'content_type' => $content['type'],
-                        ], null, Carbon::now()->timestamp
+                        'content_id' => $content['id'],
+                        'content_name' => $content->fetch('fields.title'),
+                        'content_type' => $content['type'],
+                    ], null, Carbon::now()->timestamp
                     ))->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
                         ->delay(
@@ -828,7 +796,12 @@ class CustomerIoSyncEventListener
             return;
         }
 
-        $this->syncOrder($orderEvent->getOrder(), $orderEvent->getPayment());
+        try {
+            $this->syncOrder($orderEvent->getOrder(), $orderEvent->getPayment());
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+
     }
 
     /**
@@ -840,7 +813,7 @@ class CustomerIoSyncEventListener
             return;
         }
         try {
-        $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser());
+            $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser());
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -876,19 +849,16 @@ class CustomerIoSyncEventListener
         }
     }
 
-
     public function syncOrder($order, $payment)
     {
         try {
             if (!empty($order) && !empty($payment) && !empty(
-                $order
-                    ->getUser()
+                $order->getUser()
                 )) {
                 $productIds = [];
 
                 foreach (
-                    $order
-                        ->getOrderItems() as $orderItem
+                    $order->getOrderItems() as $orderItem
                 ) {
                     $productIds[] =
                         $orderItem->getProduct()
@@ -898,19 +868,15 @@ class CustomerIoSyncEventListener
                 $data = [
                     'product_id' => $productIds,
                     'amount_paid' => $payment->getTotalPaid(),
-                    'amount_due' => $order
-                        ->getTotalDue(),
+                    'amount_due' => $order->getTotalDue(),
                 ];
 
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
-                        $order
-                            ->getUser()
+                        $order->getUser()
                             ->getId(),
-                        $order
-                            ->getBrand(),
-                        $order
-                            ->getBrand() . '_user_order',
+                        $order->getBrand(),
+                        $order->getBrand() . '_user_order',
                         $data,
                         null,
                         $order->getCreatedAt()->timestamp
@@ -926,8 +892,7 @@ class CustomerIoSyncEventListener
                 $skuToEventNameMap = config('event-data-synchronizer.customer_io_pack_sku_to_purchase_event_name', []);
 
                 foreach (
-                    $order
-                        ->getOrderItems() as $orderItem
+                    $order->getOrderItems() as $orderItem
                 ) {
                     if (array_key_exists(
                         $orderItem->getProduct()
@@ -936,13 +901,10 @@ class CustomerIoSyncEventListener
                     )) {
                         dispatch(
                             (new CustomerIoCreateEventByUserId(
-                                $order
-                                    ->getUser()
+                                $order->getUser()
                                     ->getId(),
-                                $order
-                                    ->getBrand(),
-                                $order
-                                    ->getBrand() .
+                                $order->getBrand(),
+                                $order->getBrand() .
                                 '_pack_' .
                                 $skuToEventNameMap[$orderItem->getProduct()
                                     ->getSku()],
@@ -974,18 +936,10 @@ class CustomerIoSyncEventListener
         try {
             if (!empty($payment) &&
                 !empty($user) &&
-                $payment
-                    ->getTotalPaid() ==
-                $payment
-                    ->getTotalDue() &&
-                $payment
-                    ->getTotalRefunded() == 0) {
-                $order =
-                    $payment
-                        ->getOrder();
-                $subscription =
-                    $payment
-                        ->getSubscription();
+                $payment->getTotalPaid() == $payment->getTotalDue() &&
+                $payment->getTotalRefunded() == 0) {
+                $order = $payment->getOrder();
+                $subscription = $payment->getSubscription();
 
                 $productIds = [];
 
@@ -1016,24 +970,48 @@ class CustomerIoSyncEventListener
 
                 $data = [
                     'product_id' => $productIds,
-                    'amount_paid' => $payment
-                        ->getTotalPaid(),
+                    'amount_paid' => $payment->getTotalPaid(),
                 ];
 
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
-                        $payment
-                            ->getGatewayName(),
+                        $payment->getGatewayName(),
                         $payment->getGatewayName() . '_user_payment',
                         $data,
                         null,
-                        Carbon::now()->timestamp
+                        $payment->getCreatedAt()->timestamp
                     ))->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
                         ->delay(
                             Carbon::now()
                                 ->addSeconds(30)
+                        )
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param $subscription
+     */
+    public function syncSubscriptionRenew($subscription)
+    {
+        try {
+            if (!empty($subscription) && !empty($subscription->getUser())) {
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $subscription->getUser()
+                            ->getId(), $subscription->getBrand(), $subscription->getBrand() . '_membership_renewed', [
+                        'membership_rate' => $subscription->getTotalPrice(),
+                    ], null, $subscription->getCreatedAt()->timestamp
+                    ))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(3)
                         )
                 );
             }
