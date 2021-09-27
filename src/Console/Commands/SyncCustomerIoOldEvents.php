@@ -2,6 +2,7 @@
 
 namespace Railroad\EventDataSynchronizer\Console\Commands;
 
+use Railroad\Ecommerce\Entities\Payment;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -122,36 +123,40 @@ class SyncCustomerIoOldEvents extends Command
 
         $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
 
-        //        foreach ($orderIdsToProcess as $orderId => $paymentId) {
-        //            $order = $this->orderRepository->find($orderId);
-        //            $payment = $this->paymentRepository->find($paymentId);
-        //
-        //            // $this->customerIoSyncEventListener->syncOrder($order, $payment);
-        //
-        //            $apiCallsThisSecond++;
-        //
-        //            if ($thisSecond == time()) {
-        //                if ($apiCallsThisSecond > 50) {
-        //                    $this->info('Sleeping due to api calls in sec: '.$apiCallsThisSecond);
-        //                    //sleep(1);
-        //                }
-        //            } else {
-        //                $thisSecond = time();
-        //                $apiCallsThisSecond = 0;
-        //            }
-        //
-        //            $this->info('order id::'.$orderId. '   - payment id::'.$paymentId);
-        //
-        //            $this->ecommerceEntityManager->flush();
-        //            $this->ecommerceEntityManager->clear();
-        //            $this->ecommerceEntityManager->getConnection()
-        //                ->ping();
-        //
-        //            unset($order);
-        //            unset($payment);
-        //
-        //            $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
-        //        }
+        foreach ($orderIdsToProcess as $orderId => $paymentId) {
+            $order = $this->orderRepository->find($orderId);
+            $payment = $this->paymentRepository->find($paymentId);
+
+            try {
+                $this->customerIoSyncEventListener->syncOrder($order, $payment);
+
+                $apiCallsThisSecond++;
+
+                if ($thisSecond == time()) {
+                    if ($apiCallsThisSecond > 30) {
+                        $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
+                        sleep(1);
+                    }
+                } else {
+                    $thisSecond = time();
+                    $apiCallsThisSecond = 0;
+                }
+
+                $this->info('order id::' . $orderId);
+
+                $this->ecommerceEntityManager->flush();
+                $this->ecommerceEntityManager->clear();
+                $this->ecommerceEntityManager->getConnection()
+                    ->ping();
+
+                unset($order);
+                unset($payment);
+
+                $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
+            } catch (Throwable $throwable) {
+                error_log($throwable);
+            }
+        }
 
         $tEnd = time();
 
@@ -211,44 +216,42 @@ class SyncCustomerIoOldEvents extends Command
                     ->getUserPaymentMethod()
                     ->getUser();
 
-            //            try {
-            //                    // $this->customerIoSyncEventListener->syncPayment($payment, $user);
-            //            $apiCallsThisSecond++;
-            //
-            //            if ($thisSecond == time()) {
-            //                if ($apiCallsThisSecond > 50) {
-            //                    $this->info('Sleeping due to api calls in sec: '.$apiCallsThisSecond);
-            //                    //sleep(1);
-            //                }
-            //            } else {
-            //                $thisSecond = time();
-            //                $apiCallsThisSecond = 0;
-            //            }
-            //                } catch (Throwable $throwable) {
-            //                    error_log($throwable);
-            //                }
-            //
-            //                if ($payment->getType() == Payment::TYPE_SUBSCRIPTION_RENEWAL) {
-            //                    try {
-            //                        $this->customerIoSyncEventListener->syncSubscriptionRenew($payment->getSubscription());
+            try {
+                $this->customerIoSyncEventListener->syncPayment($payment, $user);
+                $apiCallsThisSecond++;
 
-            //            $apiCallsThisSecond++;
-            //
-            //            if ($thisSecond == time()) {
-            //                if ($apiCallsThisSecond > 50) {
-            //                    $this->info('Sleeping due to api calls in sec: '.$apiCallsThisSecond);
-            //                    //sleep(1);
-            //                }
-            //            } else {
-            //                $thisSecond = time();
-            //                $apiCallsThisSecond = 0;
-            //            }
-            //                    } catch (Throwable $throwable) {
-            //                        error_log($throwable);
-            //                    }
-            //
-            //                }
-            //
+                if ($thisSecond == time()) {
+                    if ($apiCallsThisSecond > 50) {
+                        $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
+                        sleep(1);
+                    }
+                } else {
+                    $thisSecond = time();
+                    $apiCallsThisSecond = 0;
+                }
+            } catch (Throwable $throwable) {
+                error_log($throwable);
+            }
+
+            if ($payment->getType() == Payment::TYPE_SUBSCRIPTION_RENEWAL) {
+                try {
+                    $this->customerIoSyncEventListener->syncSubscriptionRenew($payment->getSubscription());
+
+                    $apiCallsThisSecond++;
+
+                    if ($thisSecond == time()) {
+                        if ($apiCallsThisSecond > 50) {
+                            $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
+                            sleep(1);
+                        }
+                    } else {
+                        $thisSecond = time();
+                        $apiCallsThisSecond = 0;
+                    }
+                } catch (Throwable $throwable) {
+                    error_log($throwable);
+                }
+            }
 
             unset($payment);
             unset($user);
