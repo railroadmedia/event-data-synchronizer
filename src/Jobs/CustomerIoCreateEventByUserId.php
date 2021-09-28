@@ -120,7 +120,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
         // try to sync the user first, then retry
         event(new UserCreated($user));
 
-        if ($this->job->attempts() < $this->tries) {
+        if ($this->job->attempts() >= $this->tries) {
             $this->fail($exception);
         } else {
             $this->release(60);
