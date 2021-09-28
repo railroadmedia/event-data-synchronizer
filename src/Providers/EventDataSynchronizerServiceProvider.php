@@ -20,10 +20,12 @@ use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
+use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoOldEvents;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScoutAsync;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
+use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
@@ -142,6 +144,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         LiveStreamEventAttended::class => [
             CustomerIoSyncEventListener::class . '@handleLiveLessonAttended',
         ],
+        FirstActivityPerDay::class => [
+            CustomerIoSyncEventListener::class . '@handleFirstActivityPerDay',
+        ],
     ];
 
     /**
@@ -163,6 +168,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncExistingHelpScout::class,
                 HelpScoutIndex::class,
                 SyncHelpScoutAsync::class,
+                SyncCustomerIoOldEvents::class
             ]
         );
 
