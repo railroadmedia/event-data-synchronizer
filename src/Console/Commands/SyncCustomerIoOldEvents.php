@@ -104,6 +104,8 @@ class SyncCustomerIoOldEvents extends Command
 
         if (!empty($brand)) {
             $queryOrders->where('brand', $brand);
+        } else {
+            $queryOrders->where('brand', '!=', 'recordeo');
         }
 
         $orderIdsToProcess = [];
@@ -182,6 +184,8 @@ class SyncCustomerIoOldEvents extends Command
 
         if (!empty($brand)) {
             $queryPayments->where('ecommerce_payments.gateway_name', $brand);
+        }else {
+            $queryPayments->where('ecommerce_payments.gateway_name', '!=', 'recordeo');
         }
 
         $paymentsIdsToProcess = [];
