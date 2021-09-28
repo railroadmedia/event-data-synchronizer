@@ -21,5 +21,7 @@ class CustomerIoBaseJob implements ShouldQueue
     public function failed(Exception $exception)
     {
         error_log($exception);
+
+        $this->fail($exception);
     }
 }

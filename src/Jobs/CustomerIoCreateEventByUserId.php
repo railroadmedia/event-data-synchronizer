@@ -4,6 +4,7 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
+use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Repositories\UserRepository;
 
 class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
@@ -37,6 +38,8 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @var int|null
      */
     private $eventTimestamp;
+
+    public $tries = 3;
 
     /**
      * CustomerIoCreateEventByUserId constructor.
@@ -95,7 +98,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
                 $this->eventTimestamp
             );
         } catch (Exception $exception) {
-            $this->failed($exception);
+            $this->failed($exception, $user);
         }
     }
 
@@ -103,8 +106,9 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * The job failed to process.
      *
      * @param  Exception  $exception
+     * @param $user
      */
-    public function failed(Exception $exception)
+    public function failed(Exception $exception, $user = null)
     {
         error_log(
             'Error on CustomerIoCreateEventByUserId job trying to sync user to customer.io. User ID: '.
@@ -113,6 +117,13 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 
         error_log($exception);
 
-        parent::failed($exception);
+        // try to sync the user first, then retry
+        event(new UserCreated($user));
+
+        if ($this->job->attempts() < $this->tries) {
+            $this->fail($exception);
+        } else {
+            $this->release(60);
+        }
     }
 }
