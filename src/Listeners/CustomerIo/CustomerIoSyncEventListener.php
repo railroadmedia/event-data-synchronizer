@@ -20,6 +20,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
+use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
@@ -1015,6 +1016,47 @@ class CustomerIoSyncEventListener
                         )
                 );
             }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    public function handleUTMLinks(UTMLinks $UTMLinks)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        $data = [];
+        if ($UTMLinks->getUtmId()) {
+            $data = array_merge($data, ['utm_id' => $UTMLinks->getUtmId()]);
+        }
+        if ($UTMLinks->getUtmSource()) {
+            $data = array_merge($data, ['utm_source' => $UTMLinks->getUtmSource()]);
+        }
+        if ($UTMLinks->getUtmCampaign()) {
+            $data = array_merge($data, ['utm_campaign' => $UTMLinks->getUtmCampaign()]);
+        }
+        if ($UTMLinks->getUtmMedium()) {
+            $data = array_merge($data, ['utm_medium' => $UTMLinks->getUtmMedium()]);
+        }
+
+        try {
+            dispatch(
+                (new CustomerIoCreateEventByUserId(
+                    $UTMLinks->getUserId(),
+                    $UTMLinks->getBrand(),
+                    $UTMLinks->getBrand() . '_prospect_ultimate-toolbox',
+                    $data,
+                    null,
+                    Carbon::now()->timestamp
+                ))->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(3)
+                    )
+            );
         } catch (Throwable $throwable) {
             error_log($throwable);
         }

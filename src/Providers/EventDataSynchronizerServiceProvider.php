@@ -27,6 +27,7 @@ use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScoutAsync;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
 use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
+use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
@@ -147,6 +148,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         FirstActivityPerDay::class => [
             CustomerIoSyncEventListener::class . '@handleFirstActivityPerDay',
         ],
+        UTMLinks::class => [
+            CustomerIoSyncEventListener::class . '@handleUTMLinks',
+        ]
     ];
 
     /**
