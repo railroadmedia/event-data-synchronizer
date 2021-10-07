@@ -3,7 +3,11 @@
 namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
+use Illuminate\Support\Facades\DB;
+use Railroad\CustomerIo\Models\Customer;
 use Railroad\CustomerIo\Services\CustomerIoService;
+use Railroad\Ecommerce\Managers\EcommerceEntityManager;
+use Railroad\Usora\Managers\UsoraEntityManager;
 
 class CustomerIoTriggerEvent extends CustomerIoBaseJob
 {
@@ -66,6 +70,8 @@ class CustomerIoTriggerEvent extends CustomerIoBaseJob
         CustomerIoService $customerIoService
     ) {
         try {
+            $this->reconnectToMySQLDatabases();
+
             $customerIoService->createEventForEmailOrId(
                 $this->customerEmail,
                 $this->customerId,

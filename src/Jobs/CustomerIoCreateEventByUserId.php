@@ -75,6 +75,8 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
         UserRepository $userRepository
     ) {
         try {
+            $this->reconnectToMySQLDatabases();
+
             $user = $userRepository->find($this->userId);
 
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');

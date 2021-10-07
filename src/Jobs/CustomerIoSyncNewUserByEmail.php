@@ -33,6 +33,8 @@ class CustomerIoSyncNewUserByEmail extends CustomerIoBaseJob
         UserProductService $userProductService
     ) {
         try {
+            $this->reconnectToMySQLDatabases();
+
             $this->user = $userRepository->find($this->user->getId());
             $accountNameBrandsToSync = config('event-data-synchronizer.customer_io_account_name_brands_to_sync', []);
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');

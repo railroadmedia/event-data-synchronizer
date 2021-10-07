@@ -47,6 +47,8 @@ class CustomerIoSendTransactionalEmail extends CustomerIoBaseJob
         CustomerIoService $customerIoService
     ) {
         try {
+            $this->reconnectToMySQLDatabases();
+
             $customerIoService->sendTransactionalEmail(
                 $this->accountName,
                 $this->customerIoTransactionalMessageId,
