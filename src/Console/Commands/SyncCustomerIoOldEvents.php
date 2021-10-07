@@ -2,6 +2,7 @@
 
 namespace Railroad\EventDataSynchronizer\Console\Commands;
 
+use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\Payment;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
@@ -33,7 +34,7 @@ class SyncCustomerIoOldEvents extends Command
      *
      * @var string
      */
-    protected $signature = 'SyncCustomerIoOldEvents {--brand=}';
+    protected $signature = 'SyncCustomerIoOldEvents {--brand=} {--endDate=}';
 
     /**
      * @var DatabaseManager
@@ -92,6 +93,9 @@ class SyncCustomerIoOldEvents extends Command
 
         $brand = $this->option('brand');
 
+        $endDate = $this->option('endDate') ?
+            Carbon::parse($this->option('endDate')) : Carbon::now();
+
         $ecommerceConnection = $this->databaseManager->connection(config('ecommerce.database_connection_name'));
 
         $queryOrders =
@@ -100,6 +104,7 @@ class SyncCustomerIoOldEvents extends Command
                 ->join('ecommerce_payments', 'ecommerce_order_payments.payment_id', '=', 'ecommerce_payments.id')
                 ->where('ecommerce_orders.user_id', '!=', null)
                 ->where('ecommerce_payments.type', '=', 'initial_order')
+                ->where('ecommerce_orders.created_at','<=', $endDate)
                 ->orderBy('ecommerce_orders.id', 'desc');
 
         if (!empty($brand)) {
@@ -180,6 +185,7 @@ class SyncCustomerIoOldEvents extends Command
                 ->where('ecommerce_payments.total_refunded', '=', 0)
                 ->where('ecommerce_payments.total_paid', '!=', 0)
                 ->where('ecommerce_payments.status', '=', 'paid')
+                ->where('ecommerce_payments.created_at','<=', $endDate)
                 ->orderBy('ecommerce_payments.id', 'desc');
 
         if (!empty($brand)) {
