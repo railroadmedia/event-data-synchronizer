@@ -149,7 +149,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleFirstActivityPerDay',
         ],
         UTMLinks::class => [
-            CustomerIoSyncEventListener::class . '@handleUTMLinks',
+//            CustomerIoSyncEventListener::class . '@handleUTMLinks',
         ]
     ];
 
