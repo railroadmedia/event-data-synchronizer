@@ -9,8 +9,11 @@ use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\Ecommerce\Repositories\OrderRepository;
+use Railroad\Ecommerce\Repositories\PaymentMethodRepository;
 use Railroad\Ecommerce\Repositories\PaymentRepository;
+use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
+use Railroad\Usora\Repositories\UserRepository;
 
 class SyncCustomerIoOldEvents extends Command
 {
@@ -56,6 +59,16 @@ class SyncCustomerIoOldEvents extends Command
     private $paymentRepository;
 
     /**
+     * @var UserRepository
+     */
+    private $userRepository;
+
+    /**
+     * @var SubscriptionRepository
+     */
+    private $subscriptionRepository;
+
+    /**
      * @var EcommerceEntityManager
      */
     private $ecommerceEntityManager;
@@ -71,6 +84,8 @@ class SyncCustomerIoOldEvents extends Command
         CustomerIoSyncEventListener $customerIoSyncEventListener,
         OrderRepository $orderRepository,
         PaymentRepository $paymentRepository,
+        UserRepository $userRepository,
+        SubscriptionRepository $subscriptionRepository,
         EcommerceEntityManager $ecommerceEntityManager
     ) {
         parent::__construct();
@@ -79,6 +94,8 @@ class SyncCustomerIoOldEvents extends Command
         $this->customerIoSyncEventListener = $customerIoSyncEventListener;
         $this->orderRepository = $orderRepository;
         $this->paymentRepository = $paymentRepository;
+        $this->userRepository = $userRepository;
+        $this->subscriptionRepository = $subscriptionRepository;
         $this->ecommerceEntityManager = $ecommerceEntityManager;
     }
 
@@ -93,10 +110,14 @@ class SyncCustomerIoOldEvents extends Command
 
         $brand = $this->option('brand');
 
-        $endDate = $this->option('endDate') ?
-            Carbon::parse($this->option('endDate')) : Carbon::now();
+        $endDate = $this->option('endDate') ? Carbon::parse($this->option('endDate')) : Carbon::now();
 
         $ecommerceConnection = $this->databaseManager->connection(config('ecommerce.database_connection_name'));
+        $ecommerceConnection->disableQueryLog();
+
+        $this->ecommerceEntityManager->getConnection()
+            ->getConfiguration()
+            ->setSQLLogger(null);
 
         $queryOrders =
             $ecommerceConnection->table('ecommerce_orders')
@@ -104,7 +125,7 @@ class SyncCustomerIoOldEvents extends Command
                 ->join('ecommerce_payments', 'ecommerce_order_payments.payment_id', '=', 'ecommerce_payments.id')
                 ->where('ecommerce_orders.user_id', '!=', null)
                 ->where('ecommerce_payments.type', '=', 'initial_order')
-                ->where('ecommerce_orders.created_at','<=', $endDate)
+                ->where('ecommerce_orders.created_at', '<=', $endDate)
                 ->orderBy('ecommerce_orders.id', 'desc');
 
         if (!empty($brand)) {
@@ -123,45 +144,65 @@ class SyncCustomerIoOldEvents extends Command
             $this->info('10000 orders rows.');
         });
 
+        unset($queryOrders);
+
         $this->info('Syncing ' . count($orderIdsToProcess) . ' total orders.');
 
         $thisSecond = time();
         $apiCallsThisSecond = 0;
 
         $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
+        foreach (array_chunk($orderIdsToProcess, 100, true) as $chunk) {
+            foreach ($chunk as $orderId => $paymentId) {
+                $order =
+                    $this->orderRepository->createQueryBuilder('o')
+                        ->where('o.id = :id')
+                        ->setParameter('id', $orderId)
+                        ->getQuery()
+                        ->execute();
 
-        foreach ($orderIdsToProcess as $orderId => $paymentId) {
-            $order = $this->orderRepository->find($orderId);
-            $payment = $this->paymentRepository->find($paymentId);
-
-            try {
-                $this->customerIoSyncEventListener->syncOrder($order, $payment);
-
-                $apiCallsThisSecond++;
-
-                if ($thisSecond == time()) {
-                    if ($apiCallsThisSecond > 30) {
-                        $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
-                        sleep(1);
-                    }
-                } else {
-                    $thisSecond = time();
-                    $apiCallsThisSecond = 0;
+                if (!empty($order)) {
+                    $order = $order[0];
+                }
+                $payment =
+                    $this->paymentRepository->createQueryBuilder('p')
+                        ->where('p.id = :id')
+                        ->setParameter('id', $paymentId)
+                        ->getQuery()
+                        ->execute();
+                if (!empty($payment)) {
+                    $payment = $payment[0];
                 }
 
-                $this->info('order id::' . $orderId);
+                try {
+                    $this->customerIoSyncEventListener->syncOrder($order, $payment);
 
-                $this->ecommerceEntityManager->flush();
+                    $apiCallsThisSecond++;
+
+                    if ($thisSecond == time()) {
+                        if ($apiCallsThisSecond > 30) {
+                            $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
+                            sleep(1);
+                        }
+                    } else {
+                        $thisSecond = time();
+                        $apiCallsThisSecond = 0;
+                    }
+
+                    $this->info('order id::' . $orderId);
+
+                    $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
+                } catch (Throwable $throwable) {
+                    error_log($throwable);
+                }
+
+                //$this->ecommerceEntityManager->flush();
                 $this->ecommerceEntityManager->clear();
                 $this->ecommerceEntityManager->getConnection()
                     ->ping();
 
                 unset($order);
                 unset($payment);
-
-                $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
-            } catch (Throwable $throwable) {
-                error_log($throwable);
             }
         }
 
@@ -180,17 +221,23 @@ class SyncCustomerIoOldEvents extends Command
 
         $queryPayments =
             $ecommerceConnection->table('ecommerce_payments')
-                ->select('ecommerce_payments.id')
+                ->select('ecommerce_payments.id', 'ecommerce_user_payment_methods.user_id')
+                ->join(
+                    'ecommerce_user_payment_methods',
+                    'ecommerce_payments.payment_method_id',
+                    '=',
+                    'ecommerce_user_payment_methods.payment_method_id'
+                )
                 ->whereRaw('ecommerce_payments.total_paid = ecommerce_payments.total_due')
                 ->where('ecommerce_payments.total_refunded', '=', 0)
                 ->where('ecommerce_payments.total_paid', '!=', 0)
                 ->where('ecommerce_payments.status', '=', 'paid')
-                ->where('ecommerce_payments.created_at','<=', $endDate)
+                ->where('ecommerce_payments.created_at', '<=', $endDate)
                 ->orderBy('ecommerce_payments.id', 'desc');
 
         if (!empty($brand)) {
             $queryPayments->where('ecommerce_payments.gateway_name', $brand);
-        }else {
+        } else {
             $queryPayments->where('ecommerce_payments.gateway_name', '!=', 'recordeo');
         }
 
@@ -198,7 +245,7 @@ class SyncCustomerIoOldEvents extends Command
 
         $queryPayments->chunk(10000, function (Collection $paymentRows) use (&$paymentsIdsToProcess) {
             foreach ($paymentRows as $paymentRow) {
-                $paymentsIdsToProcess[$paymentRow->id] = $paymentRow->id;
+                $paymentsIdsToProcess[$paymentRow->id] = $paymentRow->user_id;
             }
 
             $this->info('10000 payments rows.');
@@ -206,46 +253,27 @@ class SyncCustomerIoOldEvents extends Command
 
         $this->info('Syncing ' . count($paymentsIdsToProcess) . ' total payments.');
 
-        // $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
-
         $thisSecond = time();
         $apiCallsThisSecond = 0;
-
-        foreach ($paymentsIdsToProcess as $paymentId) {
-            $payment = $this->paymentRepository->find($paymentId);
-
-            if (!$payment->getPaymentMethod() ||
-                !$payment->getPaymentMethod()
-                    ->getUserPaymentMethod()) {
-                unset($payment);
-                continue;
-            }
-
-            $user =
-                $payment->getPaymentMethod()
-                    ->getUserPaymentMethod()
-                    ->getUser();
-
-            try {
-                $this->customerIoSyncEventListener->syncPayment($payment, $user);
-                $apiCallsThisSecond++;
-
-                if ($thisSecond == time()) {
-                    if ($apiCallsThisSecond > 50) {
-                        $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
-                        sleep(1);
-                    }
+        foreach (array_chunk($paymentsIdsToProcess, 100, true) as $chunk) {
+            foreach ($chunk as $paymentId => $userId) {
+                $payment =
+                    $this->paymentRepository->createQueryBuilder('p')
+                        ->where('p.id = :id')
+                        ->setParameter('id', $paymentId)
+                        ->getQuery()
+                        ->execute();
+                if (!empty($payment)) {
+                    $payment = $payment[0];
                 } else {
-                    $thisSecond = time();
-                    $apiCallsThisSecond = 0;
+                    unset($payment);
+                    continue;
                 }
-            } catch (Throwable $throwable) {
-                error_log($throwable);
-            }
 
-            if ($payment->getType() == Payment::TYPE_SUBSCRIPTION_RENEWAL) {
                 try {
-                    $this->customerIoSyncEventListener->syncSubscriptionRenew($payment->getSubscription());
+                    $this->info('payment id::' . $paymentId);
+
+                    $this->customerIoSyncEventListener->syncPayment($payment, $userId);
 
                     $apiCallsThisSecond++;
 
@@ -261,17 +289,63 @@ class SyncCustomerIoOldEvents extends Command
                 } catch (Throwable $throwable) {
                     error_log($throwable);
                 }
+
+                $this->ecommerceEntityManager->flush();
+                $this->ecommerceEntityManager->clear();
+                $this->ecommerceEntityManager->getConnection()
+                    ->ping();
+
+                unset($paymentMethod);
+                unset($user);
+
+                $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
+
+                if ($payment->getType() == Payment::TYPE_SUBSCRIPTION_RENEWAL) {
+                    try {
+                        $subscription =
+                            $this->subscriptionRepository->createQueryBuilder('s')
+                                ->where('s.id = :id')
+                                ->setParameter(
+                                    'id',
+                                    $payment->getSubscriptionPayment()
+                                        ->getSubscription()
+                                        ->getId()
+                                )
+                                ->getQuery()
+                                ->execute();
+                        if (!empty($subscription)) {
+                            $subscription = $subscription[0];
+
+                            $this->info('subscription renewal id::' . $subscription->getId());
+
+                            $this->customerIoSyncEventListener->syncSubscriptionRenew($subscription);
+
+                            $apiCallsThisSecond++;
+
+                            if ($thisSecond == time()) {
+                                if ($apiCallsThisSecond > 50) {
+                                    $this->info('Sleeping due to api calls in sec: ' . $apiCallsThisSecond);
+                                    sleep(1);
+                                }
+                            } else {
+                                $thisSecond = time();
+                                $apiCallsThisSecond = 0;
+                            }
+                        }
+                    } catch (Throwable $throwable) {
+                        error_log($throwable);
+                    }
+                }
+
+                unset($payment);
+
+                $this->ecommerceEntityManager->flush();
+                $this->ecommerceEntityManager->clear();
+                $this->ecommerceEntityManager->getConnection()
+                    ->ping();
+
+                $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
             }
-
-            unset($payment);
-            unset($user);
-
-            $this->ecommerceEntityManager->flush();
-            $this->ecommerceEntityManager->clear();
-            $this->ecommerceEntityManager->getConnection()
-                ->ping();
-
-            $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
         }
 
         $tEnd = time();
