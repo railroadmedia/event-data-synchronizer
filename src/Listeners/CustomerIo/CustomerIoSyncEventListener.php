@@ -814,7 +814,7 @@ class CustomerIoSyncEventListener
             return;
         }
         try {
-            $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser());
+            $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser()->getId());
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -932,7 +932,7 @@ class CustomerIoSyncEventListener
     /**
      * @param PaymentEvent $paymentEvent
      */
-    public function syncPayment($payment, $user)
+    public function syncPayment($payment, $userId)
     {
         try {
             if (!empty($payment) &&
@@ -976,7 +976,7 @@ class CustomerIoSyncEventListener
 
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
-                        $user->getId(),
+                        $userId,
                         $payment->getGatewayName(),
                         $payment->getGatewayName() . '_user_payment',
                         $data,
