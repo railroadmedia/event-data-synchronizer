@@ -40,6 +40,7 @@ use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 
@@ -150,6 +151,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UTMLinks::class => [
 //            CustomerIoSyncEventListener::class . '@handleUTMLinks',
+        ],
+        MobileAppLogin::class => [
+            CustomerIoSyncEventListener::class . '@handleMobileAppLogin',
         ]
     ];
 

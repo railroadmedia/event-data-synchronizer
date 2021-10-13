@@ -24,6 +24,7 @@ use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserDevice;
 use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
@@ -37,6 +38,7 @@ use Railroad\Railforums\Repositories\PostRepository;
 use Railroad\Railforums\Repositories\ThreadRepository;
 use Railroad\Railforums\Services\ConfigService;
 use Railroad\Usora\Entities\User;
+use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
@@ -1061,4 +1063,36 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
+
+    /**
+     * @param MobileAppLogin $mobileAppLogin
+     */
+    public function handleMobileAppLogin(MobileAppLogin $mobileAppLogin)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            dispatch(
+                (new CustomerIoSyncUserDevice(
+                    $mobileAppLogin->getUser()->getId(),
+                    config('event-data-synchronizer.customer_io_brand_activity_event'),
+                    [
+                        'id' => $mobileAppLogin->getFirebaseToken(),
+                        'platform' => $mobileAppLogin->getPlatform()
+                    ],
+                    Carbon::now()->timestamp
+                ))->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(3)
+                    )
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
 }
