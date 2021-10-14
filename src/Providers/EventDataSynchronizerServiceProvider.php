@@ -19,6 +19,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
 use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
+use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoExistingDevices;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoOldEvents;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
@@ -176,7 +177,8 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncExistingHelpScout::class,
                 HelpScoutIndex::class,
                 SyncHelpScoutAsync::class,
-                SyncCustomerIoOldEvents::class
+                SyncCustomerIoOldEvents::class,
+                SyncCustomerIoExistingDevices::class,
             ]
         );
 

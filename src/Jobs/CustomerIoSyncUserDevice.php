@@ -78,7 +78,7 @@ class CustomerIoSyncUserDevice extends CustomerIoBaseJob
     {
         error_log(
             'Error on CustomerIoSyncUserDevice job trying to sync user device to customer.io. User ID: ' .
-            $this->user->getId()
+            $this->userId
         );
 
         error_log($exception);

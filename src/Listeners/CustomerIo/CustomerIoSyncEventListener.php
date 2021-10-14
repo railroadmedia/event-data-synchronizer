@@ -815,8 +815,13 @@ class CustomerIoSyncEventListener
         if (self::$disable) {
             return;
         }
+
         try {
-            $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser()->getId());
+            $this->syncPayment(
+                $paymentEvent->getPayment(),
+                $paymentEvent->getUser()
+                    ->getId()
+            );
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -1073,16 +1078,37 @@ class CustomerIoSyncEventListener
             return;
         }
 
+        if (!$mobileAppLogin->getFirebaseToken() || !$mobileAppLogin->getPlatform()) {
+            return;
+        }
+
+        try {
+            $this->syncDevice(
+                $mobileAppLogin->getUser()
+                    ->getId(),
+                $mobileAppLogin->getFirebaseToken(),
+                $mobileAppLogin->getPlatform()
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param $userId
+     * @param $token
+     * @param $platform
+     * @param null $timestamp
+     */
+    public function syncDevice($userId, $token, $platform, $brand = null, $timestamp = null)
+    {
         try {
             dispatch(
                 (new CustomerIoSyncUserDevice(
-                    $mobileAppLogin->getUser()->getId(),
-                    config('event-data-synchronizer.customer_io_brand_activity_event'),
-                    [
-                        'id' => $mobileAppLogin->getFirebaseToken(),
-                        'platform' => $mobileAppLogin->getPlatform()
-                    ],
-                    Carbon::now()->timestamp
+                    $userId, $brand ?? config('event-data-synchronizer.customer_io_brand_activity_event'), [
+                        'id' => $token,
+                        'platform' => $platform,
+                    ], $timestamp ?? Carbon::now()->timestamp
                 ))->onConnection($this->queueConnectionName)
                     ->onQueue($this->queueName)
                     ->delay(
