@@ -853,7 +853,7 @@ class CustomerIoSyncEventListener
     public function syncOrder($order, $payment)
     {
         try {
-            if (!empty($order) && !empty($payment) && !empty(
+            if (!empty($order) && !empty(
                 $order->getUser()
                 )) {
                 $productIds = [];
@@ -868,7 +868,7 @@ class CustomerIoSyncEventListener
 
                 $data = [
                     'product_id' => $productIds,
-                    'amount_paid' => $payment->getTotalPaid(),
+                    'amount_paid' => $payment ? $payment->getTotalPaid() : $order->getTotalPaid(),
                     'amount_due' => $order->getTotalDue(),
                 ];
 
