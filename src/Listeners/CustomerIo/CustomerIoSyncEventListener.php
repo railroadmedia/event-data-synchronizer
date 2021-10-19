@@ -28,6 +28,8 @@ use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserDevice;
 use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\ContentFollow;
+use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Repositories\CommentRepository;
 use Railroad\Railcontent\Services\ContentService;
@@ -1116,6 +1118,54 @@ class CustomerIoSyncEventListener
                             ->addSeconds(3)
                     )
             );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    public function handleContentFollow(ContentFollow $contentFollow)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $user = $this->userRepository->find($contentFollow->getUserId());
+
+            if (!empty($user)) {
+                dispatch(
+                    (new CustomerIoSyncUserByUserId($user))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(3)
+                        )
+                );
+            }
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    public function handleContentUnfollow(ContentUnfollow $contentUnfollow)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $user = $this->userRepository->find($contentUnfollow->getUserId());
+
+            if (!empty($user)) {
+                dispatch(
+                    (new CustomerIoSyncUserByUserId($user))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(3)
+                        )
+                );
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }

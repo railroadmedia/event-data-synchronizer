@@ -38,6 +38,8 @@ use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\ContentFollow;
+use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
@@ -155,6 +157,12 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         MobileAppLogin::class => [
             CustomerIoSyncEventListener::class . '@handleMobileAppLogin',
+        ],
+        ContentFollow::class => [
+            CustomerIoSyncEventListener::class . '@handleContentFollow',
+        ],
+        ContentUnfollow::class => [
+            CustomerIoSyncEventListener::class . '@handleContentUnfollow',
         ]
     ];
 

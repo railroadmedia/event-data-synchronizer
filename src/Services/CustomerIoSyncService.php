@@ -10,6 +10,7 @@ use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\Railcontent\Repositories\ContentFollowsRepository;
 use Railroad\Usora\Entities\User;
 
 class CustomerIoSyncService
@@ -30,6 +31,11 @@ class CustomerIoSyncService
     protected $productRepository;
 
     /**
+     * @var ContentFollowsRepository
+     */
+    protected $contentFollowRepository;
+
+    /**
      * @param  SubscriptionRepository  $subscriptionRepository
      * @param  UserProductRepository  $userProductRepository
      * @param  ProductRepository  $productRepository
@@ -37,11 +43,13 @@ class CustomerIoSyncService
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
-        ProductRepository $productRepository
+        ProductRepository $productRepository,
+        ContentFollowsRepository $contentFollowsRepository
     ) {
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
+        $this->contentFollowRepository = $contentFollowsRepository;
     }
 
     /**
@@ -57,7 +65,8 @@ class CustomerIoSyncService
             $this->getUsersMusoraProfileAttributes($user),
             $membershipAccessAttributes,
             $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes, $brands),
-            $this->getUsersProductOwnershipStrings($user, $brands)
+            $this->getUsersProductOwnershipStrings($user, $brands),
+            $this->getUsersFollowedContentsAttributes($user, $brands)
         );
     }
 
@@ -504,5 +513,29 @@ class CustomerIoSyncService
         }
 
         return $finalArray;
+    }
+
+    /**
+     * @param  User  $user
+     * @return array
+     */
+    public function getUsersFollowedContentsAttributes(User $user)
+    {
+        $attributes = [];
+
+        if (empty($brands)) {
+            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
+        }
+
+        foreach ($brands as $brand) {
+            $attributes[$brand.'_subscribed_coach_content_ids'] = '';
+            $followed = $this->contentFollowRepository->getFollowedContent($user->getId(), $brand);
+
+            if($followed){
+                $attributes[$brand.'_subscribed_coach_content_ids'] = '_'.implode('_, ',array_unique(array_pluck($followed,'content_id'))).'_';
+            }
+        }
+
+        return $attributes;
     }
 }
