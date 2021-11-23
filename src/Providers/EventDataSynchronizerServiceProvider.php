@@ -29,6 +29,7 @@ use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
+use Railroad\EventDataSynchronizer\Listeners\Impact\ImpactEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -51,6 +52,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      * @var array
      */
     protected $listen = [
+
         UserCreated::class => [
             IntercomSyncEventListener::class . '@handleUserCreated',
             CustomerIoSyncEventListener::class . '@handleUserCreated',
@@ -114,6 +116,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         OrderEvent::class => [
             CustomerIoSyncEventListener::class . '@handleOrderPlaced',
+            ImpactEventListener::class . '@handleOrderPlaced',
         ],
         PaymentEvent::class => [
             CustomerIoSyncEventListener::class . '@handlePaymentPaid',

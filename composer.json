@@ -34,7 +34,8 @@
     "railroad/maropost": "1.0.*",
     "railroad/customer-io": "^2.0.6",
     "railroad/railhelpscout": "1.0.*",
-    "railroad/railforums": "1.3.*"
+    "railroad/railforums": "1.3.*",
+    "railroad/railanalytics": "2.0.0"
   },
   "require-dev": {
     "phpunit/phpunit": "~7.0",
