@@ -27,7 +27,7 @@
   "require": {
     "php": "~7",
     "laravel/framework": "5.6.*",
-    "railroad/railcontent": "0.5.*",
+    "railroad/railcontent": "dev-0.5-content-follow as v0.5.180",
     "railroad/ecommerce": "2.4.*|2.5.*|3.0.*",
     "railroad/usora": "2.0.*",
     "railroad/intercomeo": "2.0.*",
