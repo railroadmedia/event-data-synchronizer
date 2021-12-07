@@ -529,7 +529,7 @@ class CustomerIoSyncService
 
         foreach ($brands as $brand) {
             $attributes[$brand.'_subscribed_coach_content_ids'] = '';
-            $followed = $this->contentFollowRepository->getFollowedContent($user->getId(), $brand);
+            $followed = $this->contentFollowRepository->getFollowedContent($user->getId(), $brand, null, 1, 'null');
 
             if($followed){
                 $attributes[$brand.'_subscribed_coach_content_ids'] = '_'.implode('_, ',array_unique(array_pluck($followed,'content_id'))).'_';
