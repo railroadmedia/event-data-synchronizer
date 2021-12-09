@@ -519,7 +519,7 @@ class CustomerIoSyncService
      * @param  User  $user
      * @return array
      */
-    public function getUsersFollowedContentsAttributes(User $user)
+    public function getUsersFollowedContentsAttributes(User $user, $brands = null)
     {
         $attributes = [];
 
