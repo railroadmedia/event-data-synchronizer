@@ -10,9 +10,9 @@ use Railroad\Usora\Repositories\UserRepository;
 class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 {
     /**
-     * @var integer
+     * @var string
      */
-    private $userId;
+    private $receiverEmail;
 
     /**
      * @var string
@@ -29,10 +29,10 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      */
     private $eventData;
 
-    /**
-     * @var string|null
-     */
-    private $eventType;
+//    /**
+//     * @var string|null
+//     */
+//    private $eventType;
 
     /**
      * @var int|null
@@ -43,7 +43,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 
     /**
      * CustomerIoCreateEventByUserId constructor.
-     * @param  integer  $userId
+     * @param  string  $receiverEmail
      * @param  string  $accountName  // usually the brand name
      * @param  string  $eventName
      * @param  array  $eventData  // key value pairs
@@ -51,18 +51,18 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @param  integer|null  $eventTimestamp
      */
     public function __construct(
-        $userId,
+        $receiverEmail,
         $accountName,
         $eventName,
         $eventData = [],
-        $eventType = null,
+//        $eventType = null,
         $eventTimestamp = null
     ) {
-        $this->userId = $userId;
+        $this->receiverEmail = $receiverEmail;
         $this->accountName = $accountName;
         $this->eventName = $eventName;
         $this->eventData = $eventData;
-        $this->eventType = $eventType;
+//        $this->eventType = $eventType;
         $this->eventTimestamp = $eventTimestamp;
     }
 
@@ -77,30 +77,45 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
         try {
             $this->reconnectToMySQLDatabases();
 
-            $user = $userRepository->find($this->userId);
+//            $user = $userRepository->find($this->userId);
 
+//            dd($user);
+//            dd($this);
+
+//            die("mircea-debug-customer-io-102");
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
 
             // events always sync to the brand specific workspace and the primary all synced workspace
-            $customerIoService->createEventForUserId(
-                $user->getId(),
-                $this->accountName,
-                $this->eventName,
-                $this->eventData,
-                $this->eventType,
-                $this->eventTimestamp
+
+//            var_dump($this);
+//            die("customer-io-create-job");
+
+            // useful info Roxana:
+            // vechea metoda crea pe sender, noi trebuie sa creem pe receiver
+            // nu avem user id pt receiver!!!!
+            // doar user email;
+            $customerIoService->createOrUpdateCustomerByEmailAndTriggerEvent(
+                $this->receiverEmail,
+                $this->accountName,  // drumeo
+                $this->eventName,    // drumeo_saasquatch_referral-link_30-day
+                $this->eventData,   // array(0) { }
+//                $this->eventType,   // NULL
+                $this->eventTimestamp   // 1639399051
             );
 
-            $customerIoService->createEventForUserId(
-                $user->getId(),
-                $accountNameToSyncAllBrand,
-                $this->eventName,
-                $this->eventData,
-                $this->eventType,
-                $this->eventTimestamp
-            );
+
+//                        $customerIoService->createEventForUserId(
+//            $user->getId(),
+//                $this->accountName,  // drumeo
+//                $this->eventName,    // drumeo_saasquatch_referral-link_30-day
+//                $this->eventData,   // array(0) { }
+//                $this->eventType,   // NULL
+//                $this->eventTimestamp   // 1639399051
+//            );
+
+
         } catch (Exception $exception) {
-            $this->failed($exception, $user);
+            $this->failed($exception);
         }
     }
 
@@ -110,22 +125,19 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @param  Exception  $exception
      * @param $user
      */
-    public function failed(Exception $exception, $user = null)
+    public function failed(Exception $exception, $email = null)
     {
         error_log(
-            'Error on CustomerIoCreateEventByUserId job trying to sync user to customer.io. User ID: '.
-            $this->userId
+            'Error on CustomerIoCreateEventByUserId job trying to sync user to customer.io. Customer.io email: ' . $email
         );
 
         error_log($exception);
 
-        // try to sync the user first, then retry
-        event(new UserCreated($user));
 
-        if ($this->job->attempts() >= $this->tries) {
-            $this->fail($exception);
-        } else {
-            $this->release(60);
-        }
+//        if ($this->job->attempts() >= $this->tries) {
+//            $this->fail($exception);
+//        } else {
+//            $this->release(60);
+//        }
     }
 }

@@ -22,6 +22,7 @@ use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSendTransactionalEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
 use Railroad\Railchat\Exceptions\NotFoundException;
@@ -42,6 +43,7 @@ use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 use Throwable;
 use Exception;
+use Railroad\Referral\Events\EmailInvite;
 
 class CustomerIoSyncEventListener
 {
@@ -535,7 +537,7 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
-
+//aici!!!!
     /**
      * @param CommentCreated $commentCreated
      */
@@ -819,7 +821,7 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
-
+ // check asta! aici
     /**
      * @param FirstActivityPerDay $activityEvent
      */
@@ -834,7 +836,7 @@ class CustomerIoSyncEventListener
                 (new CustomerIoCreateEventByUserId(
                     $activityEvent->getUserId(),
                     $activityEvent->getBrand(),
-                    $activityEvent->getBrand() . '_members_area_activity',
+                    $activityEvent->getBrand() . '_members_area_activity',  // acesta e numele eventului din customer.io
                     [],
                     null,
                     Carbon::now()->timestamp
@@ -1060,5 +1062,96 @@ class CustomerIoSyncEventListener
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
+    }
+
+
+    //todo: put try catch back!!
+    public function handleReferralInvite(EmailInvite $emailInvite) {
+
+//        die("handle-referal-invite-provider");
+        $eventData = [];
+        $eventData["referrer_id"] = auth()->id();
+        $eventData["share_url"] = "test_share_url"; //todo: to be defined;
+
+        if (self::$disable) {
+            return;
+        }
+
+//        try {
+
+
+//        var_dump($emailInvite);
+//        die("customer-io-listener-mircea");
+
+
+
+
+//        https://github.com/railroadmedia/event-data-synchronizer/blob/6.0-/src/Listeners/CustomerIo/CustomerIoSyncEventListener.php#L833
+
+
+
+        //todo: dispatch simplu
+        dispatch_now(
+            (new CustomerIoCreateEventByUserId(
+                $emailInvite->getEmail(),
+                "drumeo",  //todo: update
+                "drumeo_saasquatch_referral-link_30-day",  //todo: update
+                $eventData,
+//                null,
+                Carbon::now()->timestamp
+            ))->onConnection($this->queueConnectionName)
+                ->onQueue($this->queueName)
+                ->delay(
+                    Carbon::now()
+                        ->addSeconds(3)
+                )
+        );
+
+
+//            dispatch((
+//            dispatch_now((
+//            new CustomerIoSendTransactionalEmail(
+//                    "drumeo",
+//                    3,
+//                "mircea.murasan-artsoft-consult.ro",
+//                ['test1', 'test2', 'test3'])
+//            )->onConnection($this->queueConnectionName)
+//                        ->onQueue($this->queueName)
+//                        ->delay(
+//                            Carbon::now()
+//                                ->addSeconds(3)
+//                        )
+//                );
+
+//            $user = $this->userRepository->find(
+//                $userCreated->getUser()
+//                    ->getId()
+//            );
+//
+//            if (!empty($user) && !in_array(
+//                    $userCreated->getUser()
+//                        ->getId(),
+//                    self::$alreadyQueuedUserIds
+//                )) {
+//                dispatch(
+//                    (new CustomerIoSyncNewUserByEmail($user))->onConnection($this->queueConnectionName)
+//                        ->onQueue($this->queueName)
+//                        ->delay(
+//                            Carbon::now()
+//                                ->addSeconds(3)
+//                        )
+//                );
+//
+//                self::$alreadyQueuedUserIds[] =
+//                    $userCreated->getUser()
+//                        ->getId();
+//            }
+
+
+
+//        } catch (Throwable $throwable) {
+//            error_log($throwable);
+//        }
+
     }
 }

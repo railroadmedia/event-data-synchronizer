@@ -42,6 +42,7 @@ use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
+use Railroad\Referral\Events\EmailInvite;
 
 class EventDataSynchronizerServiceProvider extends EventServiceProvider
 {
@@ -150,6 +151,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UTMLinks::class => [
 //            CustomerIoSyncEventListener::class . '@handleUTMLinks',
+        ],
+        EmailInvite::class => [
+            CustomerIoSyncEventListener::class . '@handleReferralInvite'
         ]
     ];
 
