@@ -6,9 +6,9 @@ use Railroad\EventDataSynchronizer\Jobs\ImpactTrackConversion;
 
 class ImpactEventListener
 {
-    private $queueConnectionName = 'musora_database';
+    private $queueConnectionName;
 
-    private $queueName = 'impact';
+    private $queueName;
 
 
     public function __construct() {
