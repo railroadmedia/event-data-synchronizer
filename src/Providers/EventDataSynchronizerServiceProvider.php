@@ -108,6 +108,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewed',
+            ImpactEventListener::class . '@handleSubscriptionRenewed',
         ],
         SubscriptionRenewFailed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
@@ -116,7 +117,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         OrderEvent::class => [
             CustomerIoSyncEventListener::class . '@handleOrderPlaced',
-            ImpactEventListener::class . '@handleOrderPlaced',
         ],
         PaymentEvent::class => [
             CustomerIoSyncEventListener::class . '@handlePaymentPaid',

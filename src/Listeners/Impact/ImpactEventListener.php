@@ -15,14 +15,11 @@ class ImpactEventListener
         $this->queueConnectionName = config('event-data-synchronizer.impact_queue_connection_name', 'database');
         $this->queueName = config('event-data-synchronizer.impact_queue_name', 'impact');
     }
-
-    // todo: this should use the Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed event, OrderEvent is not
-    // triggered for renewal payments
     
     /**
      * @param  OrderEvent  $orderEvent
      */
-    public function handleOrderPlaced(OrderEvent $orderEvent)
+    public function handleSubscriptionRenewed(OrderEvent $orderEvent)
     {
 
         $order = $orderEvent->getOrder();
