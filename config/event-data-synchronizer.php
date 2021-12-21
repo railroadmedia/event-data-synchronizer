@@ -277,5 +277,7 @@ return [
         ],
 
     ],
-    'customer_io_brand_activity_event' => 'drumeo'
+    'customer_io_brand_activity_event' => 'drumeo',
+    'customer_io_saasquatch_event_name' => '_saasquatch_referral-link_30-day',
+    'brand' => ''  //todo: add in all brands!
 ];

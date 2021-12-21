@@ -77,9 +77,9 @@ class CustomerIoSyncEventListener
      */
     private $contentService;
 
-    private $queueConnectionName = 'database';
+    private $queueConnectionName;
 
-    private $queueName = 'customer_io';
+    private $queueName;
 
     /**
      * @var bool
@@ -1069,9 +1069,11 @@ class CustomerIoSyncEventListener
     public function handleReferralInvite(EmailInvite $emailInvite) {
 
 //        die("handle-referal-invite-provider");
+
+        // todo: do we need eventData?  //update: yes, for update/create customer
         $eventData = [];
         $eventData["referrer_id"] = auth()->id();
-        $eventData["share_url"] = "test_share_url"; //todo: to be defined;
+        $eventData["share_url"] = $emailInvite->getReferralLink(); //todo: to be defined;  //done
 
         if (self::$disable) {
             return;
@@ -1083,19 +1085,31 @@ class CustomerIoSyncEventListener
 //        var_dump($emailInvite);
 //        die("customer-io-listener-mircea");
 
-
+//var_dump(config('event-data-synchronizer.brand'));
+//die("customerioeventlistener-mircea");
 
 
 //        https://github.com/railroadmedia/event-data-synchronizer/blob/6.0-/src/Listeners/CustomerIo/CustomerIoSyncEventListener.php#L833
 
 
+        $eventName = config('event-data-synchronizer.customer_io_brand_activity_event') . config('event-data-synchronizer.customer_io_saasquatch_event_name');
 
-        //todo: dispatch simplu
+//var_dump($eventData);
+//var_dump($eventName);
+//die("customer-io-event-listener-2");
+
+        //todo: am nevoie de programReferralId cand trimit email??  // update: no I do not
+
+        //todo: simple dispatch
+//        dispatch(
         dispatch_now(
             (new CustomerIoCreateEventByUserId(
                 $emailInvite->getEmail(),
-                "drumeo",  //todo: update
-                "drumeo_saasquatch_referral-link_30-day",  //todo: update
+                config('event-data-synchronizer.brand'),  //todo: is this param correct? or should we use another one?
+//                $emailInvite->getReferralProgramId(),
+//                $emailInvite->getReferralCustomerIOEventName(),
+                $eventName,  //todo: move referralProrgramId in eventData! // update: not needed in CustomerIoCreateEventByUserId
+//                "drumeo_saasquatch_referral-link_30-day",
                 $eventData,
 //                null,
                 Carbon::now()->timestamp

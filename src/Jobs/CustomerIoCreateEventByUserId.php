@@ -4,7 +4,7 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
-use Railroad\Usora\Events\User\UserCreated;
+//use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Repositories\UserRepository;
 
 class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
@@ -47,7 +47,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @param  string  $accountName  // usually the brand name
      * @param  string  $eventName
      * @param  array  $eventData  // key value pairs
-     * @param  string|null  $eventType
+//     * @param  string|null  $eventType
      * @param  integer|null  $eventTimestamp
      */
     public function __construct(
@@ -74,16 +74,16 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
         CustomerIoService $customerIoService,
         UserRepository $userRepository
     ) {
+//die("plm");
         try {
             $this->reconnectToMySQLDatabases();
 
 //            $user = $userRepository->find($this->userId);
 
 //            dd($user);
-//            dd($this);
-
-//            die("mircea-debug-customer-io-102");
-            $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
+//var_dump($this);
+//die("mircea-debug-customer-io-102");
+//            $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
 
             // events always sync to the brand specific workspace and the primary all synced workspace
 
@@ -97,7 +97,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
             $customerIoService->createOrUpdateCustomerByEmailAndTriggerEvent(
                 $this->receiverEmail,
                 $this->accountName,  // drumeo
-                $this->eventName,    // drumeo_saasquatch_referral-link_30-day
+                $this->eventName,    // todo: update event_name: trebuie sa fie: 'drumeo_saasquatch_referral-link_30-day'
                 $this->eventData,   // array(0) { }
 //                $this->eventType,   // NULL
                 $this->eventTimestamp   // 1639399051
