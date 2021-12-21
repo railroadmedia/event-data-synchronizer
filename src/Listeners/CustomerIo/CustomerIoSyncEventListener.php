@@ -537,7 +537,6 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
-//aici!!!!
 
     /**
      * @param  CommentCreated  $commentCreated
@@ -821,7 +820,6 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
-    // check asta! aici
 
     /**
      * @param  FirstActivityPerDay  $activityEvent
@@ -837,7 +835,7 @@ class CustomerIoSyncEventListener
                 (new CustomerIoCreateEventByUserId(
                     $activityEvent->getUserId(),
                     $activityEvent->getBrand(),
-                    $activityEvent->getBrand().'_members_area_activity',  // acesta e numele eventului din customer.io
+                    $activityEvent->getBrand().'_members_area_activity',
                     [],
                     null,
                     Carbon::now()->timestamp
@@ -1024,6 +1022,9 @@ class CustomerIoSyncEventListener
         }
     }
 
+    /**
+     * @param  UTMLinks  $UTMLinks
+     */
     public function handleUTMLinks(UTMLinks $UTMLinks)
     {
         if (self::$disable) {
@@ -1065,8 +1066,9 @@ class CustomerIoSyncEventListener
         }
     }
 
-
-    //todo: put try catch back!!
+    /**
+     * @param  EmailInvite  $emailInvite
+     */
     public function handleReferralInvite(EmailInvite $emailInvite)
     {
         if (self::$disable) {

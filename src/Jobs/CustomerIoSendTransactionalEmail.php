@@ -5,7 +5,6 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
 
-//aici
 class CustomerIoSendTransactionalEmail extends CustomerIoBaseJob
 {
     /**
@@ -50,7 +49,7 @@ class CustomerIoSendTransactionalEmail extends CustomerIoBaseJob
         try {
             $this->reconnectToMySQLDatabases();
 
-            $customerIoService->sendTransactionalEmail( // aici
+            $customerIoService->sendTransactionalEmail(
                 $this->accountName,
                 $this->customerIoTransactionalMessageId,
                 $this->customerEmail,
