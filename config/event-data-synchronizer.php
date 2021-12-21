@@ -34,6 +34,12 @@ return [
         'account_3' => ['another_brand'],
     ],
 
+    'customer_io_brand_activity_event' => 'drumeo',
+
+    // sasquatch integration
+    'customer_io_saasquatch_email_invite_event_name' => 'BRAND_saasquatch_referral-link_30-day',
+    'customer_io_saasquatch_email_invite_link_attribute_name' => 'BRAND_saasquatch_referral-link_30-day',
+
     // pack ownership syncing, all packs should be listed here that will go in the pack ownership attribute
     'customer_io_pack_skus_to_sync_ownership' => ['my-pack-1', 'my-pack-2'],
 
@@ -277,7 +283,4 @@ return [
         ],
 
     ],
-    'customer_io_brand_activity_event' => 'drumeo',
-    'customer_io_saasquatch_event_name' => '_saasquatch_referral-link_30-day',
-    'brand' => ''  //todo: add in all brands!
 ];

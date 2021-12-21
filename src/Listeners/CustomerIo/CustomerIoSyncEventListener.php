@@ -22,9 +22,10 @@ use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoCreateEventByUserId;
-use Railroad\EventDataSynchronizer\Jobs\CustomerIoSendTransactionalEmail;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncCustomerByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoTriggerEvent;
 use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
@@ -37,13 +38,12 @@ use Railroad\Railforums\Repositories\CategoryRepository;
 use Railroad\Railforums\Repositories\PostRepository;
 use Railroad\Railforums\Repositories\ThreadRepository;
 use Railroad\Railforums\Services\ConfigService;
+use Railroad\Referral\Events\EmailInvite;
 use Railroad\Usora\Entities\User;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 use Throwable;
-use Exception;
-use Railroad\Referral\Events\EmailInvite;
 
 class CustomerIoSyncEventListener
 {
@@ -93,11 +93,11 @@ class CustomerIoSyncEventListener
     /**
      * CustomerIoSyncEventListener constructor.
      *
-     * @param UserRepository $userRepository
-     * @param CommentRepository $commentRepository
-     * @param CategoryRepository $categoryRepository
-     * @param ThreadRepository $threadRepository
-     * @param PostRepository $postRepository
+     * @param  UserRepository  $userRepository
+     * @param  CommentRepository  $commentRepository
+     * @param  CategoryRepository  $categoryRepository
+     * @param  ThreadRepository  $threadRepository
+     * @param  PostRepository  $postRepository
      */
     public function __construct(
         UserRepository $userRepository,
@@ -119,7 +119,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserCreated $userCreated
+     * @param  UserCreated  $userCreated
      */
     public function handleUserCreated(UserCreated $userCreated)
     {
@@ -157,7 +157,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserUpdated $userUpdated
+     * @param  UserUpdated  $userUpdated
      */
     public function handleUserUpdated(UserUpdated $userUpdated)
     {
@@ -193,7 +193,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PaymentMethodCreated $paymentMethodCreated
+     * @param  PaymentMethodCreated  $paymentMethodCreated
      */
     public function handleUserPaymentMethodCreated(PaymentMethodCreated $paymentMethodCreated)
     {
@@ -217,7 +217,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PaymentMethodUpdated $paymentMethodUpdated
+     * @param  PaymentMethodUpdated  $paymentMethodUpdated
      */
     public function handleUserPaymentMethodUpdated(PaymentMethodUpdated $paymentMethodUpdated)
     {
@@ -256,7 +256,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductCreated $userProductCreated
+     * @param  UserProductCreated  $userProductCreated
      */
     public function handleUserProductCreated(UserProductCreated $userProductCreated)
     {
@@ -289,7 +289,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductUpdated $userProductUpdated
+     * @param  UserProductUpdated  $userProductUpdated
      */
     public function handleUserProductUpdated(UserProductUpdated $userProductUpdated)
     {
@@ -322,7 +322,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserProductDeleted $userProductDeleted
+     * @param  UserProductDeleted  $userProductDeleted
      */
     public function handleUserProductDeleted(UserProductDeleted $userProductDeleted)
     {
@@ -355,7 +355,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionCreated $subscriptionCreated
+     * @param  SubscriptionCreated  $subscriptionCreated
      */
     public function handleSubscriptionCreated(SubscriptionCreated $subscriptionCreated)
     {
@@ -395,7 +395,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionUpdated $subscriptionUpdated
+     * @param  SubscriptionUpdated  $subscriptionUpdated
      */
     public function handleSubscriptionUpdated(SubscriptionUpdated $subscriptionUpdated)
     {
@@ -435,7 +435,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param AppSignupStartedEvent $appSignupStarted
+     * @param  AppSignupStartedEvent  $appSignupStarted
      */
     public function handleAppSignupStarted(AppSignupStartedEvent $appSignupStarted)
     {
@@ -451,7 +451,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param AppSignupFinishedEvent $appSignupFinished
+     * @param  AppSignupFinishedEvent  $appSignupFinished
      */
     public function handleAppSignupFinished(AppSignupFinishedEvent $appSignupFinished)
     {
@@ -467,7 +467,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionRenewed $subscriptionRenewed
+     * @param  SubscriptionRenewed  $subscriptionRenewed
      */
     public function handleSubscriptionRenewed(SubscriptionRenewed $subscriptionRenewed)
     {
@@ -483,7 +483,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param SubscriptionRenewFailed $subscriptionRenewFailed
+     * @param  SubscriptionRenewFailed  $subscriptionRenewFailed
      */
     public function handleSubscriptionRenewalAttemptFailed(SubscriptionRenewFailed $subscriptionRenewFailed)
     {
@@ -504,7 +504,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param CommentLiked $commentLiked
+     * @param  CommentLiked  $commentLiked
      */
     public function handleCommentLiked(CommentLiked $commentLiked)
     {
@@ -520,7 +520,7 @@ class CustomerIoSyncEventListener
             if (!empty($comment) && !empty($content) && !empty($user)) {
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
-                        $user->getId(), $content['brand'], $content['brand'] . '_action_lesson_comment-like', [
+                        $user->getId(), $content['brand'], $content['brand'].'_action_lesson_comment-like', [
                         'content_id' => $content['id'],
                         'content_name' => $content->fetch('fields.title'),
                         'content_type' => $content['type'],
@@ -538,8 +538,9 @@ class CustomerIoSyncEventListener
         }
     }
 //aici!!!!
+
     /**
-     * @param CommentCreated $commentCreated
+     * @param  CommentCreated  $commentCreated
      */
     public function handleCommentCreated(CommentCreated $commentCreated)
     {
@@ -555,7 +556,7 @@ class CustomerIoSyncEventListener
             if (!empty($comment) && !empty($content) && !empty($user)) {
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
-                        $user->getId(), $content['brand'], $content['brand'] . '_action_lesson_comment', [
+                        $user->getId(), $content['brand'], $content['brand'].'_action_lesson_comment', [
                         'content_id' => $content['id'],
                         'content_name' => $content->fetch('fields.title'),
                         'content_type' => $content['type'],
@@ -574,7 +575,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param ThreadCreated $threadCreated
+     * @param  ThreadCreated  $threadCreated
      */
     public function handleForumsThreadCreated(ThreadCreated $threadCreated)
     {
@@ -585,11 +586,11 @@ class CustomerIoSyncEventListener
         try {
             $thread =
                 $this->threadRepository->getDecoratedQuery()
-                    ->where(ConfigService::$tableThreads . '.id', $threadCreated->getThreadId())
+                    ->where(ConfigService::$tableThreads.'.id', $threadCreated->getThreadId())
                     ->first();
             $category =
                 $this->categoryRepository->getDecoratedQuery()
-                    ->where(ConfigService::$tableCategories . '.id', $thread['category_id'])
+                    ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
                     ->first();
             $user = $this->userRepository->find($threadCreated->getUserId());
 
@@ -598,7 +599,7 @@ class CustomerIoSyncEventListener
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
                         $category['brand'],
-                        $category['brand'] . '_action_forum_create-thread',
+                        $category['brand'].'_action_forum_create-thread',
                         [],
                         null,
                         Carbon::now()->timestamp
@@ -616,7 +617,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PostCreated $postCreated
+     * @param  PostCreated  $postCreated
      */
     public function handleForumsPostCreated(PostCreated $postCreated)
     {
@@ -627,15 +628,15 @@ class CustomerIoSyncEventListener
         try {
             $post =
                 $this->postRepository->getDecoratedQuery()
-                    ->where(ConfigService::$tablePosts . '.id', $postCreated->getPostId())
+                    ->where(ConfigService::$tablePosts.'.id', $postCreated->getPostId())
                     ->first();
             $thread =
                 $this->threadRepository->getDecoratedQuery()
-                    ->where(ConfigService::$tableThreads . '.id', $post['thread_id'])
+                    ->where(ConfigService::$tableThreads.'.id', $post['thread_id'])
                     ->first();
             $category =
                 $this->categoryRepository->getDecoratedQuery()
-                    ->where(ConfigService::$tableCategories . '.id', $thread['category_id'])
+                    ->where(ConfigService::$tableCategories.'.id', $thread['category_id'])
                     ->first();
             $user = $this->userRepository->find($post['author_id']);
 
@@ -644,7 +645,7 @@ class CustomerIoSyncEventListener
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
                         $category['brand'],
-                        $category['brand'] . '_action_forum_comment',
+                        $category['brand'].'_action_forum_comment',
                         [],
                         null,
                         Carbon::now()->timestamp
@@ -662,7 +663,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param UserContentProgressSaved $userContentProgressSaved
+     * @param  UserContentProgressSaved  $userContentProgressSaved
      */
     public function handleUserContentProgressSaved(UserContentProgressSaved $userContentProgressSaved)
     {
@@ -698,10 +699,10 @@ class CustomerIoSyncEventListener
                         (new CustomerIoCreateEventByUserId(
                             $user->getId(),
                             $content['brand'],
-                            $content['brand'] .
-                            '_action_' .
-                            $contentTypeToEventStringMap[$content['type']] .
-                            '_' .
+                            $content['brand'].
+                            '_action_'.
+                            $contentTypeToEventStringMap[$content['type']].
+                            '_'.
                             $userContentProgressSaved->progressStatus,
                             $data,
                             null,
@@ -727,7 +728,7 @@ class CustomerIoSyncEventListener
                         (new CustomerIoCreateEventByUserId(
                             $user->getId(),
                             $content['brand'],
-                            $content['brand'] . '_action_lesson' . '_' . $userContentProgressSaved->progressStatus,
+                            $content['brand'].'_action_lesson'.'_'.$userContentProgressSaved->progressStatus,
                             $data,
                             null,
                             Carbon::now()->timestamp
@@ -750,7 +751,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param LiveStreamEventAttended $liveStreamEventAttended
+     * @param  LiveStreamEventAttended  $liveStreamEventAttended
      */
     public function handleLiveLessonAttended(LiveStreamEventAttended $liveStreamEventAttended)
     {
@@ -773,7 +774,7 @@ class CustomerIoSyncEventListener
                     (new CustomerIoCreateEventByUserId(
                         $user->getId(),
                         $content['brand'],
-                        $content['brand'] . '_action_live-stream-event-attended',
+                        $content['brand'].'_action_live-stream-event-attended',
                         $data,
                         null,
                         Carbon::now()->timestamp
@@ -791,7 +792,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param OrderEvent $orderEvent
+     * @param  OrderEvent  $orderEvent
      */
     public function handleOrderPlaced(OrderEvent $orderEvent)
     {
@@ -804,11 +805,10 @@ class CustomerIoSyncEventListener
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
-
     }
 
     /**
-     * @param PaymentEvent $paymentEvent
+     * @param  PaymentEvent  $paymentEvent
      */
     public function handlePaymentPaid(PaymentEvent $paymentEvent)
     {
@@ -821,9 +821,10 @@ class CustomerIoSyncEventListener
             error_log($throwable);
         }
     }
- // check asta! aici
+    // check asta! aici
+
     /**
-     * @param FirstActivityPerDay $activityEvent
+     * @param  FirstActivityPerDay  $activityEvent
      */
     public function handleFirstActivityPerDay(FirstActivityPerDay $activityEvent)
     {
@@ -836,7 +837,7 @@ class CustomerIoSyncEventListener
                 (new CustomerIoCreateEventByUserId(
                     $activityEvent->getUserId(),
                     $activityEvent->getBrand(),
-                    $activityEvent->getBrand() . '_members_area_activity',  // acesta e numele eventului din customer.io
+                    $activityEvent->getBrand().'_members_area_activity',  // acesta e numele eventului din customer.io
                     [],
                     null,
                     Carbon::now()->timestamp
@@ -879,7 +880,7 @@ class CustomerIoSyncEventListener
                         $order->getUser()
                             ->getId(),
                         $order->getBrand(),
-                        $order->getBrand() . '_user_order',
+                        $order->getBrand().'_user_order',
                         $data,
                         null,
                         $order->getCreatedAt()->timestamp
@@ -907,8 +908,8 @@ class CustomerIoSyncEventListener
                                 $order->getUser()
                                     ->getId(),
                                 $order->getBrand(),
-                                $order->getBrand() .
-                                '_pack_' .
+                                $order->getBrand().
+                                '_pack_'.
                                 $skuToEventNameMap[$orderItem->getProduct()
                                     ->getSku()],
                                 [
@@ -932,7 +933,7 @@ class CustomerIoSyncEventListener
     }
 
     /**
-     * @param PaymentEvent $paymentEvent
+     * @param  PaymentEvent  $paymentEvent
      */
     public function syncPayment($payment, $userId)
     {
@@ -980,7 +981,7 @@ class CustomerIoSyncEventListener
                     (new CustomerIoCreateEventByUserId(
                         $userId,
                         $payment->getGatewayName(),
-                        $payment->getGatewayName() . '_user_payment',
+                        $payment->getGatewayName().'_user_payment',
                         $data,
                         null,
                         $payment->getCreatedAt()->timestamp
@@ -1007,9 +1008,9 @@ class CustomerIoSyncEventListener
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
                         $subscription->getUser()
-                            ->getId(), $subscription->getBrand(), $subscription->getBrand() . '_membership_renewed', [
-                        'membership_rate' => $subscription->getTotalPrice(),
-                    ], null, $subscription->getCreatedAt()->timestamp
+                            ->getId(), $subscription->getBrand(), $subscription->getBrand().'_membership_renewed', [
+                            'membership_rate' => $subscription->getTotalPrice(),
+                        ], null, $subscription->getCreatedAt()->timestamp
                     ))->onConnection($this->queueConnectionName)
                         ->onQueue($this->queueName)
                         ->delay(
@@ -1048,7 +1049,7 @@ class CustomerIoSyncEventListener
                 (new CustomerIoCreateEventByUserId(
                     $UTMLinks->getUserId(),
                     $UTMLinks->getBrand(),
-                    $UTMLinks->getBrand() . '_prospect_ultimate-toolbox',
+                    $UTMLinks->getBrand().'_prospect_ultimate-toolbox',
                     $data,
                     null,
                     Carbon::now()->timestamp
@@ -1066,106 +1067,48 @@ class CustomerIoSyncEventListener
 
 
     //todo: put try catch back!!
-    public function handleReferralInvite(EmailInvite $emailInvite) {
-
-//        die("handle-referal-invite-provider");
-
-        // todo: do we need eventData?  //update: yes, for update/create customer
-        $eventData = [];
-        $eventData["referrer_id"] = auth()->id();
-        $eventData["share_url"] = $emailInvite->getReferralLink(); //todo: to be defined;  //done
-
+    public function handleReferralInvite(EmailInvite $emailInvite)
+    {
         if (self::$disable) {
             return;
         }
 
-//        try {
+        // create or update customer.io customer by email, add attribute for the referral link
+        // trigger event for that customer
+        // only trigger for the brand customer.io workspaces
 
+        // customer_io_saasquatch_email_invite_event_name
+        // customer_io_saasquatch_email_invite_link_attribute_name
 
-//        var_dump($emailInvite);
-//        die("customer-io-listener-mircea");
+        try {
+            dispatch(
+                (new CustomerIoSyncCustomerByEmail(
+                    $emailInvite->getReceiversEmail(),
+                    $emailInvite->getBrand(),  //todo: is this param correct? or should we use another one?
+                    [config('event-data-synchronizer.customer_io_saasquatch_email_invite_link_attribute_name') => $emailInvite->getReferralLink()]
+                ))->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(3)
+                    )
+            );
 
-//var_dump(config('event-data-synchronizer.brand'));
-//die("customerioeventlistener-mircea");
-
-
-//        https://github.com/railroadmedia/event-data-synchronizer/blob/6.0-/src/Listeners/CustomerIo/CustomerIoSyncEventListener.php#L833
-
-
-        $eventName = config('event-data-synchronizer.customer_io_brand_activity_event') . config('event-data-synchronizer.customer_io_saasquatch_event_name');
-
-//var_dump($eventData);
-//var_dump($eventName);
-//die("customer-io-event-listener-2");
-
-        //todo: am nevoie de programReferralId cand trimit email??  // update: no I do not
-
-        //todo: simple dispatch
-//        dispatch(
-        dispatch_now(
-            (new CustomerIoCreateEventByUserId(
-                $emailInvite->getEmail(),
-                config('event-data-synchronizer.brand'),  //todo: is this param correct? or should we use another one?
-//                $emailInvite->getReferralProgramId(),
-//                $emailInvite->getReferralCustomerIOEventName(),
-                $eventName,  //todo: move referralProrgramId in eventData! // update: not needed in CustomerIoCreateEventByUserId
-//                "drumeo_saasquatch_referral-link_30-day",
-                $eventData,
-//                null,
-                Carbon::now()->timestamp
-            ))->onConnection($this->queueConnectionName)
-                ->onQueue($this->queueName)
-                ->delay(
-                    Carbon::now()
-                        ->addSeconds(3)
-                )
-        );
-
-
-//            dispatch((
-//            dispatch_now((
-//            new CustomerIoSendTransactionalEmail(
-//                    "drumeo",
-//                    3,
-//                "mircea.murasan-artsoft-consult.ro",
-//                ['test1', 'test2', 'test3'])
-//            )->onConnection($this->queueConnectionName)
-//                        ->onQueue($this->queueName)
-//                        ->delay(
-//                            Carbon::now()
-//                                ->addSeconds(3)
-//                        )
-//                );
-
-//            $user = $this->userRepository->find(
-//                $userCreated->getUser()
-//                    ->getId()
-//            );
-//
-//            if (!empty($user) && !in_array(
-//                    $userCreated->getUser()
-//                        ->getId(),
-//                    self::$alreadyQueuedUserIds
-//                )) {
-//                dispatch(
-//                    (new CustomerIoSyncNewUserByEmail($user))->onConnection($this->queueConnectionName)
-//                        ->onQueue($this->queueName)
-//                        ->delay(
-//                            Carbon::now()
-//                                ->addSeconds(3)
-//                        )
-//                );
-//
-//                self::$alreadyQueuedUserIds[] =
-//                    $userCreated->getUser()
-//                        ->getId();
-//            }
-
-
-
-//        } catch (Throwable $throwable) {
-//            error_log($throwable);
-//        }
-
+            dispatch(
+                (new CustomerIoTriggerEvent(
+                    $emailInvite->getBrand(),
+                    $emailInvite->getReceiversEmail(),
+                    null,
+                    config('event-data-synchronizer.customer_io_saasquatch_email_invite_event_name')
+                ))->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(10)
+                    )
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 }
