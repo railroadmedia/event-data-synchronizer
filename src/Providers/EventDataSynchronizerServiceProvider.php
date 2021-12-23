@@ -103,7 +103,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
             HelpScoutEventListener::class . '@handleSubscriptionUpdated',
         ],
-        SubscriptionRenewed::class => [  // AICI
+        SubscriptionRenewed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewed',
