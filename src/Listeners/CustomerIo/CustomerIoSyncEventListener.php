@@ -27,6 +27,8 @@ use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
 use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\ContentFollow;
+use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Repositories\CommentRepository;
 use Railroad\Railcontent\Services\ContentService;
@@ -41,7 +43,6 @@ use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
 use Throwable;
-use Exception;
 
 class CustomerIoSyncEventListener
 {
@@ -76,7 +77,6 @@ class CustomerIoSyncEventListener
     private $contentService;
 
     private $queueConnectionName = 'database';
-
     private $queueName = 'customer_io';
 
     /**
@@ -845,6 +845,42 @@ class CustomerIoSyncEventListener
                             ->addSeconds(3)
                     )
             );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    public function handleContentFollow(ContentFollow $contentFollow)
+    {
+        $this->syncUsersContentFollows($contentFollow->userId);
+    }
+
+    public function handleContentUnfollow(ContentUnfollow $contentUnfollow)
+    {
+        $this->syncUsersContentFollows($contentUnfollow->userId);
+    }
+
+    public function syncUsersContentFollows(int $userId)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        try {
+            $user = $this->userRepository->find($userId);
+
+            if (!empty($user) && !in_array($userId, self::$alreadyQueuedUserIds)) {
+                dispatch(
+                    (new CustomerIoSyncUserByUserId($user))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(3)
+                        )
+                );
+
+                self::$alreadyQueuedUserIds[] = $user->getId();
+            }
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
