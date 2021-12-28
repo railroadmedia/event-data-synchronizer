@@ -10,6 +10,8 @@ use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\Railcontent\Repositories\ContentFollowsRepository;
+use Railroad\Railcontent\Services\ConfigService as RailcontentConfigService;
 use Railroad\Usora\Entities\User;
 
 class CustomerIoSyncService
@@ -30,6 +32,11 @@ class CustomerIoSyncService
     protected $productRepository;
 
     /**
+     * @var ContentFollowsRepository
+     */
+    private $contentFollowsRepository;
+
+    /**
      * @param  SubscriptionRepository  $subscriptionRepository
      * @param  UserProductRepository  $userProductRepository
      * @param  ProductRepository  $productRepository
@@ -37,11 +44,13 @@ class CustomerIoSyncService
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
-        ProductRepository $productRepository
+        ProductRepository $productRepository,
+        ContentFollowsRepository $contentFollowsRepository
     ) {
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
+        $this->contentFollowsRepository = $contentFollowsRepository;
     }
 
     /**
@@ -52,12 +61,14 @@ class CustomerIoSyncService
     public function getUsersCustomAttributes(User $user, array $brands = null)
     {
         $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user, $brands);
+        $contentFollowAttributes = $this->getUsersContentFollowAttributes($user, $brands);
 
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
             $membershipAccessAttributes,
             $this->getUsersSubscriptionAttributes($user, $membershipAccessAttributes, $brands),
-            $this->getUsersProductOwnershipStrings($user, $brands)
+            $this->getUsersProductOwnershipStrings($user, $brands),
+            $contentFollowAttributes
         );
     }
 
@@ -198,6 +209,57 @@ class CustomerIoSyncService
 
         return $productAttributes;
     }
+
+    /**
+     * Attribute list:
+     * BRAND_subscribed_coaches => 'ID123_FNAME_LNAME, ID1234_FNAME2_LNAME2, etc'
+     *
+     * @param  User  $user
+     * @param  array  $brands
+     * @return array
+     */
+    public function getUsersContentFollowAttributes(User $user, $brands = [])
+    {
+        if (empty($brands)) {
+            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
+        }
+
+        $contentFollowRows = $this->contentFollowsRepository->query()
+            ->join(
+                RailcontentConfigService::$tableContent,
+                RailcontentConfigService::$tableContent.'.id',
+                '=',
+                RailcontentConfigService::$tableContentFollows.'.content_id'
+            )
+            ->whereIn(RailcontentConfigService::$tableContent . '.brand', $brands)
+            ->where(
+                [
+                    RailcontentConfigService::$tableContent . '.type' => 'instructor',
+                    RailcontentConfigService::$tableContentFollows. '.user_id' => $user->getId(),
+                ]
+            )
+            ->get();
+
+        // ['brand1' => ['ID_COACH_NAME', 'ID2_COACH_NAME'], 'brand2' => ['ID_COACH_NAME', 'ID2_COACH_NAME'],]
+        $brandCoachFollows = [];
+
+        foreach ($contentFollowRows as $contentFollowRow) {
+            $brandCoachFollows[$contentFollowRow['brand']][] = $contentFollowRow['content_id'].'_'.str_replace(
+                    '-',
+                    '_',
+                    $contentFollowRow['slug']
+                );
+        }
+
+        $contentFollowAttributes = [];
+
+        foreach ($brandCoachFollows as $contentBrand => $followContentIdsAndSlugsString) {
+            $contentFollowAttributes[$contentBrand . '_subscribed_coaches'] = implode(', ', $followContentIdsAndSlugsString);
+        }
+
+        return $contentFollowAttributes;
+    }
+
 
     /**
      * If no brands are passed in this will get attributes for all brands in the config.
