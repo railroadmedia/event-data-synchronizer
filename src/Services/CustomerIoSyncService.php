@@ -61,7 +61,7 @@ class CustomerIoSyncService
     public function getUsersCustomAttributes(User $user, array $brands = null)
     {
         $membershipAccessAttributes = $this->getUsersMembershipAccessAttributes($user, $brands);
-        $contentFollowAttributes = $this->getUsersContentFollowAttributes($user, $brands);
+        $contentFollowAttributes = $this->getUsersContentFollowAttributes($user);
 
         return array_merge(
             $this->getUsersMusoraProfileAttributes($user),
@@ -220,9 +220,7 @@ class CustomerIoSyncService
      */
     public function getUsersContentFollowAttributes(User $user, $brands = [])
     {
-        if (empty($brands)) {
-            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
-        }
+        // for now we'll sync all brands to all workspaces
 
         $contentFollowRows = $this->contentFollowsRepository->query()
             ->join(
@@ -231,7 +229,6 @@ class CustomerIoSyncService
                 '=',
                 RailcontentConfigService::$tableContentFollows.'.content_id'
             )
-            ->whereIn(RailcontentConfigService::$tableContent . '.brand', $brands)
             ->where(
                 [
                     RailcontentConfigService::$tableContent . '.type' => 'instructor',
