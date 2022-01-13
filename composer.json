@@ -22,7 +22,7 @@
     {
       "type": "vcs",
       "url": "https://github.com/railroadmedia/maropost"
-    },
+    }
   ],
   "require": {
     "php": "~7",
