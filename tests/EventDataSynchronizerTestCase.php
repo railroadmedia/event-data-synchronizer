@@ -7,7 +7,6 @@ use Faker\Generator;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Routing\Router;
-use Intercom\IntercomClient;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Railroad\Ecommerce\Contracts\UserProviderInterface as EcommerceUserProviderInterface;
 use Railroad\Ecommerce\Faker\Factory;
@@ -259,14 +258,6 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         $app->register(UsoraServiceProvider::class);
 
         app()->instance(EcommerceUserProviderInterface::class, app()->make(EcommerceUserProvider::class));
-
-        // intercomeo
-        app()->singleton(
-            'Intercom\IntercomClient',
-            function ($app) {
-                return new IntercomClient('test', null);
-            }
-        );
 
         // this is required for railcontent connection masking to work properly from test to test
         RepositoryBase::$connectionMask = null;

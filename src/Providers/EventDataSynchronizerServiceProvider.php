@@ -17,8 +17,6 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
-use Railroad\EventDataSynchronizer\Console\Commands\IntercomReSyncTool;
-use Railroad\EventDataSynchronizer\Console\Commands\SetMaropostTagsForExpiredUserProducts;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoOldEvents;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
@@ -30,10 +28,7 @@ use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
-use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncService;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
@@ -178,8 +173,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 __DIR__ . '/../../config/event-data-synchronizer.php' => config_path('event-data-synchronizer.php'),
             ]
         );
-
-        $this->app->instance(IntercomSyncServiceBase::class, $this->app->make(IntercomSyncService::class));
     }
 
     /**

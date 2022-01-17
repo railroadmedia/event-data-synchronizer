@@ -46,7 +46,7 @@ return [
     // if the users subscription is a trial, the attribute 'brand_membership_subscription_trial-type' will be set based on this
     'customer_io_trial_product_sku_to_type' => [
         'brand' => [
-            'sku' => 'intercom_trial_type',
+            'sku' => 'string_type',
             'DLM-Trial-30-Day' => '1_month_free',
 
             // confusing name, we changed this product to 7 days free but did not update the sku
@@ -101,25 +101,6 @@ return [
         'student-review' => 'show',
         'study-the-greats' => 'show',
         'tama-drums' => 'show',
-    ],
-
-    // intercom
-    'intercom_tag_name_to_product_skus' => [
-        'tag_name' => ['PRODUCT-SKU1', 'PRODUCT-SKU2'],
-    ],
-
-    'intercom_brands_to_sync' => ['drumeo', 'pianote', 'guitareo'],
-    'intercom_user_id_prefix' => 'musora_',
-
-    // if the users subscription is a trial, the attribute 'brand_membership_trial_type' will be set based on this
-    'intercom_trial_product_sku_to_type' => [
-        'brand' => [
-            'sku' => 'intercom_trial_type',
-            'DLM-Trial-30-Day' => '1_month_free',
-
-            // confusing name, we changed this product to 7 days free but did not update the sku
-            'DLM-Trial-1-month' => '7_days_free',
-        ],
     ],
 
     // maropost
