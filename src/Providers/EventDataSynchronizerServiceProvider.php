@@ -29,7 +29,6 @@ use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
-use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\ContentFollow;
@@ -182,6 +181,5 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      */
     public function register()
     {
-        $this->app->register(MaropostServiceProvider::class);
     }
 }

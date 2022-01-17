@@ -18,19 +18,13 @@
   ],
   "minimum-stability": "dev",
   "prefer-stable": true,
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/railroadmedia/maropost"
-    }
-  ],
+  "repositories": [],
   "require": {
     "php": "~7",
     "laravel/framework": "5.6.*",
     "railroad/railcontent": "0.5.*",
     "railroad/ecommerce": "2.4.*|2.5.*|3.0.*",
     "railroad/usora": "2.0.*",
-    "railroad/maropost": "1.0.*",
     "railroad/customer-io": "^2.0.6",
     "railroad/railhelpscout": "1.0.*",
     "railroad/railforums": "1.3.*",

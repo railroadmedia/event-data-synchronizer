@@ -183,16 +183,6 @@ class EventDataSynchronizerTestCase extends BaseTestCase
             ]
         );
 
-        // maropost
-        config(
-            [
-                'maropost' => [
-                    'account_id' => '123',
-                    'auth_token' => '123',
-                ],
-            ]
-        );
-
         // jwt
         config(
             [
