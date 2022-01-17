@@ -55,64 +55,53 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      */
     protected $listen = [
         UserCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserCreated',
             CustomerIoSyncEventListener::class . '@handleUserCreated',
             HelpScoutEventListener::class . '@handleUserCreated',
         ],
         UserUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserUpdated',
             CustomerIoSyncEventListener::class . '@handleUserUpdated',
             HelpScoutEventListener::class . '@handleUserUpdated',
         ],
         PaymentMethodCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserPaymentMethodCreated',
             CustomerIoSyncEventListener::class . '@handleUserPaymentMethodCreated',
         ],
         PaymentMethodUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserPaymentMethodUpdated',
             CustomerIoSyncEventListener::class . '@handleUserPaymentMethodUpdated',
         ],
         UserProductCreated::class => [
-            IntercomSyncEventListener::class . '@handleUserProductCreated',
             CustomerIoSyncEventListener::class . '@handleUserProductCreated',
 
             UserProductToUserContentPermissionListener::class . '@handleCreated',
             HelpScoutEventListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
-            IntercomSyncEventListener::class . '@handleUserProductUpdated',
             CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
 
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
             HelpScoutEventListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
-            IntercomSyncEventListener::class . '@handleUserProductDeleted',
             CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
 
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
             HelpScoutEventListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
-            IntercomSyncEventListener::class . '@handleSubscriptionCreated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
 
             HelpScoutEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
-            IntercomSyncEventListener::class . '@handleSubscriptionUpdated',
             CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
 
             HelpScoutEventListener::class . '@handleSubscriptionUpdated',
         ],
         SubscriptionRenewed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
-            IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewed',
         ],
         SubscriptionRenewFailed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
-            IntercomSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
         ],
         OrderEvent::class => [
@@ -124,11 +113,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
 
         AppSignupStartedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
-            IntercomSyncEventListener::class . '@handleAppSignupStarted',
         ],
         AppSignupFinishedEvent::class => [
             CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
-            IntercomSyncEventListener::class . '@handleAppSignupFinished',
         ],
         CommentLiked::class => [
             CustomerIoSyncEventListener::class . '@handleCommentLiked',
@@ -177,8 +164,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         $this->commands(
             [
                 SyncCustomerIoForUpdatedUserProductsAndSubscriptions::class,
-                SetMaropostTagsForExpiredUserProducts::class,
-                IntercomReSyncTool::class,
                 UserContentPermissionsResyncTool::class,
                 SyncHelpScout::class,
                 SyncExistingHelpScout::class,
