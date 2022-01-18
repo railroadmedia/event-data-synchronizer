@@ -44,9 +44,9 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
     /**
      * CustomerIoCreateEventByUserId constructor.
      * @param  integer  $userId
-     * @param  string  $accountName  // usually the brand name
+     * @param  string  $accountName
      * @param  string  $eventName
-     * @param  array  $eventData  // key value pairs
+     * @param  array  $eventData
      * @param  string|null  $eventType
      * @param  integer|null  $eventTimestamp
      */

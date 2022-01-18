@@ -38,11 +38,14 @@ use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
 use Railroad\Maropost\Providers\MaropostServiceProvider;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\ContentFollow;
+use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
+use Railroad\Referral\Events\EmailInvite;
 
 class EventDataSynchronizerServiceProvider extends EventServiceProvider
 {
@@ -153,7 +156,16 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UTMLinks::class => [
 //            CustomerIoSyncEventListener::class . '@handleUTMLinks',
-        ]
+        ],
+        ContentFollow::class => [
+            CustomerIoSyncEventListener::class . '@handleContentFollow',
+        ],
+        ContentUnfollow::class => [
+            CustomerIoSyncEventListener::class . '@handleContentUnfollow',
+        ],
+        EmailInvite::class => [
+            CustomerIoSyncEventListener::class . '@handleReferralInvite',
+        ],
     ];
 
     /**
