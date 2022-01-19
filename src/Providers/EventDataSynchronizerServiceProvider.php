@@ -54,6 +54,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      * @var array
      */
     protected $listen = [
+
         UserCreated::class => [
             IntercomSyncEventListener::class . '@handleUserCreated',
             CustomerIoSyncEventListener::class . '@handleUserCreated',

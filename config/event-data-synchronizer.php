@@ -16,6 +16,10 @@ return [
     'helpscout_queue_connection_name' => 'database',
     'helpscout_queue_name' => 'helpscout',
 
+    // impact railanalytics
+    'impact_queue_connection_name' => 'database',
+    'impact_queue_name' => 'impact',
+
     // customer.io
     // NOTE: you must add this queue to your queue worker setup, ex: artisan queue:work database --queue=customer_io
     'customer_io_queue_connection_name' => 'database',
