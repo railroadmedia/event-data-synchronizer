@@ -29,7 +29,6 @@ use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
-use Railroad\EventDataSynchronizer\Listeners\Impact\ImpactEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\Intercom\IntercomSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
@@ -111,7 +110,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
             IntercomSyncEventListener::class . '@handleSubscriptionRenewed',
             HelpScoutEventListener::class . '@handleSubscriptionRenewed',
-            ImpactEventListener::class . '@handleSubscriptionRenewed',
         ],
         SubscriptionRenewFailed::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
