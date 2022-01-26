@@ -7,8 +7,6 @@ use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
-use Railroad\EventDataSynchronizer\Services\IntercomSyncServiceBase;
-use Railroad\Intercomeo\Services\IntercomeoService;
 use Railroad\Usora\Managers\UsoraEntityManager;
 use Railroad\Usora\Repositories\UserRepository;
 
@@ -47,16 +45,6 @@ class UserContentPermissionsResyncTool extends Command
     private $userRepository;
 
     /**
-     * @var IntercomSyncServiceBase
-     */
-    private $intercomSyncService;
-
-    /**
-     * @var IntercomeoService
-     */
-    private $intercomeoService;
-
-    /**
      * @var EcommerceEntityManager
      */
     private $ecommerceEntityManager;
@@ -74,8 +62,6 @@ class UserContentPermissionsResyncTool extends Command
      * SetLevelTagsForExpiredLevels constructor.
      * @param DatabaseManager $databaseManager
      * @param UserRepository $userRepository
-     * @param IntercomSyncServiceBase $intercomSyncService
-     * @param IntercomeoService $intercomeoService
      * @param EcommerceEntityManager $ecommerceEntityManager
      * @param UsoraEntityManager $usoraEntityManager
      * @param UserProductToUserContentPermissionListener $userProductToUserContentPermissionListener
@@ -83,8 +69,6 @@ class UserContentPermissionsResyncTool extends Command
     public function __construct(
         DatabaseManager $databaseManager,
         UserRepository $userRepository,
-        IntercomSyncServiceBase $intercomSyncService,
-        IntercomeoService $intercomeoService,
         EcommerceEntityManager $ecommerceEntityManager,
         UsoraEntityManager $usoraEntityManager,
         UserProductToUserContentPermissionListener $userProductToUserContentPermissionListener
@@ -93,8 +77,6 @@ class UserContentPermissionsResyncTool extends Command
 
         $this->databaseManager = $databaseManager;
         $this->userRepository = $userRepository;
-        $this->intercomSyncService = $intercomSyncService;
-        $this->intercomeoService = $intercomeoService;
         $this->ecommerceEntityManager = $ecommerceEntityManager;
         $this->usoraEntityManager = $usoraEntityManager;
         $this->userProductToUserContentPermissionListener = $userProductToUserContentPermissionListener;
