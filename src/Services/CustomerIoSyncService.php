@@ -564,28 +564,4 @@ class CustomerIoSyncService
 
         return $finalArray;
     }
-
-    /**
-     * @param  User  $user
-     * @return array
-     */
-    public function getUsersFollowedContentsAttributes(User $user, $brands = null)
-    {
-        $attributes = [];
-
-        if (empty($brands)) {
-            $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
-        }
-
-        foreach ($brands as $brand) {
-            $attributes[$brand.'_subscribed_coach_content_ids'] = '';
-            $followed = $this->contentFollowRepository->getFollowedContent($user->getId(), $brand, null, 1, 'null');
-
-            if($followed){
-                $attributes[$brand.'_subscribed_coach_content_ids'] = '_'.implode('_, ',array_unique(array_pluck($followed,'content_id'))).'_';
-            }
-        }
-
-        return $attributes;
-    }
 }
