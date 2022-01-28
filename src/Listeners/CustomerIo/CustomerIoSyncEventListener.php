@@ -26,6 +26,7 @@ use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncCustomerByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncNewUserByEmail;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserByUserId;
 use Railroad\EventDataSynchronizer\Jobs\CustomerIoTriggerEvent;
+use Railroad\EventDataSynchronizer\Jobs\CustomerIoSyncUserDevice;
 use Railroad\Railchat\Exceptions\NotFoundException;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
@@ -42,6 +43,7 @@ use Railroad\Railforums\Repositories\ThreadRepository;
 use Railroad\Railforums\Services\ConfigService;
 use Railroad\Referral\Events\EmailInvite;
 use Railroad\Usora\Entities\User;
+use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Usora\Repositories\UserRepository;
@@ -816,8 +818,13 @@ class CustomerIoSyncEventListener
         if (self::$disable) {
             return;
         }
+
         try {
-            $this->syncPayment($paymentEvent->getPayment(), $paymentEvent->getUser()->getId());
+            $this->syncPayment(
+                $paymentEvent->getPayment(),
+                $paymentEvent->getUser()
+                    ->getId()
+            );
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
@@ -1145,6 +1152,58 @@ class CustomerIoSyncEventListener
                     ->delay(
                         Carbon::now()
                             ->addSeconds(10)
+                    )
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+   /**
+     * @param MobileAppLogin $mobileAppLogin
+     */
+    public function handleMobileAppLogin(MobileAppLogin $mobileAppLogin)
+    {
+        if (self::$disable) {
+            return;
+        }
+
+        if (!$mobileAppLogin->getFirebaseToken() || !$mobileAppLogin->getPlatform()) {
+            return;
+        }
+
+        try {
+            $this->syncDevice(
+                $mobileAppLogin->getUser()
+                    ->getId(),
+                $mobileAppLogin->getFirebaseToken(),
+                $mobileAppLogin->getPlatform()
+            );
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
+    }
+
+    /**
+     * @param $userId
+     * @param $token
+     * @param $platform
+     * @param null $timestamp
+     */
+    public function syncDevice($userId, $token, $platform, $brand = null, $timestamp = null)
+    {
+        try {
+            dispatch(
+                (new CustomerIoSyncUserDevice(
+                    $userId, $brand ?? config('event-data-synchronizer.customer_io_brand_activity_event'), [
+                        'id' => $token,
+                        'platform' => $platform,
+                    ], $timestamp ?? Carbon::now()->timestamp
+                ))->onConnection($this->queueConnectionName)
+                    ->onQueue($this->queueName)
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(3)
                     )
             );
         } catch (Throwable $throwable) {

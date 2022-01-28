@@ -17,6 +17,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
+use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoExistingDevices;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoOldEvents;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
@@ -36,6 +37,7 @@ use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
 use Railroad\Referral\Events\EmailInvite;
@@ -136,6 +138,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         UTMLinks::class => [
 //            CustomerIoSyncEventListener::class . '@handleUTMLinks',
         ],
+        MobileAppLogin::class => [
+            CustomerIoSyncEventListener::class . '@handleMobileAppLogin',
+        ],
         ContentFollow::class => [
             CustomerIoSyncEventListener::class . '@handleContentFollow',
         ],
@@ -164,7 +169,8 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncExistingHelpScout::class,
                 HelpScoutIndex::class,
                 SyncHelpScoutAsync::class,
-                SyncCustomerIoOldEvents::class
+                SyncCustomerIoOldEvents::class,
+                SyncCustomerIoExistingDevices::class,
             ]
         );
 
