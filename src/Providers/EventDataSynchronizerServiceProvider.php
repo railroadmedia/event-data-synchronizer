@@ -9,6 +9,7 @@ use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
+use Railroad\Ecommerce\Events\Subscriptions\CommandSubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewFailed;
@@ -150,6 +151,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         EmailInvite::class => [
             CustomerIoSyncEventListener::class . '@handleReferralInvite',
         ],
+        CommandSubscriptionRenewFailed::class => [
+            UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
+        ]
     ];
 
     /**
