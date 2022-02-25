@@ -29,7 +29,7 @@
     "railroad/railhelpscout": "1.0.*",
     "railroad/railforums": "1.3.*",
     "railroad/railanalytics": "2.0.*",
-    "railroad/referral": "dev-v1.0-ecommerce-4.0"
+    "railroad/referral": "dev-v1.0-ecommerce4.0"
   },
   "require-dev": {
     "phpunit/phpunit": "~7.0",
