@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Listeners;
 use Carbon\Carbon;
 use Doctrine\Common\Persistence\ObjectRepository;
 use Doctrine\ORM\EntityRepository;
+use Railroad\Ecommerce\Events\Subscriptions\CommandSubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
@@ -110,6 +111,28 @@ class UserProductToUserContentPermissionListener
         );
     }
 
+    /**
+     * @param  CommandSubscriptionRenewFailed  $commandSubscriptionRenewFailed
+     */
+    public function handleSubscriptionRenewalFailureFromDatabaseError(
+        CommandSubscriptionRenewFailed $commandSubscriptionRenewFailed
+    ) {
+        try {
+            error_log('--- Attempting to recover railcontent renewal permissions ---');
+            $this->syncUserId($commandSubscriptionRenewFailed->getSubscription()->getUser()->getId());
+            error_log(
+                '--- Recovered railcontent renewal permissions successfully! user id: '.
+                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId().' ---'
+            );
+        } catch (\Exception $exception) {
+            error_log(
+                '--- Recovered railcontent renewal permissions FAILED! user id: '.
+                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId().' ---'
+            );
+            error_log($exception);
+        }
+    }
+
     public function syncUserId($userId)
     {
         $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userId);
@@ -149,10 +172,10 @@ class UserProductToUserContentPermissionListener
                 ];
 
             } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
-                $permissionsToCreate[$permissionArrayKey] !== null) {
+                $permissionsToCreate[$permissionArrayKey] !== null &&
+                !empty($permissionsToCreate[$permissionArrayKey]['expiration_date'])) {
 
-                if (Carbon::parse($permissionsToCreate[$permissionArrayKey]['expiration_date']) <
-                    $allUsersProduct->getExpirationDate()) {
+                if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate()) {
                     $permissionsToCreate[$permissionArrayKey] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
