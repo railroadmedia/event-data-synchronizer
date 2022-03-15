@@ -23,7 +23,7 @@
     "php": "~7",
     "laravel/framework": "5.6.*",
     "railroad/railcontent": "0.5.*",
-    "railroad/ecommerce": "dev-v4.0-hotfix-payment-brand-EV40PS-4",
+    "railroad/ecommerce": "dev-4.0-",
     "railroad/usora": "2.0.*",
     "railroad/customer-io": "2.0.*",
     "railroad/railhelpscout": "1.0.*",
