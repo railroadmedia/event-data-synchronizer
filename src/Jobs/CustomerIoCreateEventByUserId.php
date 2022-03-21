@@ -6,6 +6,7 @@ use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Repositories\UserRepository;
+use Throwable;
 
 class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 {
@@ -80,6 +81,17 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
             $user = $userRepository->find($this->userId);
 
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
+
+            try {
+                $existingSpecificBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId());
+                $existingAllBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId());
+            } catch (Throwable $exception) {
+                if (empty($existingSpecificBrandCustomer) || empty($existingAllBrandCustomer)) {
+                    dispatch_now(new CustomerIoSyncNewUserByEmail($user));
+
+                    sleep(5);
+                }
+            }
 
             // events always sync to the brand specific workspace and the primary all synced workspace
             $customerIoService->createEventForUserId(
