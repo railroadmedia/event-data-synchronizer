@@ -90,6 +90,10 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
                     dispatch_now(new CustomerIoSyncNewUserByEmail($user));
 
                     sleep(5);
+
+                    $this->reconnectToMySQLDatabases();
+
+                    $user = $userRepository->find($this->userId);
                 }
             }
 
@@ -112,7 +116,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
                 $this->eventTimestamp
             );
         } catch (Exception $exception) {
-            $this->failed($exception, $user);
+            $this->failed($exception);
         }
     }
 
@@ -122,7 +126,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @param  Exception  $exception
      * @param $user
      */
-    public function failed(Exception $exception, $user = null)
+    public function failed(Exception $exception)
     {
         error_log(
             'Error on CustomerIoCreateEventByUserId job trying to sync user to customer.io. User ID: '.

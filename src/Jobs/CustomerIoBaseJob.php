@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Jobs;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\DatabaseManager;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -30,8 +31,13 @@ class CustomerIoBaseJob implements ShouldQueue
 
     public function reconnectToMySQLDatabases()
     {
-        DB::connection(config('customer-io.database_connection_name'))->reconnect();
-        DB::connection(config('railcontent.database_connection_name'))->reconnect();
+        /**
+         * @var $databaseManager DatabaseManager
+         */
+        $databaseManager = app(DatabaseManager::class);
+
+        $databaseManager->reconnect(config('customer-io.database_connection_name'));
+        $databaseManager->reconnect(config('railcontent.database_connection_name'));
 
         $usoraEntityManager = app(UsoraEntityManager::class);
         $usoraEntityManager->getConnection()->close();
