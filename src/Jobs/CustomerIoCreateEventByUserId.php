@@ -6,6 +6,7 @@ use Exception;
 use Railroad\CustomerIo\Services\CustomerIoService;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Repositories\UserRepository;
+use Throwable;
 
 class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 {
@@ -81,6 +82,21 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
 
+            try {
+                $existingSpecificBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId());
+                $existingAllBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId());
+            } catch (Throwable $exception) {
+                if (empty($existingSpecificBrandCustomer) || empty($existingAllBrandCustomer)) {
+                    dispatch_now(new CustomerIoSyncNewUserByEmail($user));
+
+                    sleep(5);
+
+                    $this->reconnectToMySQLDatabases();
+
+                    $user = $userRepository->find($this->userId);
+                }
+            }
+
             // events always sync to the brand specific workspace and the primary all synced workspace
             $customerIoService->createEventForUserId(
                 $user->getId(),
@@ -100,7 +116,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
                 $this->eventTimestamp
             );
         } catch (Exception $exception) {
-            $this->failed($exception, $user);
+            $this->failed($exception);
         }
     }
 
@@ -110,7 +126,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
      * @param  Exception  $exception
      * @param $user
      */
-    public function failed(Exception $exception, $user = null)
+    public function failed(Exception $exception)
     {
         error_log(
             'Error on CustomerIoCreateEventByUserId job trying to sync user to customer.io. User ID: '.
@@ -119,13 +135,6 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
 
         error_log($exception);
 
-        // try to sync the user first, then retry
-        event(new UserCreated($user));
-
-        if ($this->job->attempts() >= $this->tries) {
-            $this->fail($exception);
-        } else {
-            $this->release(60);
-        }
+        parent::failed($exception);
     }
 }
