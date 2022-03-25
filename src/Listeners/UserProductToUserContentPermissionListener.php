@@ -112,43 +112,37 @@ class UserProductToUserContentPermissionListener
         $permissionsToCreate = [];
 
         foreach ($allUsersProducts as $allUsersProduct) {
-            $permissionName =
-                config(
-                    'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map.' .
-                    $allUsersProduct->getProduct()
-                        ->getSku()
-                );
 
-            if (empty($permissionName)) {
+            $permissionNames = $allUsersProduct->getProduct()->getDigitalAccessPermissionNames();
+
+            if (empty($permissionNames)) {
                 continue;
             }
 
-            // we need to check by brand as well since some permissions across brands have the same name
-            $permissionArrayKey = $permissionName . '|' . $allUsersProduct->getProduct()->getBrand();
+            foreach ($permissionNames as $permissionName) {
+                // we need to check by brand as well since some permissions across brands have the same name
+                $permissionArrayKey = $permissionName . '|' . $allUsersProduct->getProduct()->getBrand();
 
-            if (!array_key_exists($permissionArrayKey, $permissionsToCreate)) {
-
-                $permissionsToCreate[$permissionArrayKey] = [
-                    'expiration_date' => $allUsersProduct->getExpirationDate(),
-                    'start_date' => $allUsersProduct->getStartDate(),
-                ];
-
-            } elseif ($allUsersProduct->getExpirationDate() === null) {
-
-                $permissionsToCreate[$permissionArrayKey] = [
-                    'expiration_date' => $allUsersProduct->getExpirationDate(),
-                    'start_date' => $allUsersProduct->getStartDate(),
-                ];
-
-            } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
-                $permissionsToCreate[$permissionArrayKey] !== null &&
-                !empty($permissionsToCreate[$permissionArrayKey]['expiration_date'])) {
-
-                if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate()) {
+                if (!array_key_exists($permissionArrayKey, $permissionsToCreate)) {
                     $permissionsToCreate[$permissionArrayKey] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
-                    ];;
+                    ];
+                } elseif ($allUsersProduct->getExpirationDate() === null) {
+                    $permissionsToCreate[$permissionArrayKey] = [
+                        'expiration_date' => $allUsersProduct->getExpirationDate(),
+                        'start_date' => $allUsersProduct->getStartDate(),
+                    ];
+                } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
+                    $permissionsToCreate[$permissionArrayKey] !== null &&
+                    !empty($permissionsToCreate[$permissionArrayKey]['expiration_date'])) {
+                    if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate(
+                        )) {
+                        $permissionsToCreate[$permissionArrayKey] = [
+                            'expiration_date' => $allUsersProduct->getExpirationDate(),
+                            'start_date' => $allUsersProduct->getStartDate(),
+                        ];;
+                    }
                 }
             }
         }

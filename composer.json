@@ -23,7 +23,7 @@
     "php": "~7",
     "laravel/framework": "5.6.*",
     "railroad/railcontent": "0.5.*",
-    "railroad/ecommerce": "2.4.*|2.5.*|3.0.*",
+    "railroad/ecommerce": "4.0.*",
     "railroad/usora": "2.0.*",
     "railroad/customer-io": "2.0.*",
     "railroad/railhelpscout": "1.0.*",
