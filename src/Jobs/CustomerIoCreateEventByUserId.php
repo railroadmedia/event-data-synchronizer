@@ -81,7 +81,7 @@ class CustomerIoCreateEventByUserId extends CustomerIoBaseJob
             $user = $userRepository->find($this->userId);
 
             $accountNameToSyncAllBrand = config('event-data-synchronizer.customer_io_account_to_sync_all_brands');
-z
+
             try {
                 $existingSpecificBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId(), false);
                 $existingAllBrandCustomer = $customerIoService->getCustomerByUserId($this->accountName, $user->getId(), false);
