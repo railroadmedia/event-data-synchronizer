@@ -2,13 +2,13 @@
 
 namespace Railroad\EventDataSynchronizer\Services;
 
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Railroad\Ecommerce\Entities\Product;
 use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
-use Railroad\Railcontent\Repositories\ContentFollowsRepository;
+use Railroad\EventDataSynchronizer\Providers\UserProviderInterface;
 use Railroad\Railcontent\Services\ContentService;
 
 class UserMembershipFieldsService
@@ -16,34 +16,33 @@ class UserMembershipFieldsService
     protected SubscriptionRepository $subscriptionRepository;
     protected UserProductRepository $userProductRepository;
     protected ProductRepository $productRepository;
-    private ContentFollowsRepository $contentFollowsRepository;
     private ContentService $contentService;
+    private UserProviderInterface $userProvider;
 
-    /**
-     * @param  SubscriptionRepository  $subscriptionRepository
-     * @param  UserProductRepository  $userProductRepository
-     * @param  ProductRepository  $productRepository
-     */
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
         ProductRepository $productRepository,
-        ContentFollowsRepository $contentFollowsRepository,
         ContentService $contentService,
+        UserProviderInterface $userProvider
     ) {
         $this->subscriptionRepository = $subscriptionRepository;
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
-        $this->contentFollowsRepository = $contentFollowsRepository;
         $this->contentService = $contentService;
+        $this->userProvider = $userProvider;
     }
 
-    public function sync($userId)
+    /**
+     * @param $userId
+     * @return bool
+     */
+    public function sync($userId): bool
     {
         $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
         $representingUserProduct = $this->getUserProductThatRepresentsUsersMembership($userId, $userProducts);
 
-        $membershipExpirationDate = $representingUserProduct->getExpirationDate();
+        $membershipExpirationDate = Carbon::instance($representingUserProduct->getExpirationDate());
         $isLifetimeMember = $representingUserProduct->getProduct()->getDigitalAccessTimeType() ==
             Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME;
 
@@ -51,14 +50,37 @@ class UserMembershipFieldsService
             $membershipExpirationDate = null;
         }
 
-        // membership_expiration_date
-        // is_lifetime_member
-        // access_level
+        $ownsPacks = false;
+
+        foreach ($userProducts as $userProduct) {
+            if ($userProduct->getProduct()->getDigitalAccessType(
+                ) == Product::DIGITAL_ACCESS_TYPE_SPECIFIC_CONTENT_ACCESS &&
+                $userProduct->getProduct()->getDigitalAccessTimeType() == Product::DIGITAL_ACCESS_TIME_TYPE_ONE_TIME &&
+                $userProduct->isValid()) {
+                $ownsPacks = true;
+                break;
+            }
+        }
+
+        $accessLevel = $this->getAccessLevelName(
+            $userId,
+            $isLifetimeMember,
+            $representingUserProduct->isValid(),
+            $membershipExpirationDate,
+            $ownsPacks
+        );
+
+        return $this->userProvider->saveMembershipData(
+            $userId,
+            $membershipExpirationDate,
+            $isLifetimeMember,
+            $accessLevel
+        );
     }
 
     /**
      * @param $userId
-     * @param  UserProduct[]  $usersProducts
+     * @param UserProduct[] $usersProducts
      * @return UserProduct|null
      */
     public function getUserProductThatRepresentsUsersMembership($userId, array $usersProducts): ?UserProduct
@@ -113,12 +135,21 @@ class UserMembershipFieldsService
 
     /**
      * @param $userId
+     * @param bool $isLifetime
+     * @param bool $isAMember
+     * @param Carbon $membershipExpirationDate
+     * @param bool $ownsPacks
      * @return string
      */
-    public function getAccessLevelName($userId)
-    {
+    public function getAccessLevelName(
+        $userId,
+        bool $isLifetime,
+        bool $isAMember,
+        Carbon $membershipExpirationDate,
+        bool $ownsPacks
+    ): string {
         if (empty($userId)) {
-            return 'pack';
+            return '';
         }
 
         if ($this->isHouseCoach($userId)) {
@@ -129,26 +160,34 @@ class UserMembershipFieldsService
             return 'coach';
         }
 
-        if ($user->getPermissionLevel() === 'administrator') {
+        if ($this->userProvider->isAdministrator($userId)) {
             return 'team';
         }
 
-        if (self::isEdgeLifetime($userId)) {
+        if ($isLifetime) {
             return 'lifetime';
         }
 
-        if (self::isEdge($userId)) {
+        if ($isAMember && $membershipExpirationDate > Carbon::now()) {
             return 'edge';
         }
 
-        return 'pack';
+        if ($ownsPacks) {
+            return 'pack';
+        }
+
+        if (!empty($membershipExpirationDate) && $membershipExpirationDate < Carbon::now()) {
+            return 'expired';
+        }
+
+        return '';
     }
 
     /**
      * @param $userId
-     * @return bool|mixed
+     * @return bool
      */
-    public function isHouseCoach($userId)
+    public function isHouseCoach($userId): bool
     {
         $associatedCoach = $this->getAssociatedCoaches([$userId]);
 
@@ -160,9 +199,9 @@ class UserMembershipFieldsService
 
     /**
      * @param $userId
-     * @return bool|mixed
+     * @return bool
      */
-    public function isCoach($userId)
+    public function isCoach($userId): bool
     {
         $associatedCoach = $this->getAssociatedCoaches([$userId]);
 
@@ -170,16 +209,16 @@ class UserMembershipFieldsService
     }
 
     /**
-     * @param  array  $userIds
+     * @param array $userIds
      * @return array
      */
-    public function getAssociatedCoaches(array $userIds)
+    public function getAssociatedCoaches(array $userIds): array
     {
         $includedFields = [];
         $associatedUsers = [];
 
         foreach ($userIds ?? [] as $userId) {
-            $includedFields[] = 'associated_user_id,'.$userId;
+            $includedFields[] = 'associated_user_id,' . $userId;
         }
 
         $instructors =

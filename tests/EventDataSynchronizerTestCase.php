@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Tests;
 
 use Carbon\Carbon;
+use Doctrine\Inflector\InflectorFactory;
 use Faker\Generator;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
@@ -13,9 +14,14 @@ use Railroad\Ecommerce\Faker\Factory;
 use Railroad\Ecommerce\Faker\Faker as EcommerceFaker;
 use Railroad\Ecommerce\Providers\EcommerceServiceProvider;
 use Railroad\EventDataSynchronizer\Providers\EventDataSynchronizerServiceProvider;
-use Railroad\EventDataSynchronizer\Tests\Providers\EcommerceUserProvider;
+use Railroad\EventDataSynchronizer\Providers\UserProviderInterface;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\EcommerceUserProvider;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\RailforumsUserProvider;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\TestingUserProvider;
 use Railroad\Railcontent\Providers\RailcontentServiceProvider;
 use Railroad\Railcontent\Repositories\RepositoryBase;
+use Railroad\Railforums\Contracts\UserProviderInterface as RailforumsUserProviderInterface;
+use Railroad\Railnotifications\Contracts\RailforumProviderInterface;
 use Railroad\Usora\Providers\UsoraServiceProvider;
 
 class EventDataSynchronizerTestCase extends BaseTestCase
@@ -45,9 +51,12 @@ class EventDataSynchronizerTestCase extends BaseTestCase
      */
     protected $router;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
+
+        $this->app->instance(UserProviderInterface::class, app(TestingUserProvider::class));
+        $this->app->instance(RailforumsUserProviderInterface::class, app(RailforumsUserProvider::class));
 
         $this->artisan('migrate:fresh', []);
         $this->artisan('cache:clear', []);
@@ -183,64 +192,6 @@ class EventDataSynchronizerTestCase extends BaseTestCase
             ]
         );
 
-        // jwt
-        config(
-            [
-                'jwt' => [
-
-                    'secret' => env('JWT_SECRET', 'jwt_secret_key_123_mobile'),
-
-                    'keys' => [
-
-                        'public' => env('JWT_PUBLIC_KEY'),
-
-                        'private' => env('JWT_PRIVATE_KEY'),
-
-                        'passphrase' => env('JWT_PASSPHRASE'),
-                    ],
-
-                    /**
-                     * Specify the length of time (in minutes) that the token will be valid for. Defaults to 1 hour
-                     */ 'ttl' => env('JWT_TTL', 60),
-
-                    'refresh_ttl' => env('JWT_REFRESH_TTL', 20160),
-
-                    'algo' => env('JWT_ALGO', 'HS256'),
-
-                    'required_claims' => [
-                        'iss',
-                        'exp',
-                        'nbf',
-                        'sub',
-                        'jti',
-                    ],
-
-                    'persistent_claims' => [
-                        // 'foo',
-                        // 'bar',
-                    ],
-
-                    'lock_subject' => true,
-
-                    'leeway' => 60,
-
-                    'blacklist_enabled' => env('JWT_BLACKLIST_ENABLED', true),
-
-                    'blacklist_grace_period' => env('JWT_BLACKLIST_GRACE_PERIOD', 0),
-
-                    'decrypt_cookies' => false,
-
-                    'providers' => [
-                        'jwt' => \Tymon\JWTAuth\Providers\JWT\Lcobucci::class,
-
-                        'auth' => \Tymon\JWTAuth\Providers\Auth\Illuminate::class,
-
-                        'storage' => \Tymon\JWTAuth\Providers\Storage\Illuminate::class,
-                    ],
-                ],
-            ]
-        );
-
         // register providers
         $app->register(EventDataSynchronizerServiceProvider::class);
         $app->register(EcommerceServiceProvider::class);
@@ -248,6 +199,11 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         $app->register(UsoraServiceProvider::class);
 
         app()->instance(EcommerceUserProviderInterface::class, app()->make(EcommerceUserProvider::class));
+
+        // register global doctrine inflector
+        $inflector = InflectorFactory::create()->build();
+
+        app()->instance('DoctrineInflector', $inflector);
 
         // this is required for railcontent connection masking to work properly from test to test
         RepositoryBase::$connectionMask = null;

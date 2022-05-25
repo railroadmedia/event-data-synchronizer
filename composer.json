@@ -27,7 +27,7 @@
     "railroad/usora": "3.0.*",
     "railroad/customer-io": "3.0.*",
     "railroad/railhelpscout": "2.0.*",
-    "railroad/railforums": "3.0.*",
+    "railroad/railforums": "2.0.*",
     "railroad/railanalytics": "3.0.*",
     "railroad/referral": "2.0.*"
   },

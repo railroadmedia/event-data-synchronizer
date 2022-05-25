@@ -5,35 +5,31 @@ namespace Railroad\EventDataSynchronizer\Tests\Functional;
 use Carbon\Carbon;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\EventDataSynchronizer\Services\UserMembershipFieldsService;
 use Railroad\EventDataSynchronizer\Tests\EventDataSynchronizerTestCase;
 use Railroad\Railcontent\Repositories\PermissionRepository;
 use Railroad\Railcontent\Services\ConfigService;
 
-// todo: update tests for new ecom package...
-class UserProductToUserContentPermissionTest extends EventDataSynchronizerTestCase
+class UserMembershipFieldsServiceTest extends EventDataSynchronizerTestCase
 {
-    /**
-     * @var UserProductRepository
-     */
-    private $userProductRepository;
+    private UserProductRepository $userProductRepository;
+    private ProductRepository $productRepository;
+    private PermissionRepository $permissionRepository;
+    private UserMembershipFieldsService $userMembershipFieldsService;
 
-    /**
-     * @var ProductRepository
-     */
-    private $productRepository;
-
-    /**
-     * @var PermissionRepository
-     */
-    private $permissionRepository;
-
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
         $this->userProductRepository = $this->app->make(UserProductRepository::class);
         $this->productRepository = $this->app->make(ProductRepository::class);
         $this->permissionRepository = $this->app->make(PermissionRepository::class);
+        $this->userMembershipFieldsService = $this->app->make(UserMembershipFieldsService::class);
+    }
+
+    public function test_sync()
+    {
+        $this->userMembershipFieldsService->sync(1);
     }
 
     public function test_handle_empty_product()

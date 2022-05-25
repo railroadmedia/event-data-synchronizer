@@ -5,6 +5,10 @@ return [
     'brand_membership_product_skus' => ['MY-SKU1'],
     'otherBrand_membership_product_skus' => ['MY-SKU2'],
 
+    // user
+    'users_database_connection_name' => 'testbench',
+    'users_table_name' => 'usora_users',
+
     // ecommerce
     'ecommerce_product_sku_to_content_permission_name_map' => [
         'SKU-1' => 'My Permission 1',
