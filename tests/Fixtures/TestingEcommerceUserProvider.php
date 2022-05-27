@@ -19,7 +19,7 @@ use function app;
 use function auth;
 use function event;
 
-class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserProviderInterface
+class TestingEcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserProviderInterface
 {
     CONST RESOURCE_TYPE = 'user';
 

@@ -42,12 +42,17 @@ class UserMembershipFieldsService
         $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
         $representingUserProduct = $this->getUserProductThatRepresentsUsersMembership($userId, $userProducts);
 
-        $membershipExpirationDate = Carbon::instance($representingUserProduct->getExpirationDate());
-        $isLifetimeMember = $representingUserProduct->getProduct()->getDigitalAccessTimeType() ==
-            Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME;
-
-        if ($isLifetimeMember) {
+        if (!empty($representingUserProduct)) {
+            $membershipExpirationDate = !empty($representingUserProduct->getExpirationDate()) ?
+                Carbon::instance(
+                    $representingUserProduct->getExpirationDate()
+                ) : $representingUserProduct->getExpirationDate();
+            $isLifetimeMember = $representingUserProduct->isValid() &&
+                $representingUserProduct->getProduct()->getDigitalAccessTimeType() ==
+                Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME;
+        } else {
             $membershipExpirationDate = null;
+            $isLifetimeMember = false;
         }
 
         $ownsPacks = false;
@@ -65,7 +70,7 @@ class UserMembershipFieldsService
         $accessLevel = $this->getAccessLevelName(
             $userId,
             $isLifetimeMember,
-            $representingUserProduct->isValid(),
+            !empty($representingUserProduct) && $representingUserProduct->isValid(),
             $membershipExpirationDate,
             $ownsPacks
         );
@@ -134,10 +139,13 @@ class UserMembershipFieldsService
     }
 
     /**
+     * The value of this should be not used for anything other than visual purposes. It does not always represent the
+     * state of the users membership exactly.
+     *
      * @param $userId
      * @param bool $isLifetime
      * @param bool $isAMember
-     * @param Carbon $membershipExpirationDate
+     * @param Carbon|null $membershipExpirationDate
      * @param bool $ownsPacks
      * @return string
      */
@@ -145,7 +153,7 @@ class UserMembershipFieldsService
         $userId,
         bool $isLifetime,
         bool $isAMember,
-        Carbon $membershipExpirationDate,
+        ?Carbon $membershipExpirationDate,
         bool $ownsPacks
     ): string {
         if (empty($userId)) {
@@ -156,7 +164,7 @@ class UserMembershipFieldsService
             return 'house-coach';
         }
 
-        if (self::isCoach($userId)) {
+        if ($this->isCoach($userId)) {
             return 'coach';
         }
 
@@ -168,8 +176,8 @@ class UserMembershipFieldsService
             return 'lifetime';
         }
 
-        if ($isAMember && $membershipExpirationDate > Carbon::now()) {
-            return 'edge';
+        if ($isAMember && (!empty($membershipExpirationDate) && $membershipExpirationDate > Carbon::now())) {
+            return 'member';
         }
 
         if ($ownsPacks) {

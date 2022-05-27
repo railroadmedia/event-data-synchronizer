@@ -2,12 +2,9 @@
 
 namespace Railroad\EventDataSynchronizer\Tests\Fixtures;
 
-use App\Services\User\UserAccessService;
-use App\Services\User\UserContentProgressService;
-use Railroad\Points\Services\UserPointsService;
 use Railroad\Railforums\Contracts\UserProviderInterface;
 
-class RailforumsUserProvider implements UserProviderInterface
+class TestingRailforumsUserProvider implements UserProviderInterface
 {
     /**
      * @return mixed|\Railroad\Usora\Entities\User|null

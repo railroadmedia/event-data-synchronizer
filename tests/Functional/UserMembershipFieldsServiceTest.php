@@ -3,257 +3,478 @@
 namespace Railroad\EventDataSynchronizer\Tests\Functional;
 
 use Carbon\Carbon;
-use Railroad\Ecommerce\Repositories\ProductRepository;
-use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\Ecommerce\Entities\Product;
+use Railroad\Ecommerce\Entities\User;
+use Railroad\Ecommerce\Entities\UserProduct;
+use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\UserMembershipFieldsService;
 use Railroad\EventDataSynchronizer\Tests\EventDataSynchronizerTestCase;
-use Railroad\Railcontent\Repositories\PermissionRepository;
+use Railroad\Railcontent\Factories\ContentContentFieldFactory;
+use Railroad\Railcontent\Factories\ContentFactory;
 use Railroad\Railcontent\Services\ConfigService;
 
 class UserMembershipFieldsServiceTest extends EventDataSynchronizerTestCase
 {
-    private UserProductRepository $userProductRepository;
-    private ProductRepository $productRepository;
-    private PermissionRepository $permissionRepository;
+    private EcommerceEntityManager $ecommerceEntityManager;
     private UserMembershipFieldsService $userMembershipFieldsService;
+    private ContentFactory $contentFactory;
+    private ContentContentFieldFactory $fieldFactory;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->userProductRepository = $this->app->make(UserProductRepository::class);
-        $this->productRepository = $this->app->make(ProductRepository::class);
-        $this->permissionRepository = $this->app->make(PermissionRepository::class);
+        $this->ecommerceEntityManager = $this->app->make(EcommerceEntityManager::class);
         $this->userMembershipFieldsService = $this->app->make(UserMembershipFieldsService::class);
+        $this->contentFactory = $this->app->make(ContentFactory::class);
+        $this->fieldFactory = $this->app->make(ContentContentFieldFactory::class);
     }
 
-    public function test_sync()
+    public function test_sync_no_user()
     {
-        $this->userMembershipFieldsService->sync(1);
+        $this->userMembershipFieldsService->sync(rand());
+
+        $this->assertDatabaseMissing('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => false,
+            'access_level' => '',
+        ]);
     }
 
-    public function test_handle_empty_product()
+
+    public function test_sync_no_user_products()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
-        );
+        $this->userMembershipFieldsService->sync($userId);
 
-        $permissionId = $this->permissionRepository->create(
-            ['name' => $permissionName, 'brand' => config('event-data-synchronizer.brand')]
-        );
-
-        // fire the event
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(['product_id' => 1])
-        );
-
-        $this->assertDatabaseMissing(
-            ConfigService::$tableUserPermissions,
-            [
-                'permission_id' => $permissionId,
-            ]
-        );
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => false,
+            'access_level' => '',
+        ]);
     }
 
-    public function test_handle_empty_permission()
+    public function test_sync_basic_recurring_monthly_membership_access()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
-        );
+        $user = new User($userId, $this->faker->email);
 
-        // fire the event
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(['product_id' => 1])
-        );
+        $product = new Product();
 
-        $this->assertDatabaseMissing(
-            ConfigService::$tableUserPermissions,
-            [
-                'permission_id' => 1,
-            ]
-        );
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_SUBSCRIPTION);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_RECURRING);
+        $product->setDigitalAccessTimeIntervalType(Product::DIGITAL_ACCESS_TIME_INTERVAL_TYPE_MONTH);
+        $product->setDigitalAccessTimeIntervalLength(1);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(Carbon::now()->addDay());
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => $userProduct->getExpirationDate(),
+            'is_lifetime_member' => false,
+            'access_level' => 'member',
+        ]);
     }
 
-    public function test_handle_user_product_created_no_existing_permission_no_expiration()
+    public function test_sync_basic_recurring_annual_membership_access()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
-        );
+        $user = new User($userId, $this->faker->email);
 
-        $product = $this->productRepository->create($this->ecommerceFaker->product(['sku' => $productSku]));
-        $permissionId = $this->permissionRepository->create(
-            ['name' => $permissionName, 'brand' => config('event-data-synchronizer.brand')]
-        );
+        $product = new Product();
 
-        // fire the event
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(['product_id' => $product['id']])
-        );
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_SUBSCRIPTION);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_RECURRING);
+        $product->setDigitalAccessTimeIntervalType(Product::DIGITAL_ACCESS_TIME_INTERVAL_TYPE_YEAR);
+        $product->setDigitalAccessTimeIntervalLength(1);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
 
-        $a =
-            $this->databaseManager->connection(ConfigService::$databaseConnectionName)
-                ->table(ConfigService::$tableUserPermissions)
-                ->get();
+        $this->ecommerceEntityManager->persist($product);
 
-        $this->assertDatabaseHas(
-            ConfigService::$tableUserPermissions,
-            [
-                'user_id' => $userProduct['user_id'],
-                'permission_id' => $permissionId,
-                'start_date' => Carbon::now()
-                    ->toDateTimeString(),
-                'expiration_date' => null,
-                'created_on' => Carbon::now()
-                    ->toDateTimeString(),
-            ]
-        );
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(Carbon::now()->addYear());
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => $userProduct->getExpirationDate(),
+            'is_lifetime_member' => false,
+            'access_level' => 'member',
+        ]);
     }
 
-    public function test_handle_user_product_created_no_existing_permission_with_expiration()
+    public function test_sync_expired_recurring_annual_membership_access()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
-        );
+        $user = new User($userId, $this->faker->email);
 
-        $product = $this->productRepository->create($this->ecommerceFaker->product(['sku' => $productSku]));
-        $permissionId = $this->permissionRepository->create(
-            ['name' => $permissionName, 'brand' => config('event-data-synchronizer.brand')]
-        );
+        $product = new Product();
 
-        // fire the event
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(
-                [
-                    'product_id' => $product['id'],
-                    'expiration_date' => Carbon::now()
-                        ->addMonth()
-                        ->toDateTimeString(),
-                ]
-            )
-        );
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_SUBSCRIPTION);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_RECURRING);
+        $product->setDigitalAccessTimeIntervalType(Product::DIGITAL_ACCESS_TIME_INTERVAL_TYPE_YEAR);
+        $product->setDigitalAccessTimeIntervalLength(1);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
 
-        $this->assertDatabaseHas(
-            ConfigService::$tableUserPermissions,
-            [
-                'user_id' => $userProduct['user_id'],
-                'permission_id' => $permissionId,
-                'start_date' => Carbon::now()
-                    ->toDateTimeString(),
-                'expiration_date' => Carbon::now()
-                    ->addMonth()
-                    ->addDays(3)
-                    ->toDateTimeString(),
-                'created_on' => Carbon::now()
-                    ->toDateTimeString(),
-            ]
-        );
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(Carbon::now()->subDays(20));
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => $userProduct->getExpirationDate(),
+            'is_lifetime_member' => false,
+            'access_level' => 'expired',
+        ]);
     }
 
-    public function test_handle_user_product_updated_with_existing_permission()
+    public function test_sync_lifetime_annual_membership_access()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
-        );
+        $user = new User($userId, $this->faker->email);
 
-        $product = $this->productRepository->create($this->ecommerceFaker->product(['sku' => $productSku]));
-        $permissionId = $this->permissionRepository->create(
-            ['name' => $permissionName, 'brand' => config('event-data-synchronizer.brand')]
-        );
+        $product = new Product();
 
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(['product_id' => $product['id']])
-        );
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_SUBSCRIPTION);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
 
-        // fire the event
-        $userProduct = $this->userProductRepository->update(
-            $userProduct['id'],
-            [
-                'expiration_date' => Carbon::now()
-                    ->addDays(10)
-                    ->toDateTimeString(),
-            ]
-        );
+        $this->ecommerceEntityManager->persist($product);
 
-        $this->assertDatabaseHas(
-            ConfigService::$tableUserPermissions,
-            [
-                'user_id' => $userProduct['user_id'],
-                'permission_id' => $permissionId,
-                'start_date' => Carbon::now()
-                    ->toDateTimeString(),
-                'expiration_date' => Carbon::parse($userProduct['expiration_date'])
-                    ->addDays(3)
-                    ->toDateTimeString(),
-                'created_on' => Carbon::now()
-                    ->toDateTimeString(),
-                'updated_on' => Carbon::now()
-                    ->toDateTimeString(),
-            ]
-        );
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(null);
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => true,
+            'access_level' => 'lifetime',
+        ]);
     }
 
-    public function test_handle_user_product_deleted()
+    public function test_sync_lifetime_annual_membership_access_that_is_expired()
     {
-        $productSku = 'product_sku';
-        $permissionName = 'permission_name';
+        $userId = $this->createUserAndGetId();
 
-        $this->app['config']->set(
-            'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
-            [
-                $productSku => $permissionName,
-            ]
+        $user = new User($userId, $this->faker->email);
+
+        $product = new Product();
+
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_SUBSCRIPTION);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(Carbon::now()->subDay());
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => $userProduct->getExpirationDate(),
+            'is_lifetime_member' => false,
+            'access_level' => 'expired',
+        ]);
+    }
+
+    public function test_sync_pack_owner()
+    {
+        $userId = $this->createUserAndGetId();
+
+        $user = new User($userId, $this->faker->email);
+
+        $product = new Product();
+
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_ONE_TIME);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_SPECIFIC_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_ONE_TIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(null);
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => false,
+            'access_level' => 'pack',
+        ]);
+    }
+
+    public function test_sync_admin_team()
+    {
+        $userId = $this->createUserAndGetId(null, null, 'administrator');
+
+        $user = new User($userId, $this->faker->email);
+
+        $product = new Product();
+
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_ONE_TIME);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(null);
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => 1,
+            'access_level' => 'team',
+        ]);
+    }
+
+    public function test_sync_coach()
+    {
+        $userId = $this->createUserAndGetId(null, null, 'administrator');
+
+        $user = new User($userId, $this->faker->email);
+
+        $slug = $this->faker->word;
+        $instructor = $this->contentFactory->create($slug, 'instructor', 'published');
+
+        $this->fieldFactory->create(
+            $instructor['id'],
+            'associated_user_id',
+            $userId,
+            1,
+            'integer'
         );
 
-        $product = $this->productRepository->create($this->ecommerceFaker->product(['sku' => $productSku]));
-        $permissionId = $this->permissionRepository->create(
-            ['name' => $permissionName, 'brand' => config('event-data-synchronizer.brand')]
+        $product = new Product();
+
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_ONE_TIME);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(null);
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => 1,
+            'access_level' => 'coach',
+        ]);
+    }
+
+    public function test_sync_house_coach()
+    {
+        $userId = $this->createUserAndGetId(null, null, 'administrator');
+
+        $user = new User($userId, $this->faker->email);
+
+        $slug = $this->faker->word;
+        $instructor = $this->contentFactory->create($slug, 'instructor', 'published');
+
+        $this->fieldFactory->create(
+            $instructor['id'],
+            'associated_user_id',
+            $userId,
+            1,
+            'integer'
         );
 
-        $userProduct = $this->userProductRepository->create(
-            $this->ecommerceFaker->userProduct(['product_id' => $product['id']])
+        $this->fieldFactory->create(
+            $instructor['id'],
+            'is_house_coach',
+            true,
+            1,
+            'boolean'
         );
 
-        // fire the event
-        $userProduct = $this->userProductRepository->destroy(
-            $userProduct['id']
-        );
+        $product = new Product();
 
-        $this->assertDatabaseMissing(
-            ConfigService::$tableUserPermissions,
-            [
-                'user_id' => $userProduct['user_id'],
-                'permission_id' => $permissionId,
-            ]
-        );
+        $product->setBrand($this->faker->word);
+        $product->setName($this->faker->word);
+        $product->setSku($this->faker->word);
+        $product->setPrice($this->faker->randomNumber(4));
+        $product->setType(Product::TYPE_DIGITAL_ONE_TIME);
+        $product->setDigitalAccessType(Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS);
+        $product->setDigitalAccessTimeType(Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME);
+        $product->setActive(true);
+        $product->setIsPhysical(false);
+        $product->setAutoDecrementStock(false);
+        $product->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($product);
+
+        $userProduct = new UserProduct();
+
+        $userProduct->setUser($user);
+        $userProduct->setProduct($product);
+        $userProduct->setQuantity(1);
+        $userProduct->setExpirationDate(null);
+        $userProduct->setStartDate(Carbon::now()->subDay());
+        $userProduct->setCreatedAt(Carbon::now());
+
+        $this->ecommerceEntityManager->persist($userProduct);
+        $this->ecommerceEntityManager->flush();
+
+        $this->userMembershipFieldsService->sync($userId);
+
+        $this->assertDatabaseHas('usora_users', [
+            'membership_expiration_date' => null,
+            'is_lifetime_member' => 1,
+            'access_level' => 'house-coach',
+        ]);
     }
 }

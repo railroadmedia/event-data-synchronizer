@@ -26,7 +26,7 @@ class TestingUserProvider implements UserProviderInterface
 
     public function saveMembershipData(
         int $userId,
-        Carbon $membershipExpirationDate,
+        ?Carbon $membershipExpirationDate,
         bool $isLifetimeMember,
         string $accessLevel
     ): bool {
@@ -35,7 +35,8 @@ class TestingUserProvider implements UserProviderInterface
                 ->where('id', $userId)
                 ->update(
                     [
-                        'membership_expiration_date' => $membershipExpirationDate->toDateTimeString(),
+                        'membership_expiration_date' => !empty($membershipExpirationDate) ?
+                            $membershipExpirationDate->toDateTimeString() : null,
                         'is_lifetime_member' => $isLifetimeMember,
                         'access_level' => $accessLevel,
                     ]
