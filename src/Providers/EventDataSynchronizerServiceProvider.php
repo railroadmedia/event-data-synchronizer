@@ -25,6 +25,7 @@ use Railroad\EventDataSynchronizer\Console\Commands\SyncExistingHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScout;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncHelpScoutAsync;
 use Railroad\EventDataSynchronizer\Console\Commands\UserContentPermissionsResyncTool;
+use Railroad\EventDataSynchronizer\Console\Commands\UserMembershipFieldsResyncTool;
 use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
@@ -173,6 +174,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncHelpScoutAsync::class,
                 SyncCustomerIoOldEvents::class,
                 SyncCustomerIoExistingDevices::class,
+                UserMembershipFieldsResyncTool::class,
             ]
         );
 
