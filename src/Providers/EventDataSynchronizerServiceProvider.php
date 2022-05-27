@@ -30,6 +30,7 @@ use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
+use Railroad\EventDataSynchronizer\Listeners\UserMembershipFieldsListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
@@ -51,7 +52,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      * @var array
      */
     protected $listen = [
-
         UserCreated::class => [
             CustomerIoSyncEventListener::class . '@handleUserCreated',
             HelpScoutEventListener::class . '@handleUserCreated',
@@ -68,30 +68,28 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UserProductCreated::class => [
             CustomerIoSyncEventListener::class . '@handleUserProductCreated',
-
             UserProductToUserContentPermissionListener::class . '@handleCreated',
             HelpScoutEventListener::class . '@handleUserProductCreated',
+            UserMembershipFieldsListener::class . '@handleUserProductCreated',
         ],
         UserProductUpdated::class => [
             CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
-
             UserProductToUserContentPermissionListener::class . '@handleUpdated',
             HelpScoutEventListener::class . '@handleUserProductUpdated',
+            UserMembershipFieldsListener::class . '@handleUserProductUpdated',
         ],
         UserProductDeleted::class => [
             CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
-
             UserProductToUserContentPermissionListener::class . '@handleDeleted',
             HelpScoutEventListener::class . '@handleUserProductDeleted',
+            UserMembershipFieldsListener::class . '@handleUserProductDeleted',
         ],
         SubscriptionCreated::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
-
             HelpScoutEventListener::class . '@handleSubscriptionCreated',
         ],
         SubscriptionUpdated::class => [
             CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
-
             HelpScoutEventListener::class . '@handleSubscriptionUpdated',
         ],
         SubscriptionRenewed::class => [
