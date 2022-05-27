@@ -1,8 +1,8 @@
 <?php
 
-namespace Railroad\EventDataSynchronizer\Tests\Providers;
+namespace Railroad\EventDataSynchronizer\Tests\Fixtures;
 
-use Doctrine\Common\Inflector\Inflector;
+use Doctrine\Inflector\Inflector;
 use Doctrine\ORM\OptimisticLockException;
 use Doctrine\ORM\ORMException;
 use League\Fractal\TransformerAbstract;
@@ -14,43 +14,33 @@ use Railroad\Usora\Entities\User as UsoraUser;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Managers\UsoraEntityManager;
 use Railroad\Usora\Repositories\UserRepository;
-use Tymon\JWTAuth\JWTAuth;
 
-class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserProviderInterface
+use function app;
+use function auth;
+use function event;
+
+class TestingEcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserProviderInterface
 {
     CONST RESOURCE_TYPE = 'user';
 
-    /**
-     * @var JWTAuth
-     */
-    private $jwtAuth;
-
-    /**
-     * @var UserRepository
-     */
-    private $userRepository;
-
-    /**
-     * @var UsoraEntityManager
-     */
-    private $usoraEntityManager;
+    private UserRepository $userRepository;
+    private UsoraEntityManager $usoraEntityManager;
+    private Inflector $inflector;
 
     /**
      * EcommerceUserProvider constructor.
      *
-     * @param JWTAuth $jwtAuth
      * @param UsoraEntityManager $usoraEntityManager
      * @param UserRepository $userRepository
      */
     public function __construct(
-        JWTAuth $jwtAuth,
         UsoraEntityManager $usoraEntityManager,
         UserRepository $userRepository
     )
     {
-        $this->jwtAuth = $jwtAuth;
         $this->userRepository = $userRepository;
         $this->usoraEntityManager = $usoraEntityManager;
+        $this->inflector = app('DoctrineInflector');
     }
 
     /**
@@ -130,7 +120,7 @@ class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserP
      */
     public function hydrateTransDomain($entity, string $relationName, array $data): void
     {
-        $setterName = Inflector::camelize('set' . ucwords($relationName));
+        $setterName = $this->inflector->camelize('set' . ucwords($relationName));
 
         if (isset($data['data']['type']) &&
             $data['data']['type'] === self::RESOURCE_TYPE &&
@@ -200,7 +190,7 @@ class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserP
      */
     public function getUserAuthToken(User $user): string
     {
-        return $this->jwtAuth->fromUser($user);
+        return '';
     }
 
     /**
@@ -221,5 +211,10 @@ class EcommerceUserProvider implements UserProviderInterface, ArrayHydratorUserP
     public function checkCredentials(string $email, string $password): bool
     {
         // TODO: Implement checkCredentials() method.
+    }
+
+    public function getBrandsUserIsAMemberOf($userId)
+    {
+        return [];
     }
 }

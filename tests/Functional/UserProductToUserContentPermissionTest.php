@@ -1,10 +1,11 @@
 <?php
 
-namespace Railroad\EventDataSynchronizer\Tests;
+namespace Railroad\EventDataSynchronizer\Tests\Functional;
 
 use Carbon\Carbon;
 use Railroad\Ecommerce\Repositories\ProductRepository;
 use Railroad\Ecommerce\Repositories\UserProductRepository;
+use Railroad\EventDataSynchronizer\Tests\EventDataSynchronizerTestCase;
 use Railroad\Railcontent\Repositories\PermissionRepository;
 use Railroad\Railcontent\Services\ConfigService;
 

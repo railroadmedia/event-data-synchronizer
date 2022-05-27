@@ -3,19 +3,29 @@
 namespace Railroad\EventDataSynchronizer\Tests;
 
 use Carbon\Carbon;
+use Doctrine\Inflector\InflectorFactory;
 use Faker\Generator;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Railroad\Ecommerce\Contracts\UserProviderInterface as EcommerceUserProviderInterface;
 use Railroad\Ecommerce\Faker\Factory;
 use Railroad\Ecommerce\Faker\Faker as EcommerceFaker;
+use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\Ecommerce\Providers\EcommerceServiceProvider;
 use Railroad\EventDataSynchronizer\Providers\EventDataSynchronizerServiceProvider;
-use Railroad\EventDataSynchronizer\Tests\Providers\EcommerceUserProvider;
+use Railroad\EventDataSynchronizer\Providers\UserProviderInterface;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\TestingEcommerceUserProvider;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\TestingRailforumsUserProvider;
+use Railroad\EventDataSynchronizer\Tests\Fixtures\TestingUserProvider;
 use Railroad\Railcontent\Providers\RailcontentServiceProvider;
 use Railroad\Railcontent\Repositories\RepositoryBase;
+use Railroad\Railforums\Contracts\UserProviderInterface as RailforumsUserProviderInterface;
+use Railroad\Usora\Managers\UsoraEntityManager;
 use Railroad\Usora\Providers\UsoraServiceProvider;
 
 class EventDataSynchronizerTestCase extends BaseTestCase
@@ -45,12 +55,49 @@ class EventDataSynchronizerTestCase extends BaseTestCase
      */
     protected $router;
 
-    protected function setUp()
+    protected UserProviderInterface $userProvider;
+
+    protected function setUp(): void
     {
         parent::setUp();
 
+        // make sure all entity managers are using the same connection as eachother and laravel
+        /**
+         * @var EcommerceEntityManager $ecommerceEntityManager
+         */
+        $ecommerceEntityManager = app(EcommerceEntityManager::class);
+
+        // make sure laravel is using the same connection
+        DB::connection('testbench')
+            ->setPdo($ecommerceEntityManager->getConnection()->getNativeConnection());
+
+        DB::connection('testbench')
+            ->setReadPdo($ecommerceEntityManager->getConnection()->getNativeConnection());
+
+        Schema::connection('testbench')->getConnection()->setPdo(
+            $ecommerceEntityManager->getConnection()->getNativeConnection()
+        );
+        Schema::connection('testbench')->getConnection()->setReadPdo(
+            $ecommerceEntityManager->getConnection()->getNativeConnection()
+        );
+
+        $this->userProvider = app(TestingUserProvider::class);
+
+        $this->app->instance(UserProviderInterface::class, $this->userProvider);
+        $this->app->instance(RailforumsUserProviderInterface::class, app(TestingRailforumsUserProvider::class));
+
         $this->artisan('migrate:fresh', []);
         $this->artisan('cache:clear', []);
+
+        // This is only here because these migrations now live inside musora-web-platform instead of usora package
+        // so we must copy them to this package.
+        Schema::connection('testbench')->table('usora_users', function (Blueprint $table) {
+            $table->string('access_level')->after('last_used_brand')->nullable()->index();
+            $table->integer('total_xp')->after('access_level')->nullable()->index();
+            $table->json('brand_method_levels')->after('total_xp')->nullable();
+            $table->dateTime('membership_expiration_date')->after('last_used_brand')->nullable()->index();
+            $table->boolean('is_lifetime_member')->after('membership_expiration_date')->default(false)->index();
+        });
 
         $this->faker = $this->app->make(Generator::class);
         $this->ecommerceFaker = Factory::create();
@@ -61,6 +108,18 @@ class EventDataSynchronizerTestCase extends BaseTestCase
 
         Carbon::setTestNow(Carbon::now());
     }
+
+    protected function tearDown(): void
+    {
+        Schema::connection('testbench')->table('usora_users', function (Blueprint $table) {
+            $table->dropColumn(
+                ['access_level', 'total_xp', 'brand_method_levels', 'membership_expiration_date', 'is_lifetime_member']
+            );
+        });
+
+        parent::tearDown();
+    }
+
 
     /**
      * Define environment setup.
@@ -82,6 +141,9 @@ class EventDataSynchronizerTestCase extends BaseTestCase
         );
 
         $app['config']->set('event-data-synchronizer.brand', 'testbench');
+        $app['config']->set('event-data-synchronizer.users_database_connection_name', 'testbench');
+        $app['config']->set('event-data-synchronizer.users_table_name', 'usora_users');
+
         $app['config']->set(
             'event-data-synchronizer.ecommerce_product_sku_to_content_permission_name_map',
             [
@@ -177,80 +239,66 @@ class EventDataSynchronizerTestCase extends BaseTestCase
                     'data_mode' => 'host',
                     'table_prefix' => 'railcontent_',
                     'brand' => 'testbench',
-                    'available_brand' => 'testbench',
+                    'available_brands' => ['testbench'],
                     'redis_host' => 'redis',
-                ],
-            ]
-        );
-
-        // jwt
-        config(
-            [
-                'jwt' => [
-
-                    'secret' => env('JWT_SECRET', 'jwt_secret_key_123_mobile'),
-
-                    'keys' => [
-
-                        'public' => env('JWT_PUBLIC_KEY'),
-
-                        'private' => env('JWT_PRIVATE_KEY'),
-
-                        'passphrase' => env('JWT_PASSPHRASE'),
+                    'decorators' => [
+                        'content' => [
+                            \Railroad\Railcontent\Decorators\Hierarchy\ContentSlugHierarchyDecorator::class,
+                            \Railroad\Railcontent\Decorators\Entity\ContentEntityDecorator::class,
+                        ]
                     ],
-
-                    /**
-                     * Specify the length of time (in minutes) that the token will be valid for. Defaults to 1 hour
-                     */ 'ttl' => env('JWT_TTL', 60),
-
-                    'refresh_ttl' => env('JWT_REFRESH_TTL', 20160),
-
-                    'algo' => env('JWT_ALGO', 'HS256'),
-
-                    'required_claims' => [
-                        'iss',
-                        'exp',
-                        'nbf',
-                        'sub',
-                        'jti',
-                    ],
-
-                    'persistent_claims' => [
-                        // 'foo',
-                        // 'bar',
-                    ],
-
-                    'lock_subject' => true,
-
-                    'leeway' => 60,
-
-                    'blacklist_enabled' => env('JWT_BLACKLIST_ENABLED', true),
-
-                    'blacklist_grace_period' => env('JWT_BLACKLIST_GRACE_PERIOD', 0),
-
-                    'decrypt_cookies' => false,
-
-                    'providers' => [
-                        'jwt' => \Tymon\JWTAuth\Providers\JWT\Lcobucci::class,
-
-                        'auth' => \Tymon\JWTAuth\Providers\Auth\Illuminate::class,
-
-                        'storage' => \Tymon\JWTAuth\Providers\Storage\Illuminate::class,
-                    ],
-                ],
+                ]
             ]
         );
 
         // register providers
         $app->register(EventDataSynchronizerServiceProvider::class);
         $app->register(EcommerceServiceProvider::class);
+
+        $ecommerceEntityManager = app(EcommerceEntityManager::class);
+
         $app->register(RailcontentServiceProvider::class);
         $app->register(UsoraServiceProvider::class);
 
-        app()->instance(EcommerceUserProviderInterface::class, app()->make(EcommerceUserProvider::class));
+        // make sure usora is using the same connection as ecom and laravel
+        $usoraEntityManager = app(UsoraEntityManager::class);
+        $newUsoraEntityManager = UsoraEntityManager::create(
+            $ecommerceEntityManager->getConnection(),
+            $usoraEntityManager->getConfiguration(),
+            $ecommerceEntityManager->getEventManager()
+        );
+        app()->instance(UsoraEntityManager::class, $newUsoraEntityManager);
+
+        app()->instance(EcommerceUserProviderInterface::class, app()->make(TestingEcommerceUserProvider::class));
+
+        // register global doctrine inflector
+        $inflector = InflectorFactory::create()->build();
+
+        app()->instance('DoctrineInflector', $inflector);
 
         // this is required for railcontent connection masking to work properly from test to test
         RepositoryBase::$connectionMask = null;
     }
 
+    /**
+     * @param $email
+     * @param $password
+     * @return int
+     */
+    public function createUserAndGetId($email = null, $password = null, $permissionLevel = null)
+    {
+        return $this->databaseManager->connection('testbench')->table('usora_users')
+            ->insertGetId(
+                [
+                    'email' => $email ?? $this->faker->email,
+                    'password' => $password ?? $this->faker->password,
+                    'display_name' => $this->faker->name,
+                    'permission_level' => $permissionLevel,
+                    'created_at' => Carbon::now()
+                        ->toDateTimeString(),
+                    'updated_at' => Carbon::now()
+                        ->toDateTimeString(),
+                ]
+            );
+    }
 }

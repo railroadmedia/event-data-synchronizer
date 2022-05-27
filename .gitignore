@@ -13,3 +13,5 @@ composer.lock
 !.idea/recordeo.iml
 !.idea/vcs.xml
 !.idea/webServers.xml
+
+.phpunit*
