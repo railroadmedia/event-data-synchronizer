@@ -4,6 +4,7 @@ namespace Railroad\EventDataSynchronizer\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Collection;
 use Railroad\EventDataSynchronizer\Services\UserMembershipFieldsService;
 
 class UserMembershipFieldsResyncTool extends Command
@@ -60,26 +61,31 @@ class UserMembershipFieldsResyncTool extends Command
         $this->databaseManager->connection(config('railcontent.database_connection_name'))
             ->disableQueryLog();
 
-        $userProducts = $this->databaseManager->connection(config('ecommerce.database_connection_name'))
+        $query = $this->databaseManager->connection(config('ecommerce.database_connection_name'))
             ->table('ecommerce_user_products')
+            ->selectRaw('ecommerce_user_products.user_id as user_id')
             ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
             ->where('ecommerce_products.is_physical', false)
-            ->orderBy('id', 'asc')
-            ->get();
+            ->groupBy('user_id')
+            ->orderBy('user_id', 'asc');
 
-        $userIdsToSync = [];
+        $this->info('Total to fix: ' . $query->count());
 
-        foreach ($userProducts as $userProduct) {
-            $userIdsToSync[] = $userProduct->user_id;
-        }
+        $query->chunk(500, function (Collection $rows) {
+            $userIdsToSync = [];
 
-        $this->info('Total to fix: ' . count($userIdsToSync));
+            foreach ($rows as $userProduct) {
+                $userIdsToSync[] = $userProduct->user_id;
+            }
 
-        foreach ($userIdsToSync as $userInIndex => $userId) {
-            $this->info('About to sync: ' . $userId);
 
-            $this->userMembershipFieldsService->sync($userId);
-        }
+            foreach ($userIdsToSync as $userInIndex => $userId) {
+                $this->info('About to sync: ' . $userId);
+
+                $this->userMembershipFieldsService->sync($userId);
+            }
+        });
+
 
         return true;
     }
