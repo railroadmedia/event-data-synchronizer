@@ -31,37 +31,22 @@ class UserMembershipFieldsResyncTool extends Command
      */
     protected $signature = 'UserMembershipFieldsResyncTool';
 
-    private DatabaseManager $databaseManager;
-    private UserMembershipFieldsService $userMembershipFieldsService;
-
-    /**
-     * UserMembershipFieldsResyncTool constructor.
-     * @param DatabaseManager $databaseManager
-     */
-    public function __construct(
-        DatabaseManager $databaseManager,
-        UserMembershipFieldsService $userMembershipFieldsService
-    ) {
-        parent::__construct();
-
-        $this->databaseManager = $databaseManager;
-        $this->userMembershipFieldsService = $userMembershipFieldsService;
-    }
-
     /**
      * Execute the console command.
      *
      * @return mixed
      */
-    public function handle()
-    {
-        $this->databaseManager->connection(config('ecommerce.database_connection_name'))
+    public function handle(
+        DatabaseManager $databaseManager,
+        UserMembershipFieldsService $userMembershipFieldsService
+    ) {
+        $databaseManager->connection(config('ecommerce.database_connection_name'))
             ->disableQueryLog();
 
-        $this->databaseManager->connection(config('railcontent.database_connection_name'))
+        $databaseManager->connection(config('railcontent.database_connection_name'))
             ->disableQueryLog();
 
-        $query = $this->databaseManager->connection(config('ecommerce.database_connection_name'))
+        $query = $databaseManager->connection(config('ecommerce.database_connection_name'))
             ->table('ecommerce_user_products')
             ->selectRaw('ecommerce_user_products.user_id as user_id')
             ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
@@ -71,7 +56,7 @@ class UserMembershipFieldsResyncTool extends Command
 
         $this->info('Total to fix: ' . $query->count());
 
-        $query->chunk(500, function (Collection $rows) {
+        $query->chunk(500, function (Collection $rows) use ($userMembershipFieldsService) {
             $userIdsToSync = [];
 
             foreach ($rows as $userProduct) {
@@ -82,7 +67,7 @@ class UserMembershipFieldsResyncTool extends Command
             foreach ($userIdsToSync as $userInIndex => $userId) {
                 $this->info('About to sync: ' . $userId);
 
-                $this->userMembershipFieldsService->sync($userId);
+                $userMembershipFieldsService->sync($userId);
             }
         });
 

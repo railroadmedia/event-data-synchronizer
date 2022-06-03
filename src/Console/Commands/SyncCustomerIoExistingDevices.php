@@ -32,41 +32,20 @@ class SyncCustomerIoExistingDevices extends Command
     protected $signature = 'SyncCustomerIoExistingDevices';
 
     /**
-     * @var DatabaseManager
-     */
-    private $databaseManager;
-    /**
-     * @var CustomerIoSyncEventListener
-     */
-    private $customerIoSyncEventListener;
-
-    /**
-     * @param DatabaseManager $databaseManager
-     * @param CustomerIoSyncEventListener $customerIoSyncEventListener
-     */
-    public function __construct(
-        DatabaseManager $databaseManager,
-        CustomerIoSyncEventListener $customerIoSyncEventListener
-    ) {
-        parent::__construct();
-
-        $this->databaseManager = $databaseManager;
-        $this->customerIoSyncEventListener = $customerIoSyncEventListener;
-    }
-
-    /**
      * Execute the console command.
      *
      * @return mixed
      */
-    public function handle()
-    {
+    public function handle(
+        DatabaseManager $databaseManager,
+        CustomerIoSyncEventListener $customerIoSyncEventListener
+    ) {
         $tStart = time();
 
-        $usoraConnection = $this->databaseManager->connection(config('usora.database_connection_name'));
+        $usoraConnection = $databaseManager->connection(config('usora.database_connection_name'));
         $usoraConnection->disableQueryLog();
 
-        $listener = $this->customerIoSyncEventListener;
+        $listener = $customerIoSyncEventListener;
 
         $thisSecond = time();
         $apiCallsThisSecond = 0;
@@ -79,7 +58,6 @@ class SyncCustomerIoExistingDevices extends Command
                 25,
                 function (Collection $tokenRows) use ($listener, &$apiCallsThisSecond, &$thisSecond, &$devicesNr) {
                     foreach ($tokenRows as $tokenRow) {
-
                         $listener->syncDevice(
                             $tokenRow->user_id,
                             $tokenRow->token,

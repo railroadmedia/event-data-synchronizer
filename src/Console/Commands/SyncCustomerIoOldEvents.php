@@ -3,17 +3,17 @@
 namespace Railroad\EventDataSynchronizer\Console\Commands;
 
 use Carbon\Carbon;
-use Railroad\Ecommerce\Entities\Payment;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
+use Railroad\Ecommerce\Entities\Payment;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\Ecommerce\Repositories\OrderRepository;
-use Railroad\Ecommerce\Repositories\PaymentMethodRepository;
 use Railroad\Ecommerce\Repositories\PaymentRepository;
 use Railroad\Ecommerce\Repositories\SubscriptionRepository;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\Usora\Repositories\UserRepository;
+use Throwable;
 
 class SyncCustomerIoOldEvents extends Command
 {
@@ -40,46 +40,11 @@ class SyncCustomerIoOldEvents extends Command
     protected $signature = 'SyncCustomerIoOldEvents {--brand=} {--endDate=}';
 
     /**
-     * @var DatabaseManager
+     * Execute the console command.
+     *
+     * @return mixed
      */
-    private $databaseManager;
-    /**
-     * @var CustomerIoSyncEventListener
-     */
-    private $customerIoSyncEventListener;
-
-    /**
-     * @var OrderRepository
-     */
-    private $orderRepository;
-
-    /**
-     * @var PaymentRepository
-     */
-    private $paymentRepository;
-
-    /**
-     * @var UserRepository
-     */
-    private $userRepository;
-
-    /**
-     * @var SubscriptionRepository
-     */
-    private $subscriptionRepository;
-
-    /**
-     * @var EcommerceEntityManager
-     */
-    private $ecommerceEntityManager;
-
-    /**
-     * @param DatabaseManager $databaseManager
-     * @param CustomerIoSyncEventListener $customerIoSyncEventListener
-     * @param OrderRepository $orderRepository
-     * @param PaymentRepository $paymentRepository
-     */
-    public function __construct(
+    public function handle(
         DatabaseManager $databaseManager,
         CustomerIoSyncEventListener $customerIoSyncEventListener,
         OrderRepository $orderRepository,
@@ -88,34 +53,16 @@ class SyncCustomerIoOldEvents extends Command
         SubscriptionRepository $subscriptionRepository,
         EcommerceEntityManager $ecommerceEntityManager
     ) {
-        parent::__construct();
-
-        $this->databaseManager = $databaseManager;
-        $this->customerIoSyncEventListener = $customerIoSyncEventListener;
-        $this->orderRepository = $orderRepository;
-        $this->paymentRepository = $paymentRepository;
-        $this->userRepository = $userRepository;
-        $this->subscriptionRepository = $subscriptionRepository;
-        $this->ecommerceEntityManager = $ecommerceEntityManager;
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return mixed
-     */
-    public function handle()
-    {
         $tStart = $tStartCommand = time();
 
         $brand = $this->option('brand');
 
         $endDate = $this->option('endDate') ? Carbon::parse($this->option('endDate')) : Carbon::now();
 
-        $ecommerceConnection = $this->databaseManager->connection(config('ecommerce.database_connection_name'));
+        $ecommerceConnection = $databaseManager->connection(config('ecommerce.database_connection_name'));
         $ecommerceConnection->disableQueryLog();
 
-        $this->ecommerceEntityManager->getConnection()
+        $ecommerceEntityManager->getConnection()
             ->getConfiguration()
             ->setSQLLogger(null);
 
@@ -155,7 +102,7 @@ class SyncCustomerIoOldEvents extends Command
         foreach (array_chunk($orderIdsToProcess, 100, true) as $chunk) {
             foreach ($chunk as $orderId => $paymentId) {
                 $order =
-                    $this->orderRepository->createQueryBuilder('o')
+                    $orderRepository->createQueryBuilder('o')
                         ->where('o.id = :id')
                         ->setParameter('id', $orderId)
                         ->getQuery()
@@ -165,7 +112,7 @@ class SyncCustomerIoOldEvents extends Command
                     $order = $order[0];
                 }
                 $payment =
-                    $this->paymentRepository->createQueryBuilder('p')
+                    $paymentRepository->createQueryBuilder('p')
                         ->where('p.id = :id')
                         ->setParameter('id', $paymentId)
                         ->getQuery()
@@ -175,7 +122,7 @@ class SyncCustomerIoOldEvents extends Command
                 }
 
                 try {
-                    $this->customerIoSyncEventListener->syncOrder($order, $payment);
+                    $customerIoSyncEventListener->syncOrder($order, $payment);
 
                     $apiCallsThisSecond++;
 
@@ -196,9 +143,9 @@ class SyncCustomerIoOldEvents extends Command
                     error_log($throwable);
                 }
 
-                //$this->ecommerceEntityManager->flush();
-                $this->ecommerceEntityManager->clear();
-                $this->ecommerceEntityManager->getConnection()
+                //$ecommerceEntityManager->flush();
+                $ecommerceEntityManager->clear();
+                $ecommerceEntityManager->getConnection()
                     ->ping();
 
                 unset($order);
@@ -258,7 +205,7 @@ class SyncCustomerIoOldEvents extends Command
         foreach (array_chunk($paymentsIdsToProcess, 100, true) as $chunk) {
             foreach ($chunk as $paymentId => $userId) {
                 $payment =
-                    $this->paymentRepository->createQueryBuilder('p')
+                    $paymentRepository->createQueryBuilder('p')
                         ->where('p.id = :id')
                         ->setParameter('id', $paymentId)
                         ->getQuery()
@@ -273,7 +220,7 @@ class SyncCustomerIoOldEvents extends Command
                 try {
                     $this->info('payment id::' . $paymentId);
 
-                    $this->customerIoSyncEventListener->syncPayment($payment, $userId);
+                    $customerIoSyncEventListener->syncPayment($payment, $userId);
 
                     $apiCallsThisSecond++;
 
@@ -290,9 +237,9 @@ class SyncCustomerIoOldEvents extends Command
                     error_log($throwable);
                 }
 
-                $this->ecommerceEntityManager->flush();
-                $this->ecommerceEntityManager->clear();
-                $this->ecommerceEntityManager->getConnection()
+                $ecommerceEntityManager->flush();
+                $ecommerceEntityManager->clear();
+                $ecommerceEntityManager->getConnection()
                     ->ping();
 
                 unset($paymentMethod);
@@ -303,7 +250,7 @@ class SyncCustomerIoOldEvents extends Command
                 if ($payment->getType() == Payment::TYPE_SUBSCRIPTION_RENEWAL) {
                     try {
                         $subscription =
-                            $this->subscriptionRepository->createQueryBuilder('s')
+                            $subscriptionRepository->createQueryBuilder('s')
                                 ->where('s.id = :id')
                                 ->setParameter(
                                     'id',
@@ -318,7 +265,7 @@ class SyncCustomerIoOldEvents extends Command
 
                             $this->info('subscription renewal id::' . $subscription->getId());
 
-                            $this->customerIoSyncEventListener->syncSubscriptionRenew($subscription);
+                            $customerIoSyncEventListener->syncSubscriptionRenew($subscription);
 
                             $apiCallsThisSecond++;
 
@@ -339,9 +286,9 @@ class SyncCustomerIoOldEvents extends Command
 
                 unset($payment);
 
-                $this->ecommerceEntityManager->flush();
-                $this->ecommerceEntityManager->clear();
-                $this->ecommerceEntityManager->getConnection()
+                $ecommerceEntityManager->flush();
+                $ecommerceEntityManager->clear();
+                $ecommerceEntityManager->getConnection()
                     ->ping();
 
                 $this->info("Memory usage: " . (memory_get_usage(false) / 1024 / 1024) . " MB");
