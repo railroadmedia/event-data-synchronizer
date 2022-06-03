@@ -27,60 +27,23 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
      *
      * @var string
      */
-    protected $description = 'Find all updated user products and expired subs in the last few days and '.
+    protected $description = 'Find all updated user products and expired subs in the last few days and ' .
     'resync those users since their access date may have passed.';
-
-    /**
-     * @var UserProductRepository
-     */
-    private $userProductRepository;
-
-    /**
-     * @var CustomerIoSyncEventListener
-     */
-    private $customerIoSyncEventListener;
-
-    /**
-     * @var UserRepository
-     */
-    private $userRepository;
-
-    /**
-     * @var SubscriptionRepository
-     */
-    private $subscriptionRepository;
-
-
-    /**
-     * SetLevelTagsForExpiredLevels constructor.
-     *
-     * @param  UserProductRepository  $userProductRepository
-     * @param  UserRepository  $userRepository
-     */
-    public function __construct(
-        UserProductRepository $userProductRepository,
-        CustomerIoSyncEventListener $customerIoSyncEventListener,
-        UserRepository $userRepository,
-        SubscriptionRepository $subscriptionRepository
-    ) {
-        parent::__construct();
-
-        $this->userProductRepository = $userProductRepository;
-        $this->customerIoSyncEventListener = $customerIoSyncEventListener;
-        $this->userRepository = $userRepository;
-        $this->subscriptionRepository = $subscriptionRepository;
-    }
 
     /**
      * Execute the console command.
      *
      * @return mixed
      */
-    public function handle()
-    {
+    public function handle(
+        UserProductRepository $userProductRepository,
+        CustomerIoSyncEventListener $customerIoSyncEventListener,
+        UserRepository $userRepository,
+        SubscriptionRepository $subscriptionRepository
+    ) {
         $lastTime = Carbon::now()->subHours(48);
 
-        $qb = $this->userProductRepository->createQueryBuilder('up');
+        $qb = $userProductRepository->createQueryBuilder('up');
 
         $qb->orWhere('up.updatedAt > :lastDay AND up.updatedAt < :now')
             ->orWhere('up.expirationDate > :lastDay AND up.expirationDate < :now')
@@ -94,7 +57,7 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
 
         $this->info('Found ' . count($userProducts) . ' user products.');
 
-        $qb = $this->subscriptionRepository->createQueryBuilder('s');
+        $qb = $subscriptionRepository->createQueryBuilder('s');
 
         $qb->orWhere('s.paidUntil > :lastDay AND s.paidUntil < :now')
             ->orWhere('s.updatedAt > :lastDay AND s.updatedAt < :now')
@@ -122,12 +85,12 @@ class SyncCustomerIoForUpdatedUserProductsAndSubscriptions extends Command
         $allUserIds = array_unique($allUserIds);
 
         foreach ($allUserIds as $allUserId) {
-            $user = $this->userRepository->find($allUserId);
-            $this->info('Handling '.$user->getEmail());
-            $this->customerIoSyncEventListener->handleUserUpdated(new UserUpdated($user, $user));
+            $user = $userRepository->find($allUserId);
+            $this->info('Handling ' . $user->getEmail());
+            $customerIoSyncEventListener->handleUserUpdated(new UserUpdated($user, $user));
         }
 
-        $this->info('Updated customer-io for '.count($allUserIds).' user IDs.');
+        $this->info('Updated customer-io for ' . count($allUserIds) . ' user IDs.');
 
         return true;
     }

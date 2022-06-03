@@ -3,11 +3,11 @@
 namespace Railroad\EventDataSynchronizer\Console\Commands;
 
 use Exception;
+use HelpScout\Api\Exception\ConflictException;
+use HelpScout\Api\Exception\RateLimitExceededException;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
-use HelpScout\Api\Exception\ConflictException;
-use HelpScout\Api\Exception\RateLimitExceededException;
 use Railroad\Ecommerce\Managers\EcommerceEntityManager;
 use Railroad\EventDataSynchronizer\Services\HelpScoutSyncService;
 use Railroad\RailHelpScout\Services\RailHelpScoutService;
@@ -33,59 +33,20 @@ class SyncHelpScout extends Command
     const SLEEP_DELAY = 600;
 
     /**
-     * @var DatabaseManager
-     */
-    private $databaseManager;
-
-    /**
-     * @var EcommerceEntityManager
-     */
-    private $ecommerceEntityManager;
-
-    /**
-     * @var HelpScoutSyncService
-     */
-    private $helpScoutSyncService;
-
-    /**
-     * @var RailHelpScoutService
-     */
-    private $railHelpScoutService;
-
-    /**
-     * SyncHelpScout constructor.
+     * Execute the console command.
      *
-     * @param DatabaseManager $databaseManager
-     * @param EcommerceEntityManager $ecommerceEntityManager
-     * @param HelpScoutSyncService $helpScoutSyncService
-     * @param RailHelpScoutService $railHelpScoutService
-     *
+     * @throws Throwable
      */
-    public function __construct(
+    public function handle(
         DatabaseManager $databaseManager,
         EcommerceEntityManager $ecommerceEntityManager,
         HelpScoutSyncService $helpScoutSyncService,
         RailHelpScoutService $railHelpScoutService
     ) {
-        parent::__construct();
-
-        $this->databaseManager = $databaseManager;
-        $this->ecommerceEntityManager = $ecommerceEntityManager;
-        $this->helpScoutSyncService = $helpScoutSyncService;
-        $this->railHelpScoutService = $railHelpScoutService;
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @throws Throwable
-     */
-    public function handle()
-    {
         $this->info('Starting SyncHelpScout.');
 
-        $usoraConnection = $this->databaseManager->connection(config('usora.database_connection_name'));
-        $railhelpscoutConnection = $this->databaseManager->connection(config('railhelpscout.database_connection_name'));
+        $usoraConnection = $databaseManager->connection(config('usora.database_connection_name'));
+        $railhelpscoutConnection = $databaseManager->connection(config('railhelpscout.database_connection_name'));
 
         $done = 0;
         $total =
@@ -96,8 +57,15 @@ class SyncHelpScout extends Command
             ->orderBy('id', 'asc')
             ->chunk(
                 25,
-                function (Collection $userRows) use (&$done, $total, $railhelpscoutConnection, $usoraConnection) {
-
+                function (Collection $userRows) use (
+                    $railHelpScoutService,
+                    $helpScoutSyncService,
+                    $ecommerceEntityManager,
+                    &$done,
+                    $total,
+                    $railhelpscoutConnection,
+                    $usoraConnection
+                ) {
                     $existingCustomersMap =
                         $railhelpscoutConnection->table('helpscout_customers')
                             ->whereIn(
@@ -113,9 +81,11 @@ class SyncHelpScout extends Command
                             ->toArray();
 
                     foreach ($userRows as $userData) {
-
                         if (!isset($existingCustomersMap[$userData->id])) {
                             $this->syncUser(
+                                $helpScoutSyncService,
+                                $railHelpScoutService,
+                                $ecommerceEntityManager,
                                 $userData->id,
                                 $userData->first_name,
                                 $userData->last_name,
@@ -134,11 +104,11 @@ class SyncHelpScout extends Command
                     }
 
                     $this->info('Done ' . $done . ' out of ' . $total);
-                    $this->info('Real: '.(memory_get_peak_usage(true)/1024/1024)." MiB\n\n");
+                    $this->info('Real: ' . (memory_get_peak_usage(true) / 1024 / 1024) . " MiB\n\n");
 
-                    $this->ecommerceEntityManager->flush();
-                    $this->ecommerceEntityManager->clear();
-                    $this->ecommerceEntityManager->getConnection()->ping();
+                    $ecommerceEntityManager->flush();
+                    $ecommerceEntityManager->clear();
+                    $ecommerceEntityManager->getConnection()->ping();
                 }
             );
     }
@@ -147,6 +117,9 @@ class SyncHelpScout extends Command
      * @throws Throwable
      */
     protected function syncUser(
+        HelpScoutSyncService $helpScoutSyncService,
+        RailHelpScoutService $railHelpScoutService,
+        EcommerceEntityManager $ecommerceEntityManager,
         $usoraId,
         $firstName,
         $lastName,
@@ -159,11 +132,10 @@ class SyncHelpScout extends Command
         $railhelpscoutConnection,
         $usoraConnection
     ) {
-
         $attempt = 1;
 
         $userAttributes =
-            $this->helpScoutSyncService->getUsersAttributesById(
+            $helpScoutSyncService->getUsersAttributesById(
                 $usoraId,
                 $firstName,
                 $displayName,
@@ -175,8 +147,7 @@ class SyncHelpScout extends Command
 
         while ($attempt <= self::RETRY_ATTEMPTS) {
             try {
-
-                $this->railHelpScoutService->createCustomer(
+                $railHelpScoutService->createCustomer(
                     $usoraId,
                     $firstName,
                     $lastName,
@@ -187,18 +158,15 @@ class SyncHelpScout extends Command
                 $this->info('Sync successful for user id ' . $usoraId . ', email: ' . $email);
 
                 return;
-
             } catch (RateLimitExceededException $rateException) {
-
                 $this->error(
                     'RateLimitExceededException raised when syncing user ' . $email
                     . ', sleeping for ' . self::SLEEP_DELAY . ' seconds'
                 );
 
-                $this->pause($railhelpscoutConnection, $usoraConnection);
+                $this->pause($ecommerceEntityManager, $railhelpscoutConnection, $usoraConnection);
 
                 $attempt++;
-
             } catch (ConflictException $conflictException) {
                 $this->error(
                     'ConflictException raised, user with usora id: ' . $usoraId . ' and email: ' . $email
@@ -207,7 +175,6 @@ class SyncHelpScout extends Command
 
                 return;
             } catch (Exception $ex) {
-
                 error_log($ex);
                 return;
             }
@@ -215,6 +182,7 @@ class SyncHelpScout extends Command
     }
 
     protected function pause(
+        EcommerceEntityManager $ecommerceEntityManager,
         $railhelpscoutConnection,
         $usoraConnection
     ) {
@@ -222,12 +190,11 @@ class SyncHelpScout extends Command
         $cycles = 60;
 
         while ($cycles >= 0) {
-
             sleep($sleepDelayPerCycle);
 
-            if ($this->ecommerceEntityManager->getConnection()->ping() === false) {
-                $this->ecommerceEntityManager->getConnection()->close();
-                $this->ecommerceEntityManager->getConnection()->connect();
+            if ($ecommerceEntityManager->getConnection()->ping() === false) {
+                $ecommerceEntityManager->getConnection()->close();
+                $ecommerceEntityManager->getConnection()->connect();
             }
 
             if (is_null($railhelpscoutConnection->getPdo())) {

@@ -35,62 +35,19 @@ class UserContentPermissionsResyncTool extends Command
     protected $signature = 'UserContentPermissionsResyncTool {--brand=}';
 
     /**
-     * @var DatabaseManager
+     * Execute the console command.
+     *
+     * @return mixed
      */
-    private $databaseManager;
-
-    /**
-     * @var UserRepository
-     */
-    private $userRepository;
-
-    /**
-     * @var EcommerceEntityManager
-     */
-    private $ecommerceEntityManager;
-
-    /**
-     * @var UsoraEntityManager
-     */
-    private $usoraEntityManager;
-    /**
-     * @var UserProductToUserContentPermissionListener
-     */
-    private $userProductToUserContentPermissionListener;
-
-    /**
-     * SetLevelTagsForExpiredLevels constructor.
-     * @param DatabaseManager $databaseManager
-     * @param UserRepository $userRepository
-     * @param EcommerceEntityManager $ecommerceEntityManager
-     * @param UsoraEntityManager $usoraEntityManager
-     * @param UserProductToUserContentPermissionListener $userProductToUserContentPermissionListener
-     */
-    public function __construct(
+    public function handle(
         DatabaseManager $databaseManager,
         UserRepository $userRepository,
         EcommerceEntityManager $ecommerceEntityManager,
         UsoraEntityManager $usoraEntityManager,
         UserProductToUserContentPermissionListener $userProductToUserContentPermissionListener
     ) {
-        parent::__construct();
-
-        $this->databaseManager = $databaseManager;
-        $this->userRepository = $userRepository;
-        $this->ecommerceEntityManager = $ecommerceEntityManager;
-        $this->usoraEntityManager = $usoraEntityManager;
-        $this->userProductToUserContentPermissionListener = $userProductToUserContentPermissionListener;
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return mixed
-     */
-    public function handle()
-    {
         $brand = $this->option('brand');
-        $ecommerceConnection = $this->databaseManager->connection(config('ecommerce.database_connection_name'));
+        $ecommerceConnection = $databaseManager->connection(config('ecommerce.database_connection_name'));
 
         $query = $ecommerceConnection->table('ecommerce_user_products')
             ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
@@ -102,20 +59,25 @@ class UserContentPermissionsResyncTool extends Command
 
         $done = 0;
 
-        $query->chunk(250, function (Collection $userProductRows) use (&$done) {
+        $query->chunk(250, function (Collection $userProductRows) use (
+            $usoraEntityManager,
+            $ecommerceEntityManager,
+            $userProductToUserContentPermissionListener,
+            &$done
+        ) {
             foreach ($userProductRows as $userProductRow) {
-                $this->userProductToUserContentPermissionListener->syncUserId($userProductRow->user_id);
+                $userProductToUserContentPermissionListener->syncUserId($userProductRow->user_id);
                 $done++;
             }
 
-            $this->ecommerceEntityManager->flush();
-            $this->usoraEntityManager->flush();
+            $ecommerceEntityManager->flush();
+            $usoraEntityManager->flush();
 
-            $this->ecommerceEntityManager->clear();
-            $this->usoraEntityManager->clear();
+            $ecommerceEntityManager->clear();
+            $usoraEntityManager->clear();
 
-            $this->ecommerceEntityManager->getConnection()->ping();
-            $this->usoraEntityManager->getConnection()->ping();
+            $ecommerceEntityManager->getConnection()->ping();
+            $usoraEntityManager->getConnection()->ping();
 
             $this->info('Done ' . $done);
         });
