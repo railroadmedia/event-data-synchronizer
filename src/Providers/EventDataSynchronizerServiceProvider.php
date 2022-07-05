@@ -192,5 +192,6 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      */
     public function register()
     {
+        parent::register();
     }
 }
