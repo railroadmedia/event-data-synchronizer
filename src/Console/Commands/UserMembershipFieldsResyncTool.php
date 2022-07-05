@@ -64,7 +64,7 @@ class UserMembershipFieldsResyncTool extends Command
             ->table('ecommerce_user_products')
             ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
             ->where('ecommerce_products.is_physical', false)
-            ->orderBy('id', 'asc')
+            ->orderBy('ecommerce_user_products.id', 'asc')
             ->get();
 
         $userIdsToSync = [];

@@ -25,4 +25,14 @@ interface UserProviderInterface
         bool $isLifetimeMember,
         string $accessLevel
     ): bool;
+
+    /**
+     * @param int $userId
+     * @param bool $isPackOwner
+     * @return bool
+     */
+    public function savePackOwnerData(
+        int $userId,
+        bool $isPackOwner
+    ): bool;
 }
