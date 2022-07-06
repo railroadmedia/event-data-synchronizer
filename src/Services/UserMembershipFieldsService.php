@@ -75,6 +75,9 @@ class UserMembershipFieldsService
             $ownsPacks
         );
 
+        $this->userProvider->savePackOwnerData(
+            $userId, $ownsPacks);
+
         return $this->userProvider->saveMembershipData(
             $userId,
             $membershipExpirationDate,
