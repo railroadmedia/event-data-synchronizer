@@ -18,6 +18,7 @@ use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
 use Railroad\Ecommerce\Events\UserProducts\UserProductUpdated;
 use Railroad\EventDataSynchronizer\Console\Commands\HelpScoutIndex;
+use Railroad\EventDataSynchronizer\Console\Commands\PackOwnerUserFieldResyncTool;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoExistingDevices;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoForUpdatedUserProductsAndSubscriptions;
 use Railroad\EventDataSynchronizer\Console\Commands\SyncCustomerIoOldEvents;
@@ -175,6 +176,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
                 SyncCustomerIoOldEvents::class,
                 SyncCustomerIoExistingDevices::class,
                 UserMembershipFieldsResyncTool::class,
+                PackOwnerUserFieldResyncTool::class,
             ]
         );
 
