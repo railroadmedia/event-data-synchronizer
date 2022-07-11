@@ -2,11 +2,12 @@
 
 namespace Railroad\EventDataSynchronizer\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Railroad\Ecommerce\Entities\Product;
-use Railroad\EventDataSynchronizer\Services\UserMembershipFieldsService;
 
 class PackOwnerUserFieldResyncTool extends Command
 {
@@ -38,8 +39,7 @@ class PackOwnerUserFieldResyncTool extends Command
      * @return mixed
      */
     public function handle(
-        DatabaseManager $databaseManager,
-        UserMembershipFieldsService $userMembershipFieldsService
+        DatabaseManager $databaseManager
     ) {
         $databaseManager->connection(config('ecommerce.database_connection_name'))
             ->disableQueryLog();
@@ -47,33 +47,48 @@ class PackOwnerUserFieldResyncTool extends Command
         $databaseManager->connection(config('railcontent.database_connection_name'))
             ->disableQueryLog();
 
-        $query = $databaseManager->connection(config('ecommerce.database_connection_name'))
-            ->table('ecommerce_user_products')
-            ->selectRaw('ecommerce_user_products.user_id as user_id')
-            ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
-            ->where('ecommerce_products.is_physical', false)
-            ->where('ecommerce_products.digital_access_type', Product::DIGITAL_ACCESS_TYPE_SPECIFIC_CONTENT_ACCESS)
-            ->where('ecommerce_products.digital_access_time_type', Product::DIGITAL_ACCESS_TIME_TYPE_ONE_TIME)
-            ->whereNull('ecommerce_products.deleted_at')
-            ->groupBy('user_id')
-            ->orderBy('user_id', 'asc');
+        $query =
+            $databaseManager->connection(config('ecommerce.database_connection_name'))
+                ->table('ecommerce_user_products')
+                ->selectRaw('ecommerce_user_products.user_id as user_id')
+                ->join('ecommerce_products', 'ecommerce_products.id', '=', 'ecommerce_user_products.product_id')
+                ->where('ecommerce_products.is_physical', false)
+                ->where('ecommerce_products.digital_access_type', Product::DIGITAL_ACCESS_TYPE_SPECIFIC_CONTENT_ACCESS)
+                ->where('ecommerce_products.digital_access_time_type', Product::DIGITAL_ACCESS_TIME_TYPE_ONE_TIME)
+                ->whereNull('ecommerce_products.deleted_at')
+                ->where(function (Builder $builder) {
+                    $builder->where(
+                        'ecommerce_user_products.expiration_date',
+                        '>',
+                        Carbon::now()
+                            ->toDateTimeString()
+                    )
+                        ->orWhereNull('ecommerce_user_products.expiration_date');
+                })
+                ->groupBy('user_id')
+                ->orderBy('user_id', 'asc');
 
-        $this->info('Total to fix: ' . $query->count());
-
-        $query->chunk(500, function (Collection $rows) use ($userMembershipFieldsService) {
+        $count = 0;
+        $query->chunk(500, function (Collection $rows) use ($databaseManager, &$count) {
             $userIdsToSync = [];
 
             foreach ($rows as $userProduct) {
                 $userIdsToSync[] = $userProduct->user_id;
             }
+            $databaseManager->connection(config('ecommerce.database_connection_name'))
+                ->table('usora_users')
+                ->whereIn('id', $userIdsToSync)
+                ->update(
+                    [
+                        'is_pack_owner' => true,
+                    ]
+                );
 
+            $count = $count + count($userIdsToSync);
 
-            foreach ($userIdsToSync as $userInIndex => $userId) {
-                $this->info('About to sync: ' . $userId);
-
-                $userMembershipFieldsService->sync($userId);
-            }
+            $this->info('Sync pack owner users : '.$count);
         });
+
 
 
         return true;
