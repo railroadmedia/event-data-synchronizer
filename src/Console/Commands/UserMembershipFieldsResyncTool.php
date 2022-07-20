@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Railroad\EventDataSynchronizer\Services\UserMembershipFieldsService;
 
 class UserMembershipFieldsResyncTool extends Command
@@ -74,6 +75,7 @@ class UserMembershipFieldsResyncTool extends Command
             $totalSynced += count($userIdsToSync);
 
             $this->info($totalSynced . ' done. Last processed user id: ' . $userProduct->user_id);
+            Log::info($totalSynced . ' done. Last processed user id: ' . $userProduct->user_id);
         });
 
 
