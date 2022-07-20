@@ -29,7 +29,7 @@ class UserMembershipFieldsResyncTool extends Command
      *
      * @var string
      */
-    protected $signature = 'UserMembershipFieldsResyncTool';
+    protected $signature = 'UserMembershipFieldsResyncTool {startingUserId=0}';
 
     /**
      * Execute the console command.
@@ -54,9 +54,15 @@ class UserMembershipFieldsResyncTool extends Command
             ->groupBy('user_id')
             ->orderBy('user_id', 'asc');
 
-        $this->info('Total to fix: ' . $query->count());
+        if (!empty($this->argument('startingUserId'))) {
+            $query->where('user_id', '>', $this->argument('startingUserId'));
+        }
 
-        $query->chunk(500, function (Collection $rows) use ($userMembershipFieldsService) {
+        $this->info('Total to fix around 232k');
+
+        $totalSynced = 0;
+
+        $query->chunk(250, function (Collection $rows) use ($userMembershipFieldsService, &$totalSynced) {
             $userIdsToSync = [];
 
             foreach ($rows as $userProduct) {
@@ -64,11 +70,10 @@ class UserMembershipFieldsResyncTool extends Command
             }
 
 
-            foreach ($userIdsToSync as $userInIndex => $userId) {
-                $this->info('About to sync: ' . $userId);
+            $userMembershipFieldsService->syncUserIds($userIdsToSync);
+            $totalSynced += count($userIdsToSync);
 
-                $userMembershipFieldsService->sync($userId);
-            }
+            $this->info($totalSynced . ' done. Last processed user id: ' . $userProduct->user_id);
         });
 
 
