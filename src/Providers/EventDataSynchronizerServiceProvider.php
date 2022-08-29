@@ -30,6 +30,7 @@ use Railroad\EventDataSynchronizer\Console\Commands\UserMembershipFieldsResyncTo
 use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
+use Railroad\EventDataSynchronizer\Listeners\ContentProgressEventListener;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserMembershipFieldsListener;
@@ -39,6 +40,7 @@ use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\ContentFollow;
 use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
+use Railroad\Railcontent\Events\UserContentsProgressReset;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
 use Railroad\Usora\Events\MobileAppLogin;
@@ -128,6 +130,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleForumsPostCreated',
         ],
         UserContentProgressSaved::class => [
+            ContentProgressEventListener::class . '@handleUserProgressSaved',
             CustomerIoSyncEventListener::class . '@handleUserContentProgressSaved',
         ],
         LiveStreamEventAttended::class => [
@@ -153,7 +156,10 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         CommandSubscriptionRenewFailed::class => [
             UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
-        ]
+        ],
+        UserContentsProgressReset::class => [
+            ContentProgressEventListener::class . '@handleReset',
+        ],
     ];
 
     /**
