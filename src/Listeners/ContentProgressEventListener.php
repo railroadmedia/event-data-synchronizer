@@ -43,9 +43,9 @@ class ContentProgressEventListener
      * @var UserPointsService
      */
     private $userPointsService;
-    //    /**
-    //     * @var MediaPlaybackRepository
-    //     */
+    /**
+     * @var MediaPlaybackRepository
+     */
     private $mediaPlaybackRepository;
 
     private UserProviderInterface $userProvider;
@@ -56,17 +56,16 @@ class ContentProgressEventListener
         ContentService $contentService,
         ContentRepository $contentRepository,
         UserPointsService $userPointsService,
-        UserProviderInterface $userProvider
-        //        MediaPlaybackRepository $mediaPlaybackRepository
-    )
-    {
+        UserProviderInterface $userProvider,
+        MediaPlaybackRepository $mediaPlaybackRepository
+    ) {
         $this->userContentProgressService = $userContentProgressService;
         $this->contentService = $contentService;
         $this->contentHierarchyService = $contentHierarchyService;
         $this->contentRepository = $contentRepository;
         $this->userPointsService = $userPointsService;
         $this->userProvider = $userProvider;
-        //        $this->mediaPlaybackRepository = $mediaPlaybackRepository;
+        $this->mediaPlaybackRepository = $mediaPlaybackRepository;
     }
 
     public function handleUserProgressSaved(UserContentProgressSaved $userContentProgressSaved)
@@ -94,9 +93,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -115,9 +114,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -136,9 +135,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -157,9 +156,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -178,9 +177,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -199,9 +198,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -220,9 +219,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -241,9 +240,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -262,9 +261,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
 
@@ -294,9 +293,9 @@ class ContentProgressEventListener
                     );
                 } else {
                     $this->userPointsService->deletePoints($userContentProgressSaved->userId, [
-                                                                                                'content_id' => $content['id'],
-                                                                                                'progress_state' => 'completed',
-                                                                                            ]);
+                        'content_id' => $content['id'],
+                        'progress_state' => 'completed',
+                    ]);
                 }
             }
             $this->userProvider->saveExperiencePoints(
@@ -332,7 +331,8 @@ class ContentProgressEventListener
                         ],
                         'per_minute_of_assignment_practiced',
                         config('xp_ranks.per_minute_of_assignment_practiced'),
-                        'Awarded for every minute of an assignment practiced watched.'
+                        'Awarded for every minute of an assignment practiced watched.',
+                        $mediaPlaybackTracked->brand
                     );
 
                     $minutes--;
@@ -364,7 +364,8 @@ class ContentProgressEventListener
                         ],
                         'per_minute_of_play_along_practiced',
                         config('xp_ranks.per_minute_of_play_along_practiced'),
-                        'Awarded for every minute of a play-along practiced watched.'
+                        'Awarded for every minute of a play-along practiced watched.',
+                        $mediaPlaybackTracked->brand
                     );
 
                     $minutes--;
@@ -374,89 +375,64 @@ class ContentProgressEventListener
             return;
         }
 
-        // get all videos with this vimeo id
-        //TODO
-        //        $vimeoIdFields = $this->contentFieldService->getByKeyValueTypePosition(
-        //            'vimeo_video_id',
-        //            $mediaPlaybackTracked->mediaId,
-        //            'string',
-        //            1
-        //        );
-        $vimeoIdFields = [];
-        //        $vimeoIdFields = array_merge(
-        //            $vimeoIdFields,
-        //            $this->contentFieldService->getByKeyValueTypePosition(
-        //                'youtube_video_id',
-        //                $mediaPlaybackTracked->mediaId,
-        //                'string',
-        //                1
-        //            )
-        //        );
-        //
-        //        $lengthInSeconds = $mediaPlaybackTracked->mediaLengthInSeconds;
-        //
-        //        foreach ($vimeoIdFields as $vimeoIdField) {
-        //            // get all the contents with this video and update their progress
-        //            $videoFields = $this->contentFieldService->getByKeyValueType(
-        //                $vimeoIdField['key'] == 'youtube_video_id' ? 'youtube_video' : 'video',
-        //                $vimeoIdField['content_id'],
-        //                'content_id'
-        //            );
-        //
-        //            $contentIds = array_column($videoFields, 'content_id');
-        //            sort($contentIds);
-        //
-        //            $contentIds = array_slice(array_reverse($contentIds), 0, 1);
-        //
-        //            foreach ($contentIds as $contentId) {
-        //                $totalTimeWatched = (integer)$this->mediaPlaybackRepository->sumTotalPlayed(
-        //                    $mediaPlaybackTracked->userId,
-        //                    $mediaPlaybackTracked->mediaId,
-        //                    $mediaPlaybackTracked->typeId
-        //                );
-        //
-        //                if ($lengthInSeconds > 0 && $totalTimeWatched < $lengthInSeconds) {
-        //                    $minutes = floor($totalTimeWatched / 60);
-        //
-        //                    while ($minutes > 0) {
-        //                        $this->userPointsService->setPoints(
-        //                            $mediaPlaybackTracked->userId,
-        //                            [
-        //                                'content_id' => $contentId,
-        //                                'minutes_watched' => $minutes,
-        //                            ],
-        //                            'minutes_of_content_watched',
-        //                            config('xp_ranks.per_minute_content_watched'),
-        //                            'Awarded for every minute of video watched.'
-        //                        );
-        //
-        //                        $minutes--;$this->userProvider->saveExperiencePoints($userContentProgressSaved->userId, $this->userPointsService->countUserPoints($userContentProgressSaved->userId));
-        //                    }
-        //                }
-        //
-        //                if ($mediaPlaybackTracked->mediaLengthInSeconds > 0) {
-        //                    $this->userContentProgressService->saveContentProgress(
-        //                        $contentId,
-        //                        min(
-        //                            round(
-        //                                $mediaPlaybackTracked->currentSecond / $mediaPlaybackTracked->mediaLengthInSeconds * 100
-        //                            ),
-        //                            99
-        //                        ),
-        //                        $mediaPlaybackTracked->userId
-        //                    );
-        //                }
-        //            }
-        //        }
+        $vimeoIdFields = $this->contentService->getContentWithExternalVideoId($mediaPlaybackTracked->mediaId);
+        $lengthInSeconds = $mediaPlaybackTracked->mediaLengthInSeconds;
+
+        foreach ($vimeoIdFields as $content) {
+            $totalTimeWatched = (integer)$this->mediaPlaybackRepository->sumTotalPlayed(
+                $mediaPlaybackTracked->userId,
+                $mediaPlaybackTracked->mediaId,
+                $mediaPlaybackTracked->typeId
+            );
+
+            if ($lengthInSeconds > 0 && $totalTimeWatched < $lengthInSeconds) {
+                $minutes = floor($totalTimeWatched / 60);
+
+                while ($minutes > 0) {
+                    $this->userPointsService->setPoints(
+                        $mediaPlaybackTracked->userId,
+                        [
+                            'content_id' => $content['id'],
+                            'minutes_watched' => $minutes,
+                        ],
+                        'minutes_of_content_watched',
+                        config('xp_ranks.per_minute_content_watched'),
+                        'Awarded for every minute of video watched.',
+                        $mediaPlaybackTracked->brand
+                    );
+
+                    $minutes--;
+                    $this->userProvider->saveExperiencePoints(
+                        $mediaPlaybackTracked->userId,
+                        $this->userPointsService->countUserPoints(
+                            $mediaPlaybackTracked->userId
+                        )
+                    );
+                }
+            }
+
+            if ($mediaPlaybackTracked->mediaLengthInSeconds > 0) {
+                $this->userContentProgressService->saveContentProgress(
+                    $content['id'],
+                    min(
+                        round(
+                            $mediaPlaybackTracked->currentSecond / $mediaPlaybackTracked->mediaLengthInSeconds * 100
+                        ),
+                        99
+                    ),
+                    $mediaPlaybackTracked->userId
+                );
+            }
+        }
     }
 
     public function handleReset(UserContentsProgressReset $userContentsProgressReset)
     {
         foreach ($userContentsProgressReset->contentIds as $contentId) {
             $this->userPointsService->deletePoints($userContentsProgressReset->userId, [
-                                                                                         'content_id' => $contentId,
-                                                                                         'progress_state' => 'completed',
-                                                                                     ]);
+                'content_id' => $contentId,
+                'progress_state' => 'completed',
+            ]);
         }
 
         $this->userProvider->saveExperiencePoints(

@@ -43,6 +43,7 @@ use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Events\UserContentsProgressReset;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Railtracker\Events\MediaPlaybackTracked;
 use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -159,6 +160,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         UserContentsProgressReset::class => [
             ContentProgressEventListener::class . '@handleReset',
+        ],
+        MediaPlaybackTracked::class => [
+            ContentProgressEventListener::class . '@handleMediaPlaybackTracked',
         ],
     ];
 
