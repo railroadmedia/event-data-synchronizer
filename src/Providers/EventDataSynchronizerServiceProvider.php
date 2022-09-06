@@ -36,7 +36,9 @@ use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserMembershipFieldsListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentDeleted;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\CommentUnLiked;
 use Railroad\Railcontent\Events\ContentFollow;
 use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
@@ -120,9 +122,17 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         CommentLiked::class => [
             CustomerIoSyncEventListener::class . '@handleCommentLiked',
+            ContentProgressEventListener::class . '@handleCommentLiked',
+        ],
+        CommentUnLiked::class => [
+            ContentProgressEventListener::class . '@handleCommentUnLiked',
         ],
         CommentCreated::class => [
             CustomerIoSyncEventListener::class . '@handleCommentCreated',
+            ContentProgressEventListener::class. '@handleCommentCreated',
+        ],
+        CommentDeleted::class => [
+          ContentProgressEventListener::class. '.@handleCommentDeleted',
         ],
         ThreadCreated::class => [
             CustomerIoSyncEventListener::class . '@handleForumsThreadCreated',

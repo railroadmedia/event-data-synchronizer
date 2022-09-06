@@ -7,11 +7,16 @@ use Carbon\Carbon;
 use Railroad\EventDataSynchronizer\Providers\UserProviderInterface;
 use Railroad\Points\Events\UserPointsUpdated;
 use Railroad\Points\Services\UserPointsService;
+use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\CommentUnLiked;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
 use Railroad\Railcontent\Events\UserContentProgressStarted;
 use Railroad\Railcontent\Events\UserContentsProgressReset;
 use Railroad\Railcontent\Helpers\ContentHelper;
 use Railroad\Railcontent\Repositories\ContentRepository;
+use Railroad\Railcontent\Services\CommentLikeService;
+use Railroad\Railcontent\Services\CommentService;
 use Railroad\Railcontent\Services\ContentHierarchyService;
 use Railroad\Railcontent\Services\ContentService;
 use Railroad\Railcontent\Services\UserContentProgressService;
@@ -36,6 +41,14 @@ class ContentProgressEventListener
      */
     private $contentService;
     /**
+     * @var CommentService
+     */
+    private $commentService;
+    /**
+     * @var CommentLikeService
+     */
+    private $commentLikeService;
+    /**
      * @var ContentRepository
      */
     private $contentRepository;
@@ -54,6 +67,8 @@ class ContentProgressEventListener
         UserContentProgressService $userContentProgressService,
         ContentHierarchyService $contentHierarchyService,
         ContentService $contentService,
+        CommentService $commentService,
+        CommentLikeService $commentLikeService,
         ContentRepository $contentRepository,
         UserPointsService $userPointsService,
         UserProviderInterface $userProvider,
@@ -61,6 +76,7 @@ class ContentProgressEventListener
     ) {
         $this->userContentProgressService = $userContentProgressService;
         $this->contentService = $contentService;
+        $this->commentService = $commentService;
         $this->contentHierarchyService = $contentHierarchyService;
         $this->contentRepository = $contentRepository;
         $this->userPointsService = $userPointsService;
@@ -376,6 +392,7 @@ class ContentProgressEventListener
         }
 
         $vimeoIdFields = $this->contentService->getContentWithExternalVideoId($mediaPlaybackTracked->mediaId);
+
         $lengthInSeconds = $mediaPlaybackTracked->mediaLengthInSeconds;
 
         foreach ($vimeoIdFields as $content) {
@@ -424,6 +441,13 @@ class ContentProgressEventListener
                 );
             }
         }
+
+        $this->userProvider->saveExperiencePoints(
+            $mediaPlaybackTracked->userId,
+            $this->userPointsService->countUserPoints(
+                $mediaPlaybackTracked->userId
+            )
+        );
     }
 
     public function handleReset(UserContentsProgressReset $userContentsProgressReset)
@@ -439,6 +463,135 @@ class ContentProgressEventListener
             $userContentsProgressReset->userId,
             $this->userPointsService->countUserPoints(
                 $userContentsProgressReset->userId
+            )
+        );
+    }
+
+    public function handleCommentCreated(CommentCreated $commentCreated)
+    {
+        /** @var CommentEntity $comment */
+        $comment = $this->commentService->get($commentCreated->commentId);
+
+        if (empty($comment)) {
+            return;
+        }
+
+        $content = $this->contentService->getById($comment['content_id']);
+        if (empty($content)) {
+            return;
+        }
+
+        // award xp
+        $this->userPointsService->setPoints(
+            $comment['user_id'],
+            [
+                'comment_id' => $comment['id'],
+                'content_id' => $comment['content_id'],
+            ],
+            'comment_posted',
+            config('xp_ranks.comment_posted'),
+            'Awarded per comment posted.'
+        );
+
+        $this->userProvider->saveExperiencePoints(
+            $comment['user_id'],
+            $this->userPointsService->countUserPoints(
+                $comment['user_id']
+            )
+        );
+    }
+
+    public function handleCommentDeleted(CommentDeleted $commentDeleted)
+    {
+        $comment = $this->commentService->get($commentDeleted->commentId);
+
+        if (empty($comment)) {
+            return;
+        }
+
+        // remove xp
+        $this->userPointsService->deletePoints(
+            $comment['user_id'],
+            [
+                'comment_id' => $comment['id'],
+                'content_id' => $comment['content_id'],
+            ]
+        );
+
+        // chunk delete points for all the comment likes
+        $page = 1;
+
+        do {
+            $commentLikes = $this->commentLikeService->getCommentLikesPaginated($comment['id'], 250, $page)['results'];
+
+            $hashes = [];
+
+            foreach ($commentLikes as $commentLike) {
+                $hashes[] = $this->userPointsService->hash(
+                    [
+                        'comment_id' => $comment['id'],
+                        'comment_liker_user_id' => $commentLike['user_id'],
+                    ]
+                );
+            }
+
+            $this->userPointsService->repository()
+                ->query()
+                ->whereIn('trigger_hash', $hashes)
+                ->delete();
+
+            $page++;
+        } while (count($commentLikes) > 0);
+
+        $this->userProvider->saveExperiencePoints(
+            $comment['user_id'],
+            $this->userPointsService->countUserPoints(
+                $comment['user_id']
+            )
+        );
+    }
+
+    public function handleCommentLiked(CommentLiked $commentLiked)
+    {
+        $comment = $this->commentService->get($commentLiked->commentId);
+
+        // award xp
+        $this->userPointsService->setPoints(
+            $comment['user_id'],
+            [
+                'comment_id' => $comment['id'],
+                'comment_liker_user_id' => $commentLiked->userId,
+            ],
+            'comment_liked',
+            config('xp_ranks.comment_liked'),
+            'Awarded per comment like.'
+        );
+
+        $this->userProvider->saveExperiencePoints(
+            $commentLiked->userId,
+            $this->userPointsService->countUserPoints(
+                $commentLiked->userId
+            )
+        );
+    }
+
+    public function handleCommentUnLiked(CommentUnLiked $commentUnLiked)
+    {
+        $comment = $this->commentService->get($commentUnLiked->commentId);
+
+        // remove xp
+        $this->userPointsService->deletePoints(
+            $comment['user_id'],
+            [
+                'comment_id' => $comment['id'],
+                'comment_liker_user_id' => $commentUnLiked->userId,
+            ]
+        );
+
+        $this->userProvider->saveExperiencePoints(
+            $commentUnLiked->userId,
+            $this->userPointsService->countUserPoints(
+                $commentUnLiked->userId
             )
         );
     }
