@@ -568,9 +568,9 @@ class ContentProgressEventListener
         );
 
         $this->userProvider->saveExperiencePoints(
-            $commentLiked->userId,
+            $comment['user_id'],
             $this->userPointsService->countUserPoints(
-                $commentLiked->userId
+                $comment['user_id']
             )
         );
     }
@@ -589,9 +589,9 @@ class ContentProgressEventListener
         );
 
         $this->userProvider->saveExperiencePoints(
-            $commentUnLiked->userId,
+            $comment['user_id'],
             $this->userPointsService->countUserPoints(
-                $commentUnLiked->userId
+                $comment['user_id']
             )
         );
     }
