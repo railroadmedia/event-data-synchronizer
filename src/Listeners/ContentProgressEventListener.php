@@ -2,16 +2,12 @@
 
 namespace Railroad\EventDataSynchronizer\Listeners;
 
-use App\Maps\ContentTypes;
-use Carbon\Carbon;
 use Railroad\EventDataSynchronizer\Providers\UserProviderInterface;
-use Railroad\Points\Events\UserPointsUpdated;
 use Railroad\Points\Services\UserPointsService;
 use Railroad\Railcontent\Events\CommentCreated;
 use Railroad\Railcontent\Events\CommentLiked;
 use Railroad\Railcontent\Events\CommentUnLiked;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
-use Railroad\Railcontent\Events\UserContentProgressStarted;
 use Railroad\Railcontent\Events\UserContentsProgressReset;
 use Railroad\Railcontent\Helpers\ContentHelper;
 use Railroad\Railcontent\Repositories\ContentRepository;
@@ -22,7 +18,6 @@ use Railroad\Railcontent\Services\ContentService;
 use Railroad\Railcontent\Services\UserContentProgressService;
 use Railroad\Railtracker\Events\MediaPlaybackTracked;
 use Railroad\Railtracker\Repositories\MediaPlaybackRepository;
-use Throwable;
 
 class ContentProgressEventListener
 {
@@ -286,7 +281,7 @@ class ContentProgressEventListener
             // other singular lesson types
             if (in_array(
                 $content['type'],
-                ContentTypes::singularContentTypes()
+                config('railcontent.singularContentTypes', [])
             )) {
                 $pointAmount =
                     config('xp_ranks.difficulty_xp_map')[$content->fetch('fields.difficulty')]
@@ -510,13 +505,10 @@ class ContentProgressEventListener
         }
 
         // remove xp
-        $this->userPointsService->deletePoints(
-            $comment['user_id'],
-            [
-                'comment_id' => $comment['id'],
-                'content_id' => $comment['content_id'],
-            ]
-        );
+        $this->userPointsService->deletePoints($comment['user_id'], [
+                                                                      'comment_id' => $comment['id'],
+                                                                      'content_id' => $comment['content_id'],
+                                                                  ]);
 
         // chunk delete points for all the comment likes
         $page = 1;
@@ -527,12 +519,10 @@ class ContentProgressEventListener
             $hashes = [];
 
             foreach ($commentLikes as $commentLike) {
-                $hashes[] = $this->userPointsService->hash(
-                    [
-                        'comment_id' => $comment['id'],
-                        'comment_liker_user_id' => $commentLike['user_id'],
-                    ]
-                );
+                $hashes[] = $this->userPointsService->hash([
+                                                               'comment_id' => $comment['id'],
+                                                               'comment_liker_user_id' => $commentLike['user_id'],
+                                                           ]);
             }
 
             $this->userPointsService->repository()
@@ -580,13 +570,10 @@ class ContentProgressEventListener
         $comment = $this->commentService->get($commentUnLiked->commentId);
 
         // remove xp
-        $this->userPointsService->deletePoints(
-            $comment['user_id'],
-            [
-                'comment_id' => $comment['id'],
-                'comment_liker_user_id' => $commentUnLiked->userId,
-            ]
-        );
+        $this->userPointsService->deletePoints($comment['user_id'], [
+                                                                      'comment_id' => $comment['id'],
+                                                                      'comment_liker_user_id' => $commentUnLiked->userId,
+                                                                  ]);
 
         $this->userProvider->saveExperiencePoints(
             $comment['user_id'],
