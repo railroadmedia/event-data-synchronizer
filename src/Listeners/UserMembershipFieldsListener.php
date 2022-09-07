@@ -11,7 +11,10 @@ use Railroad\Resora\Events\Updated;
 
 class UserMembershipFieldsListener
 {
-    private UserMembershipFieldsService $userMembershipFieldsService;
+    /**
+     * @var UserMembershipFieldsService
+     */
+    private $userMembershipFieldsService;
 
     public function __construct(UserMembershipFieldsService $userMembershipFieldsService)
     {

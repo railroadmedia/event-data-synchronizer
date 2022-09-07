@@ -13,11 +13,30 @@ use Railroad\Railcontent\Services\ContentService;
 
 class UserMembershipFieldsService
 {
-    protected SubscriptionRepository $subscriptionRepository;
-    protected UserProductRepository $userProductRepository;
-    protected ProductRepository $productRepository;
-    private ContentService $contentService;
-    private UserProviderInterface $userProvider;
+    /**
+     * @var SubscriptionRepository
+     */
+    protected $subscriptionRepository;
+
+    /**
+     * @var UserProductRepository
+     */
+    protected $userProductRepository;
+
+    /**
+     * @var ProductRepository
+     */
+    protected $productRepository;
+
+    /**
+     * @var ContentService
+     */
+    private $contentService;
+
+    /**
+     * @var UserProviderInterface
+     */
+    private $userProvider;
 
     private $instructorsCache = null;
 
@@ -196,7 +215,7 @@ class UserMembershipFieldsService
         $userId,
         bool $isLifetime,
         bool $isAMember,
-        ?Carbon $membershipExpirationDate,
+        Carbon $membershipExpirationDate = null,
         bool $ownsPacks,
         array $associatedCoaches = null
     ): string {
