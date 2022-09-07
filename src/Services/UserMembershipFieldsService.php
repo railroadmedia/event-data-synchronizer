@@ -19,6 +19,8 @@ class UserMembershipFieldsService
     private ContentService $contentService;
     private UserProviderInterface $userProvider;
 
+    private $instructorsCache = null;
+
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
         UserProductRepository $userProductRepository,
@@ -33,13 +35,52 @@ class UserMembershipFieldsService
         $this->userProvider = $userProvider;
     }
 
+    public function syncUserIds(array $userIds): bool
+    {
+        $qb = $this->userProductRepository->createQueryBuilder('up');
+
+        $qb->select(['up', 'p'])
+            ->join('up.product', 'p')
+            ->andWhere(
+                $qb->expr()
+                    ->in('up.user', ':userIds')
+            )
+            ->setParameter('userIds', $userIds);
+
+        /**
+         * @var $allUsersUserProducts UserProduct[]
+         */
+        $allUsersUserProducts = $qb->getQuery()->getResult();
+
+        $allUsersUserProductsGroupedByUserId = [];
+
+        foreach ($allUsersUserProducts as $allUsersUserProduct) {
+            $allUsersUserProductsGroupedByUserId[$allUsersUserProduct->getUser()->getId()][] = $allUsersUserProduct;
+        }
+
+        $associatedCoachesByUserId = $this->getAssociatedCoaches($userIds);
+
+        foreach ($userIds as $userId) {
+            $this->sync(
+                $userId,
+                $allUsersUserProductsGroupedByUserId[$userId] ?? [],
+                $associatedCoachesByUserId[$userId] ?? []
+            );
+        }
+
+        return true;
+    }
+
     /**
      * @param $userId
      * @return bool
      */
-    public function sync($userId): bool
+    public function sync($userId, array $userProducts = null, array $associatedCoaches = null): bool
     {
-        $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
+        if (!isset($userProducts)) {
+            $userProducts = $this->userProductRepository->getAllUsersProducts($userId);
+        }
+
         $representingUserProduct = $this->getUserProductThatRepresentsUsersMembership($userId, $userProducts);
 
         if (!empty($representingUserProduct)) {
@@ -72,14 +113,16 @@ class UserMembershipFieldsService
             $isLifetimeMember,
             !empty($representingUserProduct) && $representingUserProduct->isValid(),
             $membershipExpirationDate,
-            $ownsPacks
+            $ownsPacks,
+            $associatedCoaches
         );
 
         return $this->userProvider->saveMembershipData(
             $userId,
             $membershipExpirationDate,
             $isLifetimeMember,
-            $accessLevel
+            $accessLevel,
+            $ownsPacks
         );
     }
 
@@ -154,17 +197,18 @@ class UserMembershipFieldsService
         bool $isLifetime,
         bool $isAMember,
         ?Carbon $membershipExpirationDate,
-        bool $ownsPacks
+        bool $ownsPacks,
+        array $associatedCoaches = null
     ): string {
         if (empty($userId)) {
             return '';
         }
 
-        if ($this->isHouseCoach($userId)) {
+        if ($this->isHouseCoach($userId, $associatedCoaches)) {
             return 'house-coach';
         }
 
-        if ($this->isCoach($userId)) {
+        if ($this->isCoach($userId, $associatedCoaches)) {
             return 'coach';
         }
 
@@ -195,25 +239,29 @@ class UserMembershipFieldsService
      * @param $userId
      * @return bool
      */
-    public function isHouseCoach($userId): bool
+    public function isHouseCoach($userId, array $associatedCoaches = null): bool
     {
-        $associatedCoach = $this->getAssociatedCoaches([$userId]);
+        if (!isset($associatedCoaches)) {
+            $associatedCoaches = $this->getAssociatedCoaches([$userId]);
+        }
 
         return
-            (!empty($associatedCoach) &&
-                array_key_exists($userId, $associatedCoach) &&
-                ($associatedCoach[$userId]['is_house_coach'] == "1"));
+            (!empty($associatedCoaches) &&
+                array_key_exists($userId, $associatedCoaches) &&
+                ($associatedCoaches[$userId]['is_house_coach'] == "1"));
     }
 
     /**
      * @param $userId
      * @return bool
      */
-    public function isCoach($userId): bool
+    public function isCoach($userId, array $associatedCoaches = null): bool
     {
-        $associatedCoach = $this->getAssociatedCoaches([$userId]);
+        if (!isset($associatedCoaches)) {
+            $associatedCoaches = $this->getAssociatedCoaches([$userId]);
+        }
 
-        return !empty($associatedCoach) && array_key_exists($userId, $associatedCoach);
+        return !empty($associatedCoaches) && array_key_exists($userId, $associatedCoaches);
     }
 
     /**
@@ -229,18 +277,22 @@ class UserMembershipFieldsService
             $includedFields[] = 'associated_user_id,' . $userId;
         }
 
-        $instructors =
-            $this->contentService
-                ->getFiltered(
-                    1,
-                    'null',
-                    '-published_on',
-                    ['instructor'],
-                    [],
-                    [],
-                    [],
-                    $includedFields
-                );
+        if (!isset($this->instructorsCache)) {
+            $this->instructorsCache =
+                $this->contentService
+                    ->getFiltered(
+                        1,
+                        'null',
+                        '-published_on',
+                        ['instructor'],
+                        [],
+                        [],
+                        [],
+                        $includedFields
+                    );
+        }
+
+        $instructors = $this->instructorsCache;
 
         foreach ($instructors->results() as $instructor) {
             $associatedUsers[$instructor->fetch('fields.associated_user_id')] = [
