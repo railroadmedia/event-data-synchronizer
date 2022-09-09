@@ -10,7 +10,8 @@ interface UserProviderInterface
      * @param int $userId
      * @return bool
      */
-    public function isAdministrator(int $userId): bool;
+    public function isAdministrator(int $userId)
+    : bool;
 
     /**
      * @param int $userId
@@ -26,5 +27,14 @@ interface UserProviderInterface
         bool $isLifetimeMember,
         string $accessLevel,
         bool $isPackOwner
-    ): bool;
+    )
+    : bool;
+
+    /**
+     * @param int $userId
+     * @param int $totalXp
+     * @return bool
+     */
+    public function saveExperiencePoints(int $userId, int $totalXp)
+    : bool;
 }

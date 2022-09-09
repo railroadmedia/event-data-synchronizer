@@ -30,17 +30,22 @@ use Railroad\EventDataSynchronizer\Console\Commands\UserMembershipFieldsResyncTo
 use Railroad\EventDataSynchronizer\Events\FirstActivityPerDay;
 use Railroad\EventDataSynchronizer\Events\LiveStreamEventAttended;
 use Railroad\EventDataSynchronizer\Events\UTMLinks;
+use Railroad\EventDataSynchronizer\Listeners\ContentProgressEventListener;
 use Railroad\EventDataSynchronizer\Listeners\CustomerIo\CustomerIoSyncEventListener;
 use Railroad\EventDataSynchronizer\Listeners\HelpScout\HelpScoutEventListener;
 use Railroad\EventDataSynchronizer\Listeners\UserMembershipFieldsListener;
 use Railroad\EventDataSynchronizer\Listeners\UserProductToUserContentPermissionListener;
 use Railroad\Railcontent\Events\CommentCreated;
+use Railroad\Railcontent\Events\CommentDeleted;
 use Railroad\Railcontent\Events\CommentLiked;
+use Railroad\Railcontent\Events\CommentUnLiked;
 use Railroad\Railcontent\Events\ContentFollow;
 use Railroad\Railcontent\Events\ContentUnfollow;
 use Railroad\Railcontent\Events\UserContentProgressSaved;
+use Railroad\Railcontent\Events\UserContentsProgressReset;
 use Railroad\Railforums\Events\PostCreated;
 use Railroad\Railforums\Events\ThreadCreated;
+use Railroad\Railtracker\Events\MediaPlaybackTracked;
 use Railroad\Usora\Events\MobileAppLogin;
 use Railroad\Usora\Events\User\UserCreated;
 use Railroad\Usora\Events\User\UserUpdated;
@@ -117,9 +122,17 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         CommentLiked::class => [
             CustomerIoSyncEventListener::class . '@handleCommentLiked',
+            ContentProgressEventListener::class . '@handleCommentLiked',
+        ],
+        CommentUnLiked::class => [
+            ContentProgressEventListener::class . '@handleCommentUnLiked',
         ],
         CommentCreated::class => [
             CustomerIoSyncEventListener::class . '@handleCommentCreated',
+            ContentProgressEventListener::class. '@handleCommentCreated',
+        ],
+        CommentDeleted::class => [
+          ContentProgressEventListener::class. '.@handleCommentDeleted',
         ],
         ThreadCreated::class => [
             CustomerIoSyncEventListener::class . '@handleForumsThreadCreated',
@@ -128,6 +141,7 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
             CustomerIoSyncEventListener::class . '@handleForumsPostCreated',
         ],
         UserContentProgressSaved::class => [
+            ContentProgressEventListener::class . '@handleUserProgressSaved',
             CustomerIoSyncEventListener::class . '@handleUserContentProgressSaved',
         ],
         LiveStreamEventAttended::class => [
@@ -153,7 +167,13 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         CommandSubscriptionRenewFailed::class => [
             UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
-        ]
+        ],
+        UserContentsProgressReset::class => [
+            ContentProgressEventListener::class . '@handleReset',
+        ],
+        MediaPlaybackTracked::class => [
+            ContentProgressEventListener::class . '@handleMediaPlaybackTracked',
+        ],
     ];
 
     /**
