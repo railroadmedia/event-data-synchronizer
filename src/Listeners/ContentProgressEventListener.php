@@ -386,7 +386,7 @@ class ContentProgressEventListener
             return;
         }
 
-        $vimeoIdFields = $this->contentService->getContentWithExternalVideoId($mediaPlaybackTracked->mediaId);
+        $vimeoIdFields = $this->contentService->getContentWithExternalVideoId($mediaPlaybackTracked->mediaId)->toArray();
 
         $lengthInSeconds = $mediaPlaybackTracked->mediaLengthInSeconds;
 
@@ -425,7 +425,7 @@ class ContentProgressEventListener
 
             if ($mediaPlaybackTracked->mediaLengthInSeconds > 0) {
                 $this->userContentProgressService->saveContentProgress(
-                    $content['id'],
+                    $content['content_id'],
                     min(
                         round(
                             $mediaPlaybackTracked->currentSecond / $mediaPlaybackTracked->mediaLengthInSeconds * 100
