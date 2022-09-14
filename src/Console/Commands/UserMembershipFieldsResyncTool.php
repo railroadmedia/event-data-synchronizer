@@ -30,7 +30,7 @@ class UserMembershipFieldsResyncTool extends Command
      *
      * @var string
      */
-    protected $signature = 'UserMembershipFieldsResyncTool {startingUserId=0}';
+    protected $signature = 'UserMembershipFieldsResyncTool {startingUserId=0} {endingUserId=9999999}';
 
     /**
      * Execute the console command.
@@ -57,6 +57,10 @@ class UserMembershipFieldsResyncTool extends Command
 
         if (!empty($this->argument('startingUserId'))) {
             $query->where('user_id', '>', $this->argument('startingUserId'));
+        }
+
+        if (!empty($this->argument('endingUserId'))) {
+            $query->where('user_id', '<', $this->argument('endingUserId'));
         }
 
         $this->info('Total to fix around 232k');
