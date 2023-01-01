@@ -156,8 +156,10 @@ class UserMembershipFieldsService
 
         foreach ($usersProducts as $userProductIndex => $userProduct) {
             // make sure the product is a membership product
-            if ($userProduct->getProduct()->getDigitalAccessType() !==
-                Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS ||
+            if (($userProduct->getProduct()->getDigitalAccessType() !==
+                    Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS &&
+                    $userProduct->getProduct()->getDigitalAccessType() !==
+                    'basic content access') ||
                 $userProduct->getUser()->getId() !== $userId) {
                 continue;
             }
