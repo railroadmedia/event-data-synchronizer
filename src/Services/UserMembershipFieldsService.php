@@ -136,12 +136,38 @@ class UserMembershipFieldsService
             $associatedCoaches
         );
 
+        // basic or plus member
+        $membershipLevel = null;
+
+        foreach ($userProducts as $userProduct) {
+            if ($userProduct->getProduct()->getDigitalAccessType(
+                ) == Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS &&
+                $userProduct->isValid()) {
+                $membershipLevel = 'plus';
+                break;
+            }
+
+            if ($userProduct->getProduct()->getDigitalAccessType(
+                ) == 'basic content access' &&
+                $userProduct->isValid()) {
+                $membershipLevel = 'basic';
+            }
+
+            if ($userProduct->getProduct()->getDigitalAccessType(
+                ) == 'songs content access' &&
+                $userProduct->isValid()) {
+                $membershipLevel = 'plus';
+                break;
+            }
+        }
+
         return $this->userProvider->saveMembershipData(
             $userId,
             $membershipExpirationDate,
             $isLifetimeMember,
             $accessLevel,
-            $ownsPacks
+            $ownsPacks,
+            $membershipLevel
         );
     }
 
