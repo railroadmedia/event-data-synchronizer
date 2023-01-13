@@ -110,9 +110,11 @@ class UserMembershipFieldsService
             $isLifetimeMember = $representingUserProduct->isValid() &&
                 $representingUserProduct->getProduct()->getDigitalAccessTimeType() ==
                 Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME;
+            $isDrumeoLifetimeMember = (is_null($membershipExpirationDate) && ($representingUserProduct->getProduct()->getId() == 141));
         } else {
             $membershipExpirationDate = null;
             $isLifetimeMember = false;
+            $isDrumeoLifetimeMember = false;
         }
 
         $ownsPacks = false;
@@ -167,7 +169,8 @@ class UserMembershipFieldsService
             $isLifetimeMember,
             $accessLevel,
             $ownsPacks,
-            $membershipLevel
+            $membershipLevel,
+            $isDrumeoLifetimeMember
         );
     }
 

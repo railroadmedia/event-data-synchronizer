@@ -19,6 +19,7 @@ interface UserProviderInterface
      * @param string $accessLevel
      * @param bool $isPackOwner
      * @param string|null $membershipLevel
+     * @param bool $isDrumeoLifetimeMember
      * @return bool
      */
     public function saveMembershipData(
@@ -27,6 +28,7 @@ interface UserProviderInterface
         bool $isLifetimeMember,
         string $accessLevel,
         bool $isPackOwner,
-        string $membershipLevel = null
+        string $membershipLevel = null,
+        bool $isDrumeoLifetimeMember
     ): bool;
 }
