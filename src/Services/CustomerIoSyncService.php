@@ -5,6 +5,7 @@ namespace Railroad\EventDataSynchronizer\Services;
 use Carbon\Carbon;
 use Exception;
 use Railroad\Ecommerce\Entities\PaymentMethod;
+use Railroad\Ecommerce\Entities\Product;
 use Railroad\Ecommerce\Entities\Subscription;
 use Railroad\Ecommerce\Entities\UserProduct;
 use Railroad\Ecommerce\Repositories\ProductRepository;
@@ -121,6 +122,8 @@ class CustomerIoSyncService
 
         $userProducts = $this->userProductRepository->getAllUsersProducts($user->getId());
 
+        $membershipProduct = $this->getUserProductThatRepresentsUsersMembership($user->getId(), $userProducts);
+
         $productAttributes = [];
 
         foreach ($brands as $brand) {
@@ -128,15 +131,7 @@ class CustomerIoSyncService
             $eligibleUserProducts = [];
 
             foreach ($userProducts as $userProductIndex => $userProduct) {
-                if ($userProduct->getProduct()->getBrand() !== $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userProduct->getProduct()->getSku(),
-                    config('event-data-synchronizer.'.$brand.'_membership_product_skus', [])
-                )) {
+                if (!$this->isEligibleMembershipProduct($brand, $userProduct->getProduct())) {
                     continue;
                 }
 
@@ -185,12 +180,12 @@ class CustomerIoSyncService
                 }
             }
 
+            $membershipAccessExpirationDate = !empty($membershipProduct) ? $membershipProduct->getExpirationDate() : null;
+
             if (!empty($latestMembershipUserProductToSync) && !empty($firstMembershipUserProductToSync)) {
-                $membershipAccessExpirationDate = $latestMembershipUserProductToSync->getExpirationDate();
                 $membershipLatestAccessStartDate = $latestMembershipUserProductToSync->getCreatedAt();
                 $membershipFirstAccessStartDate = $firstMembershipUserProductToSync->getCreatedAt();
             } else {
-                $membershipAccessExpirationDate = null;
                 $membershipLatestAccessStartDate = null;
                 $membershipFirstAccessStartDate = null;
             }
@@ -208,6 +203,63 @@ class CustomerIoSyncService
         }
 
         return $productAttributes;
+    }
+
+    private function getUserProductThatRepresentsUsersMembership($userId, array $usersProducts): ?UserProduct
+    {
+        $eligibleUserProducts = [];
+
+        foreach ($usersProducts as $userProductIndex => $userProduct) {
+            // make sure the product is a membership product
+            if (($userProduct->getProduct()->getDigitalAccessType() !==
+                    Product::DIGITAL_ACCESS_TYPE_ALL_CONTENT_ACCESS &&
+                    $userProduct->getProduct()->getDigitalAccessType() !==
+                    'basic content access') ||
+                $userProduct->getUser()->getId() !== $userId) {
+                continue;
+            }
+
+            $eligibleUserProducts[] = $userProduct;
+        }
+
+        // get attributes related to the latest user membership product
+        $latestMembershipUserProductToSync = null;
+
+        foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
+            // if its lifetime, use it
+            if (empty($eligibleUserProduct->getExpirationDate()) &&
+                $eligibleUserProduct->getProduct()->getDigitalAccessTimeType() ==
+                Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME &&
+                (empty($latestMembershipUserProductToSync) || $latestMembershipUserProductToSync->getProduct()->getBrand() != "drumeo")
+            ) {
+                //prioritize drumeo over other lifetimes because they get some songs access
+                $latestMembershipUserProductToSync = $eligibleUserProduct;
+            }
+        }
+
+        if (!empty($latestMembershipUserProductToSync)) {
+            return $latestMembershipUserProductToSync;
+        }
+
+        foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
+            if (empty($latestMembershipUserProductToSync)) {
+                $latestMembershipUserProductToSync = $eligibleUserProduct;
+                continue;
+            }
+
+            // if this product expiration date is further in the past than whatever is currently set, skip it
+            if (!empty($latestMembershipUserProductToSync) &&
+                ($latestMembershipUserProductToSync->getExpirationDate() <
+                    $eligibleUserProduct->getExpirationDate())) {
+                $latestMembershipUserProductToSync = $eligibleUserProduct;
+            }
+        }
+
+        if (!empty($latestMembershipUserProductToSync)) {
+            return $latestMembershipUserProductToSync;
+        }
+
+        return null;
     }
 
     /**
@@ -305,25 +357,7 @@ class CustomerIoSyncService
             // If there are multiple active membership subs we will always sync the one with the further paid_until
             // in the future.
             foreach ($userSubscriptions as $userSubscription) {
-                // make sure this subscription is for a single membership product and its the right brand
-                if (empty($userSubscription->getProduct()) ||
-                    $userSubscription->getProduct()
-                        ->getBrand() != $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userSubscription->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.'.
-                        $userSubscription->getProduct()
-                            ->getBrand().
-                        '_membership_product_skus',
-                        []
-                    )
-                )) {
+                if (!$this->isEligibleMembershipProduct($brand, $userSubscription->getProduct())) {
                     continue;
                 }
 
@@ -344,25 +378,7 @@ class CustomerIoSyncService
             }
 
             foreach ($userSubscriptions as $userSubscription) {
-                // make sure this subscription is for a single membership product and its the right brand
-                if (empty($userSubscription->getProduct()) ||
-                    $userSubscription->getProduct()
-                        ->getBrand() != $brand) {
-                    continue;
-                }
-
-                // make sure the subscriptions product is in this brands pre-configured products that represent a membership
-                if (!in_array(
-                    $userSubscription->getProduct()
-                        ->getSku(),
-                    config(
-                        'event-data-synchronizer.'.
-                        $userSubscription->getProduct()
-                            ->getBrand().
-                        '_membership_product_skus',
-                        []
-                    )
-                )) {
+                if (!$this->isEligibleMembershipProduct($brand, $userSubscription->getProduct())) {
                     continue;
                 }
 
@@ -458,7 +474,7 @@ class CustomerIoSyncService
                     )][$latestSubscriptionToSync->getProduct()->getSku()]
                     )) {
                     $trialType = $customerIoTrialProductSkuToType[$latestSubscriptionToSync->getProduct()->getBrand()]
-                        [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
+                    [$latestSubscriptionToSync->getProduct()->getSku()] ?? null;
                 }
             }
 
@@ -563,5 +579,12 @@ class CustomerIoSyncService
         }
 
         return $finalArray;
+    }
+
+    private function isEligibleMembershipProduct(?string $brand, ?Product $product): bool
+    {
+        return !empty($product)
+            && $product->getBrand() == $brand
+            && $product->isMembershipProduct();
     }
 }
