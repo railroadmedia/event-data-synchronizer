@@ -200,20 +200,25 @@ class UserMembershipFieldsService
         $latestMembershipUserProductToSync = null;
 
         foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
+            // if its lifetime, use it
+            if (empty($eligibleUserProduct->getExpirationDate()) &&
+                $eligibleUserProduct->getProduct()->getDigitalAccessTimeType() ==
+                Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME &&
+                (empty($latestMembershipUserProductToSync) || $latestMembershipUserProductToSync->getProduct()->getBrand() != "drumeo")
+            ) {
+                //prioritize drumeo over other lifetimes because they get some songs access
+                $latestMembershipUserProductToSync = $eligibleUserProduct;
+            }
+        }
+
+        if (!empty($latestMembershipUserProductToSync)) {
+            return $latestMembershipUserProductToSync;
+        }
+
+        foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
             if (empty($latestMembershipUserProductToSync)) {
                 $latestMembershipUserProductToSync = $eligibleUserProduct;
-
                 continue;
-            }
-
-            // if its lifetime, use it
-            if (!empty($latestMembershipUserProductToSync) &&
-                empty($eligibleUserProduct->getExpirationDate()) &&
-                $eligibleUserProduct->getProduct()->getDigitalAccessTimeType() ==
-                Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME) {
-                $latestMembershipUserProductToSync = $eligibleUserProduct;
-
-                break;
             }
 
             // if this product expiration date is further in the past than whatever is currently set, skip it
