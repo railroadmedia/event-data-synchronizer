@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider;
+use Railroad\Ecommerce\Events\AccessCodeClaimed;
 use Railroad\Ecommerce\Events\AppSignupFinishedEvent;
 use Railroad\Ecommerce\Events\AppSignupStartedEvent;
 use Railroad\Ecommerce\Events\OrderEvent;
@@ -153,7 +154,10 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         CommandSubscriptionRenewFailed::class => [
             UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
-        ]
+        ],
+        AccessCodeClaimed::class => [
+            CustomerIoSyncEventListener::class . '@handleAccessCodeClaimed',
+        ],
     ];
 
     /**
