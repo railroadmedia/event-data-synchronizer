@@ -10,6 +10,7 @@ use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
+use Railroad\Ecommerce\Events\RefundEvent;
 use Railroad\Ecommerce\Events\Subscriptions\CommandSubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
@@ -157,6 +158,9 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
         ],
         AccessCodeClaimed::class => [
             CustomerIoSyncEventListener::class . '@handleAccessCodeClaimed',
+        ],
+        RefundEvent::class => [
+            CustomerIoSyncEventListener::class . '@handleRefund',
         ],
     ];
 

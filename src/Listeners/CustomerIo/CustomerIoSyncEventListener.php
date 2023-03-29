@@ -12,6 +12,7 @@ use Railroad\Ecommerce\Events\OrderEvent;
 use Railroad\Ecommerce\Events\PaymentEvent;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodCreated;
 use Railroad\Ecommerce\Events\PaymentMethods\PaymentMethodUpdated;
+use Railroad\Ecommerce\Events\RefundEvent;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionCreated;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewed;
 use Railroad\Ecommerce\Events\Subscriptions\SubscriptionRenewFailed;
@@ -1236,5 +1237,52 @@ class CustomerIoSyncEventListener
                         ->addSeconds(3)
                 )
         );
+    }
+
+    /**
+     * @param RefundEvent $refundEvent
+     */
+    public function handleRefund(RefundEvent $refundEvent)
+    {
+        try {
+            $refund = $refundEvent->getRefund();
+            $payment = $refund->getPayment();
+            $orderPayment = $payment->getOrderPayment();
+            $subscriptionPayment = $payment->getSubscriptionPayment();
+            $orderId = null;
+            $productIdsArray = [];
+            if ($orderPayment) {
+                $order = $orderPayment->getOrder();
+                $orderId = $order->getId();
+                foreach ($order->getOrderItems() as $orderItem) {
+                    $productIdsArray[] = $orderItem->getProduct()->getId();
+                }
+            }
+            // in case we are dealing with a subscription renewal, we look for the product id in the subscription
+            if (!$orderPayment && $subscriptionPayment) {
+                $productIdsArray[] = $subscriptionPayment->getSubscription()->getProduct()->getId();
+            }
+            dispatch(
+                (new CustomerIoCreateEventByUserId(
+                    $refundEvent->getUser()->getId(),
+                    $payment->getGatewayName(),
+                    'musora_user_refund',
+                    [
+                        'order_id' => $orderId,
+                        'product_ids' => implode(",", $productIdsArray),
+                        'amount_refunded' => $refund->getRefundedAmount(),
+                    ],
+                    null,
+                    Carbon::now()->timestamp
+                ))
+                    ->delay(
+                        Carbon::now()
+                            ->addSeconds(3)
+                    )
+            );
+
+        } catch (Throwable $throwable) {
+            error_log($throwable);
+        }
     }
 }
