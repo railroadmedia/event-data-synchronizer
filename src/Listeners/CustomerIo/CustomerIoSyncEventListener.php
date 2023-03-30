@@ -1244,24 +1244,24 @@ class CustomerIoSyncEventListener
      */
     public function handleRefund(RefundEvent $refundEvent)
     {
+        $refund = $refundEvent->getRefund();
+        $payment = $refund->getPayment();
+        $orderPayment = $payment->getOrderPayment();
+        $subscriptionPayment = $payment->getSubscriptionPayment();
+        $orderId = null;
+        $productIdsArray = [];
+        if ($orderPayment) {
+            $order = $orderPayment->getOrder();
+            $orderId = $order->getId();
+            foreach ($order->getOrderItems() as $orderItem) {
+                $productIdsArray[] = $orderItem->getProduct()->getId();
+            }
+        }
+        // in case we are dealing with a subscription renewal, we look for the product id in the subscription
+        if (!$orderPayment && $subscriptionPayment) {
+            $productIdsArray[] = $subscriptionPayment->getSubscription()->getProduct()->getId();
+        }
         try {
-            $refund = $refundEvent->getRefund();
-            $payment = $refund->getPayment();
-            $orderPayment = $payment->getOrderPayment();
-            $subscriptionPayment = $payment->getSubscriptionPayment();
-            $orderId = null;
-            $productIdsArray = [];
-            if ($orderPayment) {
-                $order = $orderPayment->getOrder();
-                $orderId = $order->getId();
-                foreach ($order->getOrderItems() as $orderItem) {
-                    $productIdsArray[] = $orderItem->getProduct()->getId();
-                }
-            }
-            // in case we are dealing with a subscription renewal, we look for the product id in the subscription
-            if (!$orderPayment && $subscriptionPayment) {
-                $productIdsArray[] = $subscriptionPayment->getSubscription()->getProduct()->getId();
-            }
             dispatch(
                 (new CustomerIoCreateEventByUserId(
                     $refundEvent->getUser()->getId(),
@@ -1271,6 +1271,7 @@ class CustomerIoSyncEventListener
                         'order_id' => $orderId,
                         'product_ids' => implode(",", $productIdsArray),
                         'amount_refunded' => $refund->getRefundedAmount(),
+                        'subscription_id' => $subscriptionPayment ? $subscriptionPayment->getSubscription()->getId() : null,
                     ],
                     null,
                     Carbon::now()->timestamp
@@ -1280,7 +1281,6 @@ class CustomerIoSyncEventListener
                             ->addSeconds(3)
                     )
             );
-
         } catch (Throwable $throwable) {
             error_log($throwable);
         }
