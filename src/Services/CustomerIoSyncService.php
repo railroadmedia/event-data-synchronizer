@@ -17,6 +17,8 @@ use Railroad\Usora\Entities\User;
 
 class CustomerIoSyncService
 {
+    const AttributeLimit = 1000;
+
     /**
      * @var SubscriptionRepository
      */
@@ -38,9 +40,9 @@ class CustomerIoSyncService
     private $contentFollowsRepository;
 
     /**
-     * @param  SubscriptionRepository  $subscriptionRepository
-     * @param  UserProductRepository  $userProductRepository
-     * @param  ProductRepository  $productRepository
+     * @param SubscriptionRepository $subscriptionRepository
+     * @param UserProductRepository $userProductRepository
+     * @param ProductRepository $productRepository
      */
     public function __construct(
         SubscriptionRepository $subscriptionRepository,
@@ -55,8 +57,8 @@ class CustomerIoSyncService
     }
 
     /**
-     * @param  User  $user
-     * @param  array|null  $brands
+     * @param User $user
+     * @param array|null $brands
      * @return array
      */
     public function getUsersCustomAttributes(User $user, array $brands = null)
@@ -74,7 +76,7 @@ class CustomerIoSyncService
     }
 
     /**
-     * @param  User  $user
+     * @param User $user
      * @return array
      */
     public function getUsersMusoraProfileAttributes(User $user)
@@ -110,8 +112,8 @@ class CustomerIoSyncService
      * BRAND_membership_latest-start-date
      * BRAND_membership_first-start-date
      *
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return array
      */
     public function getUsersMembershipAccessAttributes(User $user, $brands = [])
@@ -142,17 +144,15 @@ class CustomerIoSyncService
             $latestMembershipUserProductToSync = null;
 
             foreach ($eligibleUserProducts as $eligibleUserProductIndex => $eligibleUserProduct) {
-                if (empty($latestMembershipUserProductToSync)) {
+                // if its lifetime, use it
+                if (empty($eligibleUserProduct->getExpirationDate())) {
                     $latestMembershipUserProductToSync = $eligibleUserProduct;
-
-                    continue;
+                    break;
                 }
 
-                // if its lifetime, use it
-                if (!empty($latestMembershipUserProductToSync) && empty($eligibleUserProduct->getExpirationDate())) {
+                if (empty($latestMembershipUserProductToSync)) {
                     $latestMembershipUserProductToSync = $eligibleUserProduct;
-
-                    break;
+                    continue;
                 }
 
                 // if this product expiration date is further in the past than whatever is currently set, skip it
@@ -180,7 +180,8 @@ class CustomerIoSyncService
                 }
             }
 
-            $membershipAccessExpirationDate = !empty($membershipProduct) ? $membershipProduct->getExpirationDate() : null;
+            $membershipAccessExpirationDate = !empty($membershipProduct) ? $membershipProduct->getExpirationDate(
+            ) : null;
 
             if (!empty($latestMembershipUserProductToSync) && !empty($firstMembershipUserProductToSync)) {
                 $membershipLatestAccessStartDate = $latestMembershipUserProductToSync->getCreatedAt();
@@ -191,13 +192,13 @@ class CustomerIoSyncService
             }
 
             $productAttributes += [
-                $brand.'_membership_access-expiration-date' => !empty($membershipAccessExpirationDate) ?
+                $brand . '_membership_access-expiration-date' => !empty($membershipAccessExpirationDate) ?
                     $membershipAccessExpirationDate->timestamp : null,
-                $brand.'_membership_latest-access-start-date' => !empty($membershipLatestAccessStartDate) ?
+                $brand . '_membership_latest-access-start-date' => !empty($membershipLatestAccessStartDate) ?
                     $membershipLatestAccessStartDate->timestamp : null,
-                $brand.'_membership_first-access-start-date' => !empty($membershipFirstAccessStartDate) ?
+                $brand . '_membership_first-access-start-date' => !empty($membershipFirstAccessStartDate) ?
                     $membershipFirstAccessStartDate->timestamp : null,
-                $brand.'_membership_is_lifetime' => !empty($latestMembershipUserProductToSync) ?
+                $brand . '_membership_is_lifetime' => !empty($latestMembershipUserProductToSync) ?
                     empty($latestMembershipUserProductToSync->getExpirationDate()) : null,
             ];
         }
@@ -230,7 +231,8 @@ class CustomerIoSyncService
             if (empty($eligibleUserProduct->getExpirationDate()) &&
                 $eligibleUserProduct->getProduct()->getDigitalAccessTimeType() ==
                 Product::DIGITAL_ACCESS_TIME_TYPE_LIFETIME &&
-                (empty($latestMembershipUserProductToSync) || $latestMembershipUserProductToSync->getProduct()->getBrand() != "drumeo")
+                (empty($latestMembershipUserProductToSync) || $latestMembershipUserProductToSync->getProduct(
+                    )->getBrand() != "drumeo")
             ) {
                 //prioritize drumeo over other lifetimes because they get some songs access
                 $latestMembershipUserProductToSync = $eligibleUserProduct;
@@ -266,8 +268,8 @@ class CustomerIoSyncService
      * Attribute list:
      * BRAND_subscribed_coaches => 'ID123_FNAME_LNAME, ID1234_FNAME2_LNAME2, etc'
      *
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return array
      */
     public function getUsersContentFollowAttributes(User $user, $brands = [])
@@ -277,14 +279,14 @@ class CustomerIoSyncService
         $contentFollowRows = $this->contentFollowsRepository->query()
             ->join(
                 RailcontentConfigService::$tableContent,
-                RailcontentConfigService::$tableContent.'.id',
+                RailcontentConfigService::$tableContent . '.id',
                 '=',
-                RailcontentConfigService::$tableContentFollows.'.content_id'
+                RailcontentConfigService::$tableContentFollows . '.content_id'
             )
             ->where(
                 [
                     RailcontentConfigService::$tableContent . '.type' => 'instructor',
-                    RailcontentConfigService::$tableContentFollows. '.user_id' => $user->getId(),
+                    RailcontentConfigService::$tableContentFollows . '.user_id' => $user->getId(),
                 ]
             )
             ->get();
@@ -293,7 +295,7 @@ class CustomerIoSyncService
         $brandCoachFollows = [];
 
         foreach ($contentFollowRows as $contentFollowRow) {
-            $brandCoachFollows[$contentFollowRow['brand']][] = $contentFollowRow['content_id'].'_'.str_replace(
+            $brandCoachFollows[$contentFollowRow['brand']][] = $contentFollowRow['content_id'] . '_' . str_replace(
                     '-',
                     '_',
                     $contentFollowRow['slug']
@@ -303,7 +305,14 @@ class CustomerIoSyncService
         $contentFollowAttributes = [];
 
         foreach ($brandCoachFollows as $contentBrand => $followContentIdsAndSlugsString) {
-            $contentFollowAttributes[$contentBrand . '_subscribed_coaches'] = implode(', ', $followContentIdsAndSlugsString);
+            $contentFollowAttributes[$contentBrand . '_subscribed_coaches'] = substr(
+                implode(
+                    ', ',
+                    $followContentIdsAndSlugsString
+                ),
+                0,
+                self::AttributeLimit
+            );
         }
 
         return $contentFollowAttributes;
@@ -314,9 +323,9 @@ class CustomerIoSyncService
      * If no brands are passed in this will get attributes for all brands in the config.
      * We need the $userProductAttributes since if the user is lifetime all the attributes should be null.
      *
-     * @param  User  $user
-     * @param  array  $userMembershipAccessAttributes
-     * @param  array  $brands
+     * @param User $user
+     * @param array $userMembershipAccessAttributes
+     * @param array $brands
      * @return array
      */
     public function getUsersSubscriptionAttributes(User $user, array $userMembershipAccessAttributes, $brands = [])
@@ -462,7 +471,7 @@ class CustomerIoSyncService
 
             if (!empty($latestSubscriptionToSync)) {
                 $subscriptionProductTag =
-                    $latestSubscriptionToSync->getIntervalCount().'_'.$latestSubscriptionToSync->getIntervalType();
+                    $latestSubscriptionToSync->getIntervalCount() . '_' . $latestSubscriptionToSync->getIntervalType();
 
                 // trial type
                 $customerIoTrialProductSkuToType =
@@ -479,7 +488,7 @@ class CustomerIoSyncService
             }
 
             // if the user is a lifetime make sure all subscription related info is set to null
-            if (($userMembershipAccessAttributes[$brand.'_membership_is_lifetime'] ?? false) == true) {
+            if (($userMembershipAccessAttributes[$brand . '_membership_is_lifetime'] ?? false) == true) {
                 $subscriptionPriceCents = null;
                 $subscriptionCurrency = null;
                 $membershipRenewalDate = null;
@@ -497,23 +506,23 @@ class CustomerIoSyncService
 
 
             $subscriptionAttributes += [
-                $brand.'_membership_status' => $subscriptionStatus,
-                $brand.'_membership_subscription_type' => $subscriptionProductTag,
-                $brand.'_membership_subscription-rate-cents' => $subscriptionPriceCents,
-                $brand.'_membership_subscription-currency' => $subscriptionCurrency,
-                $brand.'_membership_subscription_renewal-date' => $membershipRenewalDate,
-                $brand.'_retention_failed-billing_membership_subscription-renewal-attempts' => $membershipRenewalAttempts,
-                $brand.'_membership_subscription_cancellation-date' => $membershipCancellationDate,
-                $brand.'_membership_subscription_cancellation-reason' => $membershipCancellationReason,
-                $brand.'_membership_subscription_latest-start-date' => $latestSubscriptionStartedDate,
-                $brand.'_membership_subscription_first-start-date' => $firstSubscriptionStartedDate,
-                $brand.'_membership_subscription_trial-type' => $trialType,
-                $brand.'_user_payment_primary-method-expiration-date' => $expirationDate,
-                $brand.'_membership_subscription_source_app-store' => $isAppSignup,
+                $brand . '_membership_status' => $subscriptionStatus,
+                $brand . '_membership_subscription_type' => $subscriptionProductTag,
+                $brand . '_membership_subscription-rate-cents' => $subscriptionPriceCents,
+                $brand . '_membership_subscription-currency' => $subscriptionCurrency,
+                $brand . '_membership_subscription_renewal-date' => $membershipRenewalDate,
+                $brand . '_retention_failed-billing_membership_subscription-renewal-attempts' => $membershipRenewalAttempts,
+                $brand . '_membership_subscription_cancellation-date' => $membershipCancellationDate,
+                $brand . '_membership_subscription_cancellation-reason' => $membershipCancellationReason,
+                $brand . '_membership_subscription_latest-start-date' => $latestSubscriptionStartedDate,
+                $brand . '_membership_subscription_first-start-date' => $firstSubscriptionStartedDate,
+                $brand . '_membership_subscription_trial-type' => $trialType,
+                $brand . '_user_payment_primary-method-expiration-date' => $expirationDate,
+                $brand . '_membership_subscription_source_app-store' => $isAppSignup,
             ];
 
             if ($isAppSignup) {
-                $subscriptionAttributes[$brand.'_membership_trial_type'] = '7_days_free';
+                $subscriptionAttributes[$brand . '_membership_trial_type'] = '7_days_free';
             }
 
             // if the subscription due date is passed by more than a day, or its cancelled or suspended, but the user
@@ -535,8 +544,8 @@ class CustomerIoSyncService
      * Ex: _electrify-your-drumming_, _rock-drumming-masterclass-pack_, _LDS-DIGI_
      * Ex: _523_, _9_, _3774_
      *
-     * @param  User  $user
-     * @param  array  $brands
+     * @param User $user
+     * @param array $brands
      * @return array
      */
     public function getUsersProductOwnershipStrings(User $user, $brands = [])
@@ -544,8 +553,6 @@ class CustomerIoSyncService
         if (empty($brands)) {
             $brands = config('event-data-synchronizer.customer_io_brands_to_sync');
         }
-
-        $packSkusToSync = config('event-data-synchronizer.customer_io_pack_skus_to_sync_ownership');
 
         /**
          * @var $userProducts UserProduct[]
@@ -563,18 +570,20 @@ class CustomerIoSyncService
                     continue;
                 }
 
-                if (in_array($userProduct->getProduct()->getSku(), $packSkusToSync) && $userProduct->isValid()) {
-                    $productSkuArray[] = "_".$userProduct->getProduct()->getSku()."_";
-                    $idArray[] = "_".$userProduct->getProduct()->getId()."_";
+                if (($userProduct->getProduct()->getType() == Product::TYPE_DIGITAL_ONE_TIME ||
+                    $userProduct->getProduct()->getType() == Product::TYPE_DIGITAL_SUBSCRIPTION)
+                    && $userProduct->isValid()) {
+                    $productSkuArray[] = "_" . $userProduct->getProduct()->getSku() . "_";
+                    $idArray[] = "_" . $userProduct->getProduct()->getId() . "_";
                 }
             }
 
             if (!empty($productSkuArray)) {
-                $finalArray[$brand.'_owned_pack_product_skus'] = implode(', ', $productSkuArray);
+                $finalArray[$brand . '_owned_pack_product_skus'] = implode(', ', $productSkuArray);
             }
 
             if (!empty($idArray)) {
-                $finalArray[$brand.'_owned_pack_product_ids'] = implode(', ', $idArray);
+                $finalArray[$brand . '_owned_pack_product_ids'] = implode(', ', $idArray);
             }
         }
 
