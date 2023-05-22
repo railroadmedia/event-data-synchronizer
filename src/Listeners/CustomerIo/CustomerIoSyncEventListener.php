@@ -1272,6 +1272,7 @@ class CustomerIoSyncEventListener
                         'product_ids' => implode(",", $productIdsArray),
                         'amount_refunded' => $refund->getRefundedAmount(),
                         'subscription_id' => $subscriptionPayment ? $subscriptionPayment->getSubscription()->getId() : null,
+                        'timestamp' => $refund->getCreatedAt()->timestamp
                     ],
                     null,
                     Carbon::now()->timestamp
