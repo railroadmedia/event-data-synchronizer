@@ -3,6 +3,7 @@
 namespace Railroad\EventDataSynchronizer\Listeners;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Railroad\Ecommerce\Events\Subscriptions\CommandSubscriptionRenewFailed;
 use Railroad\Ecommerce\Events\UserProducts\UserProductCreated;
 use Railroad\Ecommerce\Events\UserProducts\UserProductDeleted;
@@ -51,8 +52,7 @@ class UserProductToUserContentPermissionListener
         ProductRepository $productRepository,
         PermissionRepository $permissionRepository,
         UserPermissionsRepository $userPermissionsRepository
-    )
-    {
+    ) {
         $this->userProductRepository = $userProductRepository;
         $this->productRepository = $productRepository;
         $this->permissionRepository = $permissionRepository;
@@ -84,7 +84,7 @@ class UserProductToUserContentPermissionListener
     }
 
     /**
-     * @param  CommandSubscriptionRenewFailed  $commandSubscriptionRenewFailed
+     * @param CommandSubscriptionRenewFailed $commandSubscriptionRenewFailed
      */
     public function handleSubscriptionRenewalFailureFromDatabaseError(
         CommandSubscriptionRenewFailed $commandSubscriptionRenewFailed
@@ -93,13 +93,13 @@ class UserProductToUserContentPermissionListener
             error_log('--- Attempting to recover railcontent renewal permissions ---');
             $this->syncUserId($commandSubscriptionRenewFailed->getSubscription()->getUser()->getId());
             error_log(
-                '--- Recovered railcontent renewal permissions successfully! user id: '.
-                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId().' ---'
+                '--- Recovered railcontent renewal permissions successfully! user id: ' .
+                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId() . ' ---'
             );
         } catch (\Exception $exception) {
             error_log(
-                '--- Recovered railcontent renewal permissions FAILED! user id: '.
-                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId().' ---'
+                '--- Recovered railcontent renewal permissions FAILED! user id: ' .
+                $commandSubscriptionRenewFailed->getSubscription()->getUser()->getId() . ' ---'
             );
             error_log($exception);
         }
@@ -108,11 +108,15 @@ class UserProductToUserContentPermissionListener
     public function syncUserId($userId)
     {
         $allUsersProducts = $this->userProductRepository->getAllUsersProducts($userId);
-
+        $permissions = $this->permissionRepository->getAll();
+        $permissionsLookup = [];
+        foreach ($permissions as $permission) {
+            $key = $permission['brand'] . '_' . $permission['name'];
+            $permissionsLookup[$key] = $permission;
+        }
         $permissionsToCreate = [];
 
         foreach ($allUsersProducts as $allUsersProduct) {
-
             $permissionNames = $allUsersProduct->getProduct()->getDigitalAccessPermissionNames();
 
             if (empty($permissionNames)) {
@@ -121,24 +125,36 @@ class UserProductToUserContentPermissionListener
 
             foreach ($permissionNames as $permissionName) {
                 // we need to check by brand as well since some permissions across brands have the same name
-                $permissionArrayKey = $permissionName . '|' . $allUsersProduct->getProduct()->getBrand();
+                $brand = $allUsersProduct->getProduct()->getBrand();
+                $keyBrand = $brand . '_' . $permissionName;
+                $keyGeneral = 'musora_' . $permissionName;
+                $permission = $permissionsLookup[$keyBrand] ?? $permissionsLookup[$keyGeneral] ?? null;
+                if (!$permission) {
+                    $productName = $allUsersProduct->getProduct()->getId() . ' - ' .
+                        $allUsersProduct->getProduct()->getName();
+                    Log::error(
+                        "Permission $brand - $permissionName does not exist.  Fix issue with product $productName and resync."
+                    );
+                    continue;
+                }
+                $permissionId = $permission['id'];
 
-                if (!array_key_exists($permissionArrayKey, $permissionsToCreate)) {
-                    $permissionsToCreate[$permissionArrayKey] = [
+                if (!array_key_exists($permissionId, $permissionsToCreate)) {
+                    $permissionsToCreate[$permissionId] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
                     ];
                 } elseif ($allUsersProduct->getExpirationDate() === null) {
-                    $permissionsToCreate[$permissionArrayKey] = [
+                    $permissionsToCreate[$permissionId] = [
                         'expiration_date' => $allUsersProduct->getExpirationDate(),
                         'start_date' => $allUsersProduct->getStartDate(),
                     ];
-                } elseif (isset($permissionsToCreate[$permissionArrayKey]) &&
-                    $permissionsToCreate[$permissionArrayKey] !== null &&
-                    !empty($permissionsToCreate[$permissionArrayKey]['expiration_date'])) {
-                    if ($permissionsToCreate[$permissionArrayKey]['expiration_date'] < $allUsersProduct->getExpirationDate(
+                } elseif (isset($permissionsToCreate[$permissionId]) &&
+                    $permissionsToCreate[$permissionId] !== null &&
+                    !empty($permissionsToCreate[$permissionId]['expiration_date'])) {
+                    if ($permissionsToCreate[$permissionId]['expiration_date'] < $allUsersProduct->getExpirationDate(
                         )) {
-                        $permissionsToCreate[$permissionArrayKey] = [
+                        $permissionsToCreate[$permissionId] = [
                             'expiration_date' => $allUsersProduct->getExpirationDate(),
                             'start_date' => $allUsersProduct->getStartDate(),
                         ];;
@@ -147,27 +163,9 @@ class UserProductToUserContentPermissionListener
             }
         }
 
-        foreach ($permissionsToCreate as $permissionNameAndBrandToSync => $dates) {
-
-            $permissionNameToSync = explode('|', $permissionNameAndBrandToSync)[0];
-            $permissionBrandToSync = explode('|', $permissionNameAndBrandToSync)[1];
+        foreach ($permissionsToCreate as $permissionId => $dates) {
             $expirationDate = $dates['expiration_date'];
             $startDate = $dates['start_date'] ?? Carbon::now()->toDateTimeString();
-
-            // special use case for musora permissions
-            if (str_contains($permissionNameToSync, 'Musora')) {
-                $permissionBrandToSync = 'musora';
-            }
-
-            $permissionId =
-                $this->permissionRepository->query()
-                    ->where('name', $permissionNameToSync)
-                    ->where('brand', $permissionBrandToSync)
-                    ->first(['id'])['id'] ?? null;
-
-            if (empty($permissionId)) {
-                continue;
-            }
 
             $existingPermission =
                 $this->userPermissionsRepository->getIdByPermissionAndUser(
@@ -190,7 +188,8 @@ class UserProductToUserContentPermissionListener
                             ->toDateTimeString(),
                     ]
                 );
-            } else {
+            } elseif ($existingPermission['expiration_date'] != $expirationDate ||
+                $existingPermission['start_date'] > $startDate) {
                 $this->userPermissionsRepository->update(
                     $existingPermission['id'],
                     [
