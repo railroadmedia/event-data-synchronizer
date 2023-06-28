@@ -15,6 +15,7 @@ interface UserProviderInterface
     /**
      * @param int $userId
      * @param Carbon|null $membershipExpirationDate
+     * @param Carbon|null $membershipStartDate
      * @param bool $isLifetimeMember
      * @param string $accessLevel
      * @param bool $isPackOwner
@@ -25,6 +26,7 @@ interface UserProviderInterface
     public function saveMembershipData(
         int $userId,
         Carbon $membershipExpirationDate = null,
+        Carbon $membershipStartDate = null,
         bool $isLifetimeMember,
         string $accessLevel,
         bool $isPackOwner,
