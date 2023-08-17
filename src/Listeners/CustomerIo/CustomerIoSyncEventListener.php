@@ -918,7 +918,10 @@ class CustomerIoSyncEventListener
                     'product_id' => $productIds,
                     'amount_paid' => $payment ? $payment->getTotalPaid() : $order->getTotalPaid(),
                     'amount_due' => $order->getTotalDue(),
+                    'timestamp' => $order->getCreatedAt()->timestamp,
                 ];
+
+                $data['brand'] = $order->getBrand();
 
                 dispatch(
                     (new CustomerIoCreateEventByUserId(
@@ -926,6 +929,23 @@ class CustomerIoSyncEventListener
                             ->getId(),
                         $order->getBrand(),
                         $order->getBrand().'_user_order',
+                        $data,
+                        null,
+                        $order->getCreatedAt()->timestamp
+                    ))->onConnection($this->queueConnectionName)
+                        ->onQueue($this->queueName)
+                        ->delay(
+                            Carbon::now()
+                                ->addSeconds(30)
+                        )
+                );
+
+                dispatch(
+                    (new CustomerIoCreateEventByUserId(
+                        $order->getUser()
+                            ->getId(),
+                        $order->getBrand(),
+                        'musora_user_order',
                         $data,
                         null,
                         $order->getCreatedAt()->timestamp
