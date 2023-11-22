@@ -56,112 +56,112 @@ class EventDataSynchronizerServiceProvider extends EventServiceProvider
      * @var array
      */
     protected $listen = [
-        UserCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserCreated',
-            HelpScoutEventListener::class . '@handleUserCreated',
-        ],
-        UserUpdated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserUpdated',
-            HelpScoutEventListener::class . '@handleUserUpdated',
-        ],
-        PaymentMethodCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodCreated',
-        ],
-        PaymentMethodUpdated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodUpdated',
-        ],
-        UserProductCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserProductCreated',
-            UserProductToUserContentPermissionListener::class . '@handleCreated',
-            HelpScoutEventListener::class . '@handleUserProductCreated',
-            UserMembershipFieldsListener::class . '@handleUserProductCreated',
-        ],
-        UserProductUpdated::class => [
-            CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
-            UserProductToUserContentPermissionListener::class . '@handleUpdated',
-            HelpScoutEventListener::class . '@handleUserProductUpdated',
-            UserMembershipFieldsListener::class . '@handleUserProductUpdated',
-        ],
-        UserProductDeleted::class => [
-            CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
-            UserProductToUserContentPermissionListener::class . '@handleDeleted',
-            HelpScoutEventListener::class . '@handleUserProductDeleted',
-            UserMembershipFieldsListener::class . '@handleUserProductDeleted',
-        ],
-        SubscriptionCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
-            HelpScoutEventListener::class . '@handleSubscriptionCreated',
-        ],
-        SubscriptionUpdated::class => [
-            CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
-            HelpScoutEventListener::class . '@handleSubscriptionUpdated',
-        ],
-        SubscriptionRenewed::class => [
-            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
-            HelpScoutEventListener::class . '@handleSubscriptionRenewed',
-        ],
-        SubscriptionRenewFailed::class => [
-            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
-            HelpScoutEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
-        ],
-        OrderEvent::class => [
-            CustomerIoSyncEventListener::class . '@handleOrderPlaced',
-        ],
-        PaymentEvent::class => [
-            CustomerIoSyncEventListener::class . '@handlePaymentPaid',
-        ],
-
-        AppSignupStartedEvent::class => [
-            CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
-        ],
-        AppSignupFinishedEvent::class => [
-            CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
-        ],
-        CommentLiked::class => [
-            CustomerIoSyncEventListener::class . '@handleCommentLiked',
-        ],
-        CommentCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleCommentCreated',
-        ],
-        ThreadCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleForumsThreadCreated',
-        ],
-        PostCreated::class => [
-            CustomerIoSyncEventListener::class . '@handleForumsPostCreated',
-        ],
-        UserContentProgressSaved::class => [
-            CustomerIoSyncEventListener::class . '@handleUserContentProgressSaved',
-        ],
-        LiveStreamEventAttended::class => [
-            CustomerIoSyncEventListener::class . '@handleLiveLessonAttended',
-        ],
-        FirstActivityPerDay::class => [
-            CustomerIoSyncEventListener::class . '@handleFirstActivityPerDay',
-        ],
-        UTMLinks::class => [
-//            CustomerIoSyncEventListener::class . '@handleUTMLinks',
-        ],
-        MobileAppLogin::class => [
-            CustomerIoSyncEventListener::class . '@handleMobileAppLogin',
-        ],
-        ContentFollow::class => [
-            CustomerIoSyncEventListener::class . '@handleContentFollow',
-        ],
-        ContentUnfollow::class => [
-            CustomerIoSyncEventListener::class . '@handleContentUnfollow',
-        ],
-        EmailInvite::class => [
-            CustomerIoSyncEventListener::class . '@handleReferralInvite',
-        ],
-        CommandSubscriptionRenewFailed::class => [
-            UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
-        ],
-        AccessCodeClaimed::class => [
-            CustomerIoSyncEventListener::class . '@handleAccessCodeClaimed',
-        ],
-        RefundEvent::class => [
-            CustomerIoSyncEventListener::class . '@handleRefund',
-        ],
+//        UserCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserCreated',
+//            HelpScoutEventListener::class . '@handleUserCreated',
+//        ],
+//        UserUpdated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserUpdated',
+//            HelpScoutEventListener::class . '@handleUserUpdated',
+//        ],
+//        PaymentMethodCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodCreated',
+//        ],
+//        PaymentMethodUpdated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserPaymentMethodUpdated',
+//        ],
+//        UserProductCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserProductCreated',
+//            UserProductToUserContentPermissionListener::class . '@handleCreated',
+//            HelpScoutEventListener::class . '@handleUserProductCreated',
+//            UserMembershipFieldsListener::class . '@handleUserProductCreated',
+//        ],
+//        UserProductUpdated::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserProductUpdated',
+//            UserProductToUserContentPermissionListener::class . '@handleUpdated',
+//            HelpScoutEventListener::class . '@handleUserProductUpdated',
+//            UserMembershipFieldsListener::class . '@handleUserProductUpdated',
+//        ],
+//        UserProductDeleted::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserProductDeleted',
+//            UserProductToUserContentPermissionListener::class . '@handleDeleted',
+//            HelpScoutEventListener::class . '@handleUserProductDeleted',
+//            UserMembershipFieldsListener::class . '@handleUserProductDeleted',
+//        ],
+//        SubscriptionCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleSubscriptionCreated',
+//            HelpScoutEventListener::class . '@handleSubscriptionCreated',
+//        ],
+//        SubscriptionUpdated::class => [
+//            CustomerIoSyncEventListener::class . '@handleSubscriptionUpdated',
+//            HelpScoutEventListener::class . '@handleSubscriptionUpdated',
+//        ],
+//        SubscriptionRenewed::class => [
+//            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewed',
+//            HelpScoutEventListener::class . '@handleSubscriptionRenewed',
+//        ],
+//        SubscriptionRenewFailed::class => [
+//            CustomerIoSyncEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
+//            HelpScoutEventListener::class . '@handleSubscriptionRenewalAttemptFailed',
+//        ],
+//        OrderEvent::class => [
+//            CustomerIoSyncEventListener::class . '@handleOrderPlaced',
+//        ],
+//        PaymentEvent::class => [
+//            CustomerIoSyncEventListener::class . '@handlePaymentPaid',
+//        ],
+//
+//        AppSignupStartedEvent::class => [
+//            CustomerIoSyncEventListener::class . '@handleAppSignupStarted',
+//        ],
+//        AppSignupFinishedEvent::class => [
+//            CustomerIoSyncEventListener::class . '@handleAppSignupFinished',
+//        ],
+//        CommentLiked::class => [
+//            CustomerIoSyncEventListener::class . '@handleCommentLiked',
+//        ],
+//        CommentCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleCommentCreated',
+//        ],
+//        ThreadCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleForumsThreadCreated',
+//        ],
+//        PostCreated::class => [
+//            CustomerIoSyncEventListener::class . '@handleForumsPostCreated',
+//        ],
+//        UserContentProgressSaved::class => [
+//            CustomerIoSyncEventListener::class . '@handleUserContentProgressSaved',
+//        ],
+//        LiveStreamEventAttended::class => [
+//            CustomerIoSyncEventListener::class . '@handleLiveLessonAttended',
+//        ],
+//        FirstActivityPerDay::class => [
+//            CustomerIoSyncEventListener::class . '@handleFirstActivityPerDay',
+//        ],
+//        UTMLinks::class => [
+////            CustomerIoSyncEventListener::class . '@handleUTMLinks',
+//        ],
+//        MobileAppLogin::class => [
+//            CustomerIoSyncEventListener::class . '@handleMobileAppLogin',
+//        ],
+//        ContentFollow::class => [
+//            CustomerIoSyncEventListener::class . '@handleContentFollow',
+//        ],
+//        ContentUnfollow::class => [
+//            CustomerIoSyncEventListener::class . '@handleContentUnfollow',
+//        ],
+//        EmailInvite::class => [
+//            CustomerIoSyncEventListener::class . '@handleReferralInvite',
+//        ],
+//        CommandSubscriptionRenewFailed::class => [
+//            UserProductToUserContentPermissionListener::class . '@handleSubscriptionRenewalFailureFromDatabaseError'
+//        ],
+//        AccessCodeClaimed::class => [
+//            CustomerIoSyncEventListener::class . '@handleAccessCodeClaimed',
+//        ],
+//        RefundEvent::class => [
+//            CustomerIoSyncEventListener::class . '@handleRefund',
+//        ],
     ];
 
     /**
